@@ -1,4 +1,4 @@
-# Cophrase
+# CoPhrase
 
 Open-source AI agents for content marketing — helping you create high-quality marketing content including blogs, social posts, presentations, and more.
 
