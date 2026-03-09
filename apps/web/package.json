@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:portless": "portless cophrase next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
