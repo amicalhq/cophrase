@@ -46,7 +46,7 @@ export default function SignUpPage() {
 
   return (
     <div className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Create an account</CardTitle>
           <CardDescription>
@@ -93,7 +93,7 @@ export default function SignUpPage() {
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter className="flex flex-col gap-4 pt-2">
             <Button
               type="submit"
               className="w-full"
