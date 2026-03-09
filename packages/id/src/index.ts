@@ -12,3 +12,10 @@ function createIdGenerator(prefix: string, size: number) {
 // Use shorter sizes (8) for low-cardinality, longer (16) for high-cardinality.
 
 export const createAiProviderId = createIdGenerator("aip", 10)
+export const createUserId = createIdGenerator("usr", 10)
+export const createSessionId = createIdGenerator("ses", 16)
+export const createAccountId = createIdGenerator("acc", 10)
+export const createVerificationId = createIdGenerator("ver", 16)
+export const createOrganizationId = createIdGenerator("org", 10)
+export const createMemberId = createIdGenerator("mem", 10)
+export const createInvitationId = createIdGenerator("inv", 10)
