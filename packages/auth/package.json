@@ -16,6 +16,7 @@
     "better-auth": "latest"
   },
   "devDependencies": {
+    "@types/node": "^25.1.0",
     "@workspace/typescript-config": "workspace:*",
     "typescript": "5.9.3"
   }
