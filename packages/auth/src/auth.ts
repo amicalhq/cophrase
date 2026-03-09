@@ -38,10 +38,12 @@ export const auth = betterAuth({
     nextCookies(),
   ],
   advanced: {
-    generateId: ({ model }) => {
-      const generator = idGenerators[model]
-      if (generator) return generator()
-      return createUserId() // fallback
+    database: {
+      generateId: ({ model }: { model: string }) => {
+        const generator = idGenerators[model]
+        if (generator) return generator()
+        return createUserId() // fallback
+      },
     },
   },
 })
