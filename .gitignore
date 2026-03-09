@@ -35,11 +35,20 @@ npm-debug.log*
 .DS_Store
 *.pem
 
-# Claude
+# AI
 .claude
+.agents
+CLAUDE.md
+agents.md
+
+# Playwright
+playwright-report/
+blob-report/
+test-results/
+playwright/.cache/
 
 # Docs
 docs
 
-# Agents
-.agents
+# VS Code
+.vscode
