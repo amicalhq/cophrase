@@ -23,7 +23,7 @@ export default function SignInPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError("")
     setLoading(true)
@@ -41,9 +41,10 @@ export default function SignInPage() {
 
     // Set the user's first org as active
     const { data: orgs } = await authClient.organization.list()
-    if (orgs && orgs.length > 0) {
+    const firstOrg = orgs?.[0]
+    if (firstOrg) {
       await authClient.organization.setActive({
-        organizationId: orgs[0].id,
+        organizationId: firstOrg.id,
       })
     }
 

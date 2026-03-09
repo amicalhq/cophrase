@@ -31,7 +31,7 @@ export default function OrgSetupPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError("")
     setLoading(true)
@@ -44,8 +44,8 @@ export default function OrgSetupPage() {
         slug,
       })
 
-    if (createError) {
-      setError(createError.message ?? "Failed to create organization")
+    if (createError || !data) {
+      setError(createError?.message ?? "Failed to create organization")
       setLoading(false)
       return
     }
