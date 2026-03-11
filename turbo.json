@@ -19,6 +19,11 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "test:e2e": {
+      "inputs": ["$TURBO_DEFAULT$", "tests/**", "playwright.config.ts"],
+      "outputs": ["playwright-report/**", "test-results/**"],
+      "cache": false
     }
   }
 }
