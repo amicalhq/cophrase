@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { db, eq, user, organization } from "@workspace/db"
 
 test.describe("Unauthenticated user", () => {
   test("is redirected to sign-in and sees the login form", async ({ page }) => {
@@ -94,5 +95,12 @@ test.describe.serial("Auth flow", () => {
     await expect(page).toHaveURL("/", { timeout: 10_000 })
     await expect(page.getByText("Welcome to CoPhrase.")).toBeVisible()
     await expect(page.getByText(testUser.orgName)).toBeVisible()
+  })
+
+  test.afterAll(async () => {
+    // Delete test user (cascades to sessions, accounts, members)
+    await db.delete(user).where(eq(user.email, testUser.email))
+    // Delete test org (cascades to remaining members, invitations)
+    await db.delete(organization).where(eq(organization.name, testUser.orgName))
   })
 })
