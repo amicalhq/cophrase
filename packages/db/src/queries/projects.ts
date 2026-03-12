@@ -15,20 +15,17 @@ export async function getProjectsByOrg(organizationId: string) {
     .where(eq(project.organizationId, organizationId))
 }
 
-export async function getProjectById(id: string) {
-  const [result] = await db
-    .select()
-    .from(project)
-    .where(eq(project.id, id))
-  return result ?? null
-}
-
 export async function getProjectByIdAndOrg(
   id: string,
   organizationId: string,
 ) {
   const [result] = await db
-    .select()
+    .select({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      organizationId: project.organizationId,
+    })
     .from(project)
     .where(and(eq(project.id, id), eq(project.organizationId, organizationId)))
   return result ?? null

@@ -87,20 +87,12 @@ export function OrgProjectPicker({
   }, [organization?.id])
 
   React.useEffect(() => {
-    if (open) {
-      setTimeout(() => {
-        if (triggerType === "org") {
-          orgInputRef.current?.focus()
-        } else {
-          projectInputRef.current?.focus()
-        }
-      }, 0)
-    } else {
+    if (!open) {
       // Clear search filters when popover closes
       setOrgSearch("")
       setProjectSearch("")
     }
-  }, [open, triggerType])
+  }, [open])
 
   const allOrganizations =
     orgsData?.map((org) => ({
