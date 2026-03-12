@@ -1,4 +1,3 @@
-import { relations } from "drizzle-orm"
 import {
   pgTable,
   text,
@@ -35,10 +34,3 @@ export const aiProvider = pgTable(
     ),
   ],
 )
-
-export const aiProviderRelations = relations(aiProvider, ({ one }) => ({
-  organization: one(organization, {
-    fields: [aiProvider.organizationId],
-    references: [organization.id],
-  }),
-}))
