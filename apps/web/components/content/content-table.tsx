@@ -127,7 +127,6 @@ export function ContentTable({ data }: ContentTableProps) {
         <ToggleGroup
           type="multiple"
           variant="outline"
-          size="sm"
           value={selectedTypes}
           onValueChange={handleTypeChange}
         >
