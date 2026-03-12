@@ -40,7 +40,7 @@ export function TopNavigation({
             href="/orgs"
             className="mr-1 hidden transition-opacity hover:opacity-80 md:block"
           >
-            <Logo variant="icon" iconClassName="h-5 w-5" className="gap-0" />
+            <Logo variant="icon" iconClassName="text-lg leading-none" className="gap-0" />
           </Link>
           <span className="text-muted-foreground/50 hidden md:block">/</span>
 

@@ -17,7 +17,7 @@ export function Logo({
     return (
       <div className={cn("flex items-center", className)}>
         <span
-          className={cn("font-semibold tracking-tight text-base", iconClassName)}
+          className={cn("font-semibold tracking-tight", iconClassName)}
         >
           C
         </span>
