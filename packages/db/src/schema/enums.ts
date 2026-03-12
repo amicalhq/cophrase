@@ -9,3 +9,13 @@ export const aiProviderEnum = pgEnum("ai_provider", [
   "claudecode",
   "custom",
 ])
+
+export const contentTypeEnum = pgEnum("content_type", ["blog", "social"])
+
+export const contentStageEnum = pgEnum("content_stage", [
+  "idea",
+  "draft",
+  "review",
+  "ready",
+  "published",
+])
