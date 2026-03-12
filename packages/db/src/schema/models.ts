@@ -13,7 +13,7 @@ import { modelTypeEnum } from "./enums"
 import { createAiModelId } from "@workspace/id"
 
 export const aiModel = pgTable(
-  "ai_model",
+  "model",
   {
     id: text("id").primaryKey().$defaultFn(createAiModelId),
     organizationId: text("organization_id")
@@ -32,14 +32,14 @@ export const aiModel = pgTable(
       .notNull(),
   },
   (table) => [
-    index("ai_model_organizationId_idx").on(table.organizationId),
-    index("ai_model_providerId_idx").on(table.providerId),
-    uniqueIndex("ai_model_provider_model_idx").on(
+    index("model_organizationId_idx").on(table.organizationId),
+    index("model_providerId_idx").on(table.providerId),
+    uniqueIndex("model_provider_model_idx").on(
       table.providerId,
       table.modelId,
     ),
     // Partial unique index: one default per (org, model_type)
-    uniqueIndex("ai_model_default_idx")
+    uniqueIndex("model_default_idx")
       .on(table.organizationId, table.modelType)
       .where(sql`is_default = true`),
   ],

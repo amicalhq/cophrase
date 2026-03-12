@@ -10,7 +10,7 @@ import { providerTypeEnum } from "./enums"
 import { createAiProviderId } from "@workspace/id"
 
 export const aiProvider = pgTable(
-  "ai_provider",
+  "provider",
   {
     id: text("id").primaryKey().$defaultFn(createAiProviderId),
     organizationId: text("organization_id")
@@ -27,8 +27,8 @@ export const aiProvider = pgTable(
       .notNull(),
   },
   (table) => [
-    index("ai_provider_organizationId_idx").on(table.organizationId),
-    uniqueIndex("ai_provider_org_name_idx").on(
+    index("provider_organizationId_idx").on(table.organizationId),
+    uniqueIndex("provider_org_name_idx").on(
       table.organizationId,
       table.name,
     ),
