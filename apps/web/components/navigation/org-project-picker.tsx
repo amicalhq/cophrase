@@ -73,9 +73,18 @@ export function OrgProjectPicker({
         if (err instanceof DOMException && err.name === "AbortError") return
         setProjects([])
       })
-      .finally(() => setProjectsLoading(false))
+      .finally(() => {
+        if (!controller.signal.aborted) setProjectsLoading(false)
+      })
     return () => controller.abort()
   }, [open, selectedOrgId])
+
+  // Sync selectedOrgId when organization prop changes
+  React.useEffect(() => {
+    if (organization?.id) {
+      setSelectedOrgId(organization.id)
+    }
+  }, [organization?.id])
 
   React.useEffect(() => {
     if (open) {
@@ -86,10 +95,12 @@ export function OrgProjectPicker({
           projectInputRef.current?.focus()
         }
       }, 0)
-    } else if (organization) {
-      setSelectedOrgId(organization.id)
+    } else {
+      // Clear search filters when popover closes
+      setOrgSearch("")
+      setProjectSearch("")
     }
-  }, [open, triggerType, organization])
+  }, [open, triggerType])
 
   const allOrganizations =
     orgsData?.map((org) => ({

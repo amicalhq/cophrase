@@ -6,7 +6,7 @@ import { TabNavigation } from "@/components/navigation/tab-navigation"
 
 interface ProjectLayoutClientProps {
   orgId: string
-  project: { id: string; name: string } | null
+  project: { id: string; name: string }
   children: React.ReactNode
 }
 
@@ -24,20 +24,17 @@ export function ProjectLayoutClient({
   const projectTabs = [
     {
       label: "Overview",
-      href: `/orgs/${orgId}/projects/${project?.id}/overview`,
+      href: `/orgs/${orgId}/projects/${project.id}/overview`,
     },
     {
       label: "Settings",
-      href: `/orgs/${orgId}/projects/${project?.id}/settings`,
+      href: `/orgs/${orgId}/projects/${project.id}/settings`,
     },
   ]
 
   return (
     <div className="bg-background min-h-screen">
-      <TopNavigation
-        organization={organization}
-        project={project ?? undefined}
-      />
+      <TopNavigation organization={organization} project={project} />
       <TabNavigation tabs={projectTabs} />
       {children}
     </div>

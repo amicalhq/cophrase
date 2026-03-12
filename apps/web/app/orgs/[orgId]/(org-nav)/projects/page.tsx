@@ -1,9 +1,12 @@
-import { getProjectsByOrg } from "@/lib/data/projects"
+import { headers } from "next/headers"
+import { redirect } from "next/navigation"
 import Link from "next/link"
+import { auth } from "@workspace/auth"
 import {
   Avatar,
   AvatarFallback,
 } from "@workspace/ui/components/avatar"
+import { getProjectsByOrg, isOrgMember } from "@/lib/data/projects"
 
 export default async function ProjectsPage({
   params,
@@ -11,6 +14,13 @@ export default async function ProjectsPage({
   params: Promise<{ orgId: string }>
 }) {
   const { orgId } = await params
+
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) redirect("/sign-in")
+
+  const isMember = await isOrgMember(session.user.id, orgId)
+  if (!isMember) redirect("/orgs")
+
   const projects = await getProjectsByOrg(orgId)
 
   return (
