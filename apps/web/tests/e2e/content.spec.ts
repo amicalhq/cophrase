@@ -130,12 +130,15 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByText("My First Blog Post")).toBeVisible()
     await expect(page.getByText("Launch Announcement")).toBeVisible()
 
-    // Filter by Blog type
-    await page.locator("button", { hasText: "All types" }).click()
-    await page.getByRole("option", { name: "Blog" }).click()
+    // Filter by Blog type using ToggleGroup button
+    await page.getByRole("radio", { name: "Blog" }).click()
 
     await expect(page.getByText("My First Blog Post")).toBeVisible()
     await expect(page.getByText("Launch Announcement")).not.toBeVisible()
+
+    // Deselect Blog to show all again
+    await page.getByRole("radio", { name: "Blog" }).click()
+    await expect(page.getByText("Launch Announcement")).toBeVisible()
   })
 
   test("can search by title", async ({ page }) => {

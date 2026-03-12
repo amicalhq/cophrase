@@ -65,6 +65,7 @@ export function CreateContentDialog({
         return
       }
 
+      setLoading(false)
       setOpen(false)
       setTitle("")
       setType("blog")
