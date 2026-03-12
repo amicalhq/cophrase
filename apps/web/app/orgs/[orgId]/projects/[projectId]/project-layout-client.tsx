@@ -1,0 +1,45 @@
+"use client"
+
+import { authClient } from "@workspace/auth/client"
+import { TopNavigation } from "@/components/navigation/top-navigation"
+import { TabNavigation } from "@/components/navigation/tab-navigation"
+
+interface ProjectLayoutClientProps {
+  orgId: string
+  project: { id: string; name: string } | null
+  children: React.ReactNode
+}
+
+export function ProjectLayoutClient({
+  orgId,
+  project,
+  children,
+}: ProjectLayoutClientProps) {
+  const { data: activeOrg } = authClient.useActiveOrganization()
+
+  const organization = activeOrg
+    ? { id: activeOrg.id, name: activeOrg.name, logo: activeOrg.logo }
+    : undefined
+
+  const projectTabs = [
+    {
+      label: "Overview",
+      href: `/orgs/${orgId}/projects/${project?.id}/overview`,
+    },
+    {
+      label: "Settings",
+      href: `/orgs/${orgId}/projects/${project?.id}/settings`,
+    },
+  ]
+
+  return (
+    <div className="bg-background min-h-screen">
+      <TopNavigation
+        organization={organization}
+        project={project ?? undefined}
+      />
+      <TabNavigation tabs={projectTabs} />
+      {children}
+    </div>
+  )
+}

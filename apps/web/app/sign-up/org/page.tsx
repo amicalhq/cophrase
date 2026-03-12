@@ -54,7 +54,7 @@ export default function OrgSetupPage() {
       organizationId: data.id,
     })
 
-    router.push("/")
+    router.push("/orgs")
   }
 
   return (
