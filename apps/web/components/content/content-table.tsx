@@ -28,18 +28,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@workspace/ui/components/toggle-group"
 import { Button } from "@workspace/ui/components/button"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowUp01Icon, ArrowDown01Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons"
 import { columns, type ContentRow } from "./columns"
 
 interface ContentTableProps {
   data: ContentRow[]
 }
-
-const typeOptions = [
-  { label: "All types", value: "all" },
-  { label: "Blog", value: "blog" },
-  { label: "Social", value: "social" },
-]
 
 const stageOptions = [
   { label: "All stages", value: "all" },
@@ -58,11 +58,13 @@ export function ContentTable({ data }: ContentTableProps) {
 
   const [searchQuery, setSearchQuery] = useQueryState("q", { defaultValue: "" })
   const [typeFilter, setTypeFilter] = useQueryState("type", {
-    defaultValue: "all",
+    defaultValue: "",
   })
   const [stageFilter, setStageFilter] = useQueryState("stage", {
     defaultValue: "all",
   })
+
+  const selectedTypes = typeFilter ? typeFilter.split(",") : []
 
   const table = useReactTable({
     data,
@@ -89,8 +91,8 @@ export function ContentTable({ data }: ContentTableProps) {
 
   // Sync URL filter state to column filters on mount and when URL params change
   useEffect(() => {
-    if (typeFilter !== "all") {
-      table.getColumn("type")?.setFilterValue([typeFilter])
+    if (selectedTypes.length > 0) {
+      table.getColumn("type")?.setFilterValue(selectedTypes)
     } else {
       table.getColumn("type")?.setFilterValue(undefined)
     }
@@ -104,8 +106,8 @@ export function ContentTable({ data }: ContentTableProps) {
     }
   }, [stageFilter, table])
 
-  const handleTypeChange = (value: string) => {
-    setTypeFilter(value)
+  const handleTypeChange = (value: string[]) => {
+    setTypeFilter(value.length > 0 ? value.join(",") : "")
   }
 
   const handleStageChange = (value: string) => {
@@ -122,18 +124,16 @@ export function ContentTable({ data }: ContentTableProps) {
           onChange={(e) => setSearchQuery(e.target.value || "")}
           className="max-w-[280px]"
         />
-        <Select value={typeFilter} onValueChange={handleTypeChange}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            {typeOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <ToggleGroup
+          type="multiple"
+          variant="outline"
+          size="sm"
+          value={selectedTypes}
+          onValueChange={handleTypeChange}
+        >
+          <ToggleGroupItem value="blog">Blog</ToggleGroupItem>
+          <ToggleGroupItem value="social">Social</ToggleGroupItem>
+        </ToggleGroup>
         <Select value={stageFilter} onValueChange={handleStageChange}>
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Stage" />
@@ -150,30 +150,57 @@ export function ContentTable({ data }: ContentTableProps) {
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table>
+        <Table style={{ tableLayout: "fixed", width: "100%" }}>
+          <colgroup>
+            {table.getAllColumns().map((column) => (
+              <col
+                key={column.id}
+                style={
+                  column.id === "title"
+                    ? { width: "auto" }
+                    : { width: `${column.getSize()}px` }
+                }
+              />
+            ))}
+          </colgroup>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className={
-                      header.column.getCanSort()
-                        ? "cursor-pointer select-none"
-                        : ""
-                    }
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
+                {headerGroup.headers.map((header) => {
+                  const align = (header.column.columnDef.meta as { align?: string })?.align
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={[
+                        header.column.getCanSort()
+                          ? "cursor-pointer select-none"
+                          : "",
+                        align === "right" ? "text-right" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                        {header.column.getCanSort() && (
+                          header.column.getIsSorted() === "asc" ? (
+                            <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={2} className="size-3.5 text-foreground" />
+                          ) : header.column.getIsSorted() === "desc" ? (
+                            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="size-3.5 text-foreground" />
+                          ) : (
+                            <HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={2} className="size-3.5 text-muted-foreground/50" />
+                          )
                         )}
-                    {header.column.getIsSorted() === "asc" && " ↑"}
-                    {header.column.getIsSorted() === "desc" && " ↓"}
-                  </TableHead>
-                ))}
+                      </span>
+                    </TableHead>
+                  )
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -181,14 +208,20 @@ export function ContentTable({ data }: ContentTableProps) {
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const align = (cell.column.columnDef.meta as { align?: string })?.align
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        className={align === "right" ? "text-right" : ""}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    )
+                  })}
                 </TableRow>
               ))
             ) : (

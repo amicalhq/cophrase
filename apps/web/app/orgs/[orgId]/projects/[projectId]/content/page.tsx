@@ -21,7 +21,7 @@ export default async function ContentPage({
   }))
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8 md:px-6">
+    <main className="mx-auto max-w-6xl px-4 py-8 md:px-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Content</h1>
         <CreateContentDialog orgId={orgId} projectId={projectId} />

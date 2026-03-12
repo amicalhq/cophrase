@@ -9,8 +9,8 @@ test.describe.serial("Content pieces", () => {
     password: "testpassword123",
     orgName: `Content Test Org ${testId}`,
   }
-  let orgId: string
-  let projectId: string
+  let orgId = ""
+  let projectId = ""
 
   test("setup: sign up and create org", async ({ page }) => {
     await page.goto("/sign-up")
@@ -42,7 +42,7 @@ test.describe.serial("Content pieces", () => {
     const url = page.url()
     const orgMatch = url.match(/\/orgs\/([^/]+)/)
     expect(orgMatch).toBeTruthy()
-    orgId = orgMatch![1]
+    orgId = orgMatch![1]!
 
     // Create a project
     await page.getByRole("button", { name: "New project" }).click()
@@ -55,7 +55,7 @@ test.describe.serial("Content pieces", () => {
     const projectUrl = page.url()
     const projMatch = projectUrl.match(/\/projects\/([^/]+)/)
     expect(projMatch).toBeTruthy()
-    projectId = projMatch![1]
+    projectId = projMatch![1]!
   })
 
   test("content page shows empty state", async ({ page }) => {

@@ -61,6 +61,7 @@ export const columns: ColumnDef<ContentRow>[] = [
   {
     accessorKey: "title",
     header: "Title",
+    size: 1000,
     cell: ({ row }) => (
       <span className="font-medium">{row.getValue("title")}</span>
     ),
@@ -68,6 +69,7 @@ export const columns: ColumnDef<ContentRow>[] = [
   {
     accessorKey: "type",
     header: "Type",
+    size: 100,
     cell: ({ row }) => {
       const type = row.getValue("type") as ContentRow["type"]
       return (
@@ -83,6 +85,7 @@ export const columns: ColumnDef<ContentRow>[] = [
   {
     accessorKey: "stage",
     header: "Stage",
+    size: 110,
     cell: ({ row }) => {
       const stage = row.getValue("stage") as ContentRow["stage"]
       return (
@@ -98,6 +101,7 @@ export const columns: ColumnDef<ContentRow>[] = [
   {
     accessorKey: "creatorName",
     header: "Created by",
+    size: 120,
     enableSorting: false,
     cell: ({ row }) => (
       <span className="text-muted-foreground">
@@ -108,6 +112,8 @@ export const columns: ColumnDef<ContentRow>[] = [
   {
     accessorKey: "updatedAt",
     header: "Updated",
+    size: 130,
+    meta: { align: "right" },
     cell: ({ row }) => (
       <span className="text-muted-foreground">
         {formatRelativeTime(row.getValue("updatedAt"))}
