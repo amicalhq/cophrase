@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
 import { isOrgMember } from "@/lib/data/projects"
-import { createModels, deleteModels } from "@/lib/data/models"
-import type { ModelType } from "@workspace/db"
+import { createModels, deleteModels, promoteNextDefault } from "@/lib/data/models"
+import { modelTypeEnum, type ModelType } from "@workspace/db"
+
+const validModelTypes = modelTypeEnum.enumValues as readonly string[]
 
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -39,9 +41,24 @@ export async function POST(request: NextRequest) {
 
     if (remove && remove.length > 0) {
       removed = await deleteModels(remove, orgId)
+
+      // Promote new defaults for any removed default models
+      for (const r of removed) {
+        if (r.isDefault) {
+          await promoteNextDefault(orgId, r.modelType as ModelType)
+        }
+      }
     }
 
     if (add && add.length > 0) {
+      const invalidType = add.find((m) => !validModelTypes.includes(m.modelType))
+      if (invalidType) {
+        return NextResponse.json(
+          { error: `Invalid model type: ${invalidType.modelType}` },
+          { status: 400 },
+        )
+      }
+
       added = await createModels(
         add.map((m) => ({
           organizationId: orgId,

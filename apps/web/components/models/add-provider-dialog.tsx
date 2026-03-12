@@ -269,6 +269,7 @@ export function AddProviderDialog({
                   placeholder="sk-..."
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
+                  autoComplete="off"
                   required
                 />
               </div>

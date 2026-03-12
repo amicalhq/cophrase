@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
-import { providerTypeEnum, type ProviderType, type ModelType } from "@workspace/db"
+import { providerTypeEnum, modelTypeEnum, type ProviderType, type ModelType } from "@workspace/db"
 import { encrypt } from "@workspace/db/crypto"
 import {
   getProvidersByOrg,
@@ -12,6 +12,7 @@ import { isOrgMember } from "@/lib/data/projects"
 import { isSupportedProvider } from "@/lib/ai/registry"
 
 const validProviderTypes = providerTypeEnum.enumValues as readonly string[]
+const validModelTypes = modelTypeEnum.enumValues as readonly string[]
 
 export async function GET(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -104,8 +105,16 @@ export async function POST(request: NextRequest) {
     })
 
     // Create enabled models if provided
-    let createdModels: any[] = []
+    let createdModels: { id: string; modelId: string; modelType: string; isDefault: boolean }[] = []
     if (models && models.length > 0) {
+      const invalidType = models.find((m) => !validModelTypes.includes(m.modelType))
+      if (invalidType) {
+        return NextResponse.json(
+          { error: `Invalid model type: ${invalidType.modelType}` },
+          { status: 400 },
+        )
+      }
+
       // Check which model types already have defaults
       const existingDefaults = await getDefaultsForOrg(orgId)
       const typesWithDefaults = new Set(

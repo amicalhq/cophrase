@@ -3,6 +3,7 @@ import type { AvailableModel } from "./types"
 // Simple in-memory cache with 24h TTL
 const cache = new Map<string, { data: AvailableModel[]; expiresAt: number }>()
 const TTL_MS = 24 * 60 * 60 * 1000
+const FETCH_TIMEOUT_MS = 10_000
 
 async function fetchWithCache(
   key: string,
@@ -41,13 +42,16 @@ function inferModelType(model: {
 async function fetchModelsDevModels(
   providerType: string,
 ): Promise<AvailableModel[]> {
-  const res = await fetch("https://models.dev/api.json")
+  const res = await fetch("https://models.dev/api.json", {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
   if (!res.ok) throw new Error(`models.dev API error: ${res.status}`)
   const data = await res.json()
 
   const provider = data[providerType]
   if (!provider?.models) return []
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- external API response shape
   return Object.entries(provider.models).map(
     ([id, model]: [string, any]) => ({
       id,
@@ -74,7 +78,9 @@ async function fetchModelsDevModels(
 }
 
 async function fetchGatewayModels(): Promise<AvailableModel[]> {
-  const res = await fetch("https://ai-gateway.vercel.sh/v1/models")
+  const res = await fetch("https://ai-gateway.vercel.sh/v1/models", {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
   if (!res.ok) throw new Error(`Gateway API error: ${res.status}`)
   const { data: models } = await res.json()
 

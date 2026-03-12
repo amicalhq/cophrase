@@ -5,6 +5,7 @@ import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -141,6 +142,9 @@ export function EditProviderDialog({
             Edit provider
             <Badge variant="secondary">{providerTypeLabel(provider.providerType)}</Badge>
           </DialogTitle>
+          <DialogDescription>
+            Update provider settings or remove this provider.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSave}>
@@ -169,6 +173,7 @@ export function EditProviderDialog({
                 placeholder="Leave blank to keep current key"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
+                autoComplete="off"
               />
             </div>
 
