@@ -1,7 +1,7 @@
 import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
 import { auth } from "@workspace/auth"
-import { getProjectById, isOrgMember } from "@/lib/data/projects"
+import { getProjectByIdAndOrg, isOrgMember } from "@/lib/data/projects"
 import { ProjectLayoutClient } from "./project-layout-client"
 
 export default async function ProjectLayout({
@@ -19,8 +19,8 @@ export default async function ProjectLayout({
   const isMember = await isOrgMember(session.user.id, orgId)
   if (!isMember) redirect("/orgs")
 
-  const project = await getProjectById(projectId)
-  if (!project || project.organizationId !== orgId) notFound()
+  const project = await getProjectByIdAndOrg(projectId, orgId)
+  if (!project) notFound()
 
   return (
     <ProjectLayoutClient orgId={orgId} project={project}>

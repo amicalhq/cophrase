@@ -61,7 +61,7 @@ export function OrgProjectPicker({
     if (!open || !selectedOrgId) return
     const controller = new AbortController()
     setProjectsLoading(true)
-    fetch(`/api/projects?orgId=${selectedOrgId}`, {
+    fetch(`/api/projects?orgId=${encodeURIComponent(selectedOrgId)}`, {
       signal: controller.signal,
     })
       .then((res) => {

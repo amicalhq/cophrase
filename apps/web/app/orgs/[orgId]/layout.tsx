@@ -13,9 +13,19 @@ export default function OrgLayout({
   const orgId = params.orgId
 
   // Set active org when navigating to org pages
+  // Only set if Better Auth confirms membership; redirect on failure
   useEffect(() => {
     if (orgId) {
-      void authClient.organization.setActive({ organizationId: orgId })
+      authClient.organization
+        .setActive({ organizationId: orgId })
+        .then((res) => {
+          if (res.error) {
+            window.location.href = "/orgs"
+          }
+        })
+        .catch(() => {
+          window.location.href = "/orgs"
+        })
     }
   }, [orgId])
 
