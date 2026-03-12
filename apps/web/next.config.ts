@@ -1,7 +1,7 @@
 import { withWorkflow } from "workflow/next"
+import type { NextConfig } from "next"
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: NextConfig = {
   transpilePackages: [
     "@workspace/ui",
     "@workspace/db",
