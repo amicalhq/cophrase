@@ -4,6 +4,7 @@ import {
   AvatarFallback,
 } from "@workspace/ui/components/avatar"
 import { getProjectsByOrg } from "@/lib/data/projects"
+import { CreateProjectDialog } from "@/components/create-project-dialog"
 
 export default async function ProjectsPage({
   params,
@@ -17,6 +18,7 @@ export default async function ProjectsPage({
     <main className="mx-auto max-w-4xl px-4 py-8 md:px-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Projects</h1>
+        <CreateProjectDialog orgId={orgId} />
       </div>
       <div className="space-y-2">
         {projects.map((project) => (

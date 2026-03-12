@@ -15,6 +15,27 @@ export async function getProjectsByOrg(organizationId: string) {
     .where(eq(project.organizationId, organizationId))
 }
 
+export async function createProject(input: {
+  name: string
+  description?: string
+  organizationId: string
+}) {
+  const [created] = await db
+    .insert(project)
+    .values({
+      name: input.name,
+      description: input.description ?? null,
+      organizationId: input.organizationId,
+    })
+    .returning({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      organizationId: project.organizationId,
+    })
+  return created
+}
+
 export async function getProjectByIdAndOrg(
   id: string,
   organizationId: string,
