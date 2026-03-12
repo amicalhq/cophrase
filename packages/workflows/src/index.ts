@@ -1,1 +1,1 @@
-// Re-exports added after workflow files are created
+export { syncMcpCatalog } from "./sync-mcp-catalog/workflow"
