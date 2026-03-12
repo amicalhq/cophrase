@@ -89,12 +89,12 @@ export async function upsertBatch(servers: RegistryServer[]): Promise<void> {
 
   const now = new Date()
 
-  for (const server of servers) {
-    await db
-      .insert(mcpCatalog)
-      .values({
+  await db
+    .insert(mcpCatalog)
+    .values(
+      servers.map((server) => ({
         name: server.name,
-        source: "mcp-official",
+        source: "mcp-official" as const,
         title: server.title ?? null,
         description: server.description ?? null,
         version: server.version ?? null,
@@ -105,23 +105,23 @@ export async function upsertBatch(servers: RegistryServer[]): Promise<void> {
         remotes: server.remotes ?? null,
         packages: server.packages ?? null,
         lastSeenAt: now,
-      })
-      .onConflictDoUpdate({
-        target: mcpCatalog.name,
-        set: {
-          source: "mcp-official",
-          title: sql`excluded.title`,
-          description: sql`excluded.description`,
-          version: sql`excluded.version`,
-          websiteUrl: sql`excluded.website_url`,
-          repositoryUrl: sql`excluded.repository_url`,
-          repositorySource: sql`excluded.repository_source`,
-          icons: sql`excluded.icons`,
-          remotes: sql`excluded.remotes`,
-          packages: sql`excluded.packages`,
-          updatedAt: now,
-          lastSeenAt: now,
-        },
-      })
-  }
+      }))
+    )
+    .onConflictDoUpdate({
+      target: mcpCatalog.name,
+      set: {
+        source: "mcp-official",
+        title: sql`excluded.title`,
+        description: sql`excluded.description`,
+        version: sql`excluded.version`,
+        websiteUrl: sql`excluded.website_url`,
+        repositoryUrl: sql`excluded.repository_url`,
+        repositorySource: sql`excluded.repository_source`,
+        icons: sql`excluded.icons`,
+        remotes: sql`excluded.remotes`,
+        packages: sql`excluded.packages`,
+        updatedAt: now,
+        lastSeenAt: now,
+      },
+    })
 }
