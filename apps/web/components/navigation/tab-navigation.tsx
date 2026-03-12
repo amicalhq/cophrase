@@ -14,6 +14,12 @@ interface TabNavigationProps {
   tabs: Tab[]
 }
 
+function findActiveTab(tabs: Tab[], pathname: string): Tab | undefined {
+  // Sort by href length descending so more specific routes match first
+  const sorted = [...tabs].sort((a, b) => b.href.length - a.href.length)
+  return sorted.find((tab) => pathname.startsWith(tab.href))
+}
+
 export function TabNavigation({ tabs }: TabNavigationProps) {
   const pathname = usePathname()
   const navRef = useRef<HTMLElement>(null)
@@ -22,14 +28,14 @@ export function TabNavigation({ tabs }: TabNavigationProps) {
   const [isInitialized, setIsInitialized] = useState(false)
 
   const updateIndicator = useCallback(() => {
-    const activeHref = tabs.find((tab) => pathname === tab.href)?.href
-    if (!activeHref || !navRef.current) return
+    const activeTab = findActiveTab(tabs, pathname)
+    if (!activeTab || !navRef.current) return
 
-    const activeTab = tabRefs.current.get(activeHref)
-    if (!activeTab) return
+    const activeEl = tabRefs.current.get(activeTab.href)
+    if (!activeEl) return
 
     const navRect = navRef.current.getBoundingClientRect()
-    const tabRect = activeTab.getBoundingClientRect()
+    const tabRect = activeEl.getBoundingClientRect()
 
     setIndicatorStyle({
       left: tabRect.left - navRect.left + navRef.current.scrollLeft,
@@ -55,20 +61,25 @@ export function TabNavigation({ tabs }: TabNavigationProps) {
     [],
   )
 
+  const activeHref = findActiveTab(tabs, pathname)?.href
+
   return (
     <div className="border-border bg-background border-b">
       <nav
         ref={navRef}
+        role="tablist"
         className="relative flex overflow-x-auto px-3 md:px-4 lg:px-6"
       >
         {tabs.map((tab) => {
-          const isActive = pathname === tab.href
+          const isActive = tab.href === activeHref
 
           return (
             <Link
               key={tab.href}
               ref={(el) => setTabRef(tab.href, el)}
               href={tab.href}
+              role="tab"
+              aria-selected={isActive}
               className={cn(
                 "whitespace-nowrap px-4 py-1.5 text-sm font-medium transition-colors",
                 isActive

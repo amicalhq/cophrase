@@ -59,11 +59,22 @@ export function OrgProjectPicker({
 
   React.useEffect(() => {
     if (!open || !selectedOrgId) return
+    const controller = new AbortController()
     setProjectsLoading(true)
-    fetch(`/api/projects?orgId=${selectedOrgId}`)
-      .then((res) => res.json())
+    fetch(`/api/projects?orgId=${selectedOrgId}`, {
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
       .then((data: ProjectItem[]) => setProjects(data))
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return
+        setProjects([])
+      })
       .finally(() => setProjectsLoading(false))
+    return () => controller.abort()
   }, [open, selectedOrgId])
 
   React.useEffect(() => {
@@ -121,9 +132,7 @@ export function OrgProjectPicker({
     const selectedOrg = allOrganizations.find((o) => o.id === selectedOrgId)
     if (selectedOrg) {
       setOpen(false)
-      setTimeout(() => {
-        router.push(`/orgs/${selectedOrg.id}/projects/${proj.id}/overview`)
-      }, 100)
+      router.push(`/orgs/${selectedOrg.id}/projects/${proj.id}/overview`)
     }
   }
 
@@ -162,10 +171,12 @@ export function OrgProjectPicker({
               <Skeleton className="h-5 w-5" />
             </div>
           ) : (
-            <div className="space-y-1">
+            <div role="listbox" aria-label="Organizations" className="space-y-1">
               {filteredOrgs.map((o) => (
                 <button
                   key={o.id}
+                  role="option"
+                  aria-selected={o.id === selectedOrgId}
                   onClick={() => handleOrgClick(o)}
                   className={cn(
                     "hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors",
@@ -214,10 +225,12 @@ export function OrgProjectPicker({
               No projects yet
             </div>
           ) : (
-            <div className="space-y-1">
+            <div role="listbox" aria-label="Projects" className="space-y-1">
               {filteredProjects.map((proj) => (
                 <button
                   key={proj.id}
+                  role="option"
+                  aria-selected={proj.id === project?.id}
                   onClick={() => handleProjectClick(proj)}
                   className={cn(
                     "hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors",
@@ -248,6 +261,7 @@ export function OrgProjectPicker({
     <Button
       variant="ghost"
       size="icon"
+      aria-label="Switch organization or project"
       className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 w-6 rounded-l-none px-0"
     >
       <HugeiconsIcon icon={ArrowDown01Icon} size={16} />
@@ -306,7 +320,7 @@ export function OrgProjectPicker({
         href={`/orgs/${org.id}/projects/${project?.id}/overview`}
         className="text-foreground hover:bg-accent flex h-8 items-center rounded-md px-1.5 md:hidden"
       >
-        {entityAvatar(project!, "rounded-md")}
+        {entityAvatar(project as { id: string; name: string }, "rounded-md")}
         {showText && (
           <span className="text-foreground ml-1.5 max-w-[120px] truncate text-sm">
             {project?.name}
@@ -320,7 +334,7 @@ export function OrgProjectPicker({
           href={`/orgs/${org.id}/projects/${project?.id}/overview`}
           className="text-foreground hover:bg-accent flex h-8 max-w-[150px] items-center gap-2 rounded-l-md px-2 lg:max-w-[180px]"
         >
-          {entityAvatar(project!, "rounded-md")}
+          {entityAvatar(project as { id: string; name: string }, "rounded-md")}
           <span className="truncate text-sm">{project?.name}</span>
         </Link>
         <Popover open={open} onOpenChange={setOpen}>
