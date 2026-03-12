@@ -21,6 +21,7 @@ export function OrgNavLayoutClient({
 
   const orgTabs = [
     { label: "Projects", href: `/orgs/${orgId}/projects` },
+    { label: "AI Models", href: `/orgs/${orgId}/models` },
     { label: "Settings", href: `/orgs/${orgId}/settings` },
   ]
 

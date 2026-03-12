@@ -1,5 +1,6 @@
 export * from "./enums"
-export * from "./ai-providers"
+export * from "./providers"
+export * from "./models"
 export * from "./auth"
 export * from "./mcp-catalog"
 export * from "./projects"
