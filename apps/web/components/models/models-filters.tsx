@@ -15,6 +15,7 @@ const MODEL_TYPES = [
   { value: "language", label: "Language" },
   { value: "embedding", label: "Embedding" },
   { value: "image", label: "Image" },
+  { value: "video", label: "Video" },
 ]
 
 export function ModelsFilters({

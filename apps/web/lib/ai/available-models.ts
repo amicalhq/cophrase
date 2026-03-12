@@ -13,7 +13,9 @@ async function fetchWithCache(
     return cached.data
   }
   const data = await fetcher()
-  cache.set(key, { data, expiresAt: Date.now() + TTL_MS })
+  if (data.length > 0) {
+    cache.set(key, { data, expiresAt: Date.now() + TTL_MS })
+  }
   return data
 }
 

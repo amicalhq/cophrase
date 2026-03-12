@@ -76,15 +76,15 @@ export function EditProviderDialog({
     setError("")
 
     try {
-      const body: Record<string, string> = {
+      const body: Record<string, string | null> = {
         orgId,
         name: name.trim(),
       }
       if (apiKey.trim()) {
         body.apiKey = apiKey.trim()
       }
-      if (baseURL.trim()) {
-        body.baseURL = baseURL.trim()
+      if (showBaseUrl) {
+        body.baseURL = baseURL.trim() || null
       }
 
       const res = await fetch(`/api/providers/${provider.id}`, {

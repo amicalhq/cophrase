@@ -43,7 +43,7 @@ export async function PATCH(
   }
 
   try {
-    const updateData: Record<string, any> = {}
+    const updateData: { name?: string; apiKeyEnc?: string; baseUrl?: string | null } = {}
     if (name?.trim()) updateData.name = name.trim()
     if (apiKey) updateData.apiKeyEnc = encrypt(apiKey)
     if (baseURL !== undefined) updateData.baseUrl = baseURL

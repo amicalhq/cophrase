@@ -34,16 +34,17 @@ interface AddModelsDialogProps {
   onOpenChange: (open: boolean) => void
   orgId: string
   providers: Array<{ id: string; name: string; providerType: string }>
-  enabledModels: Array<{ modelId: string; providerId: string }>
+  enabledModels: Array<{ id: string; modelId: string; providerId: string }>
   onSuccess: () => void
 }
 
-type ModelType = "language" | "embedding" | "image"
+type ModelType = "language" | "embedding" | "image" | "video"
 
 const MODEL_TYPE_LABELS: Record<ModelType, string> = {
   language: "Language",
   embedding: "Embedding",
   image: "Image",
+  video: "Video",
 }
 
 interface CatalogModel extends AvailableModel {
@@ -71,6 +72,8 @@ export function AddModelsDialog({
   const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set())
   // initialEnabled is the original enabled set for diff computation
   const [initialEnabled, setInitialEnabled] = useState<Set<string>>(new Set())
+  // Reverse lookup: "providerId:modelId" → database row id (for deletions)
+  const [enabledIdLookup, setEnabledIdLookup] = useState<Map<string, string>>(new Map())
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -86,6 +89,7 @@ export function AddModelsDialog({
       setActiveTab("language")
       setSelectedModels(new Set())
       setInitialEnabled(new Set())
+      setEnabledIdLookup(new Map())
       setLoading(false)
       setError("")
     }
@@ -124,8 +128,15 @@ export function AddModelsDialog({
         setInitialEnabled(enabled)
         setSelectedModels(new Set(enabled))
 
+        // Build reverse lookup: "providerId:modelId" → database row id
+        const lookup = new Map<string, string>()
+        for (const em of enabledModels) {
+          lookup.set(`${em.providerId}:${em.modelId}`, em.id)
+        }
+        setEnabledIdLookup(lookup)
+
         // Set active tab to first tab that has models
-        const types: ModelType[] = ["language", "embedding", "image"]
+        const types: ModelType[] = ["language", "embedding", "image", "video"]
         const firstType = types.find((t) => combined.some((m) => m.type === t))
         if (firstType) setActiveTab(firstType)
       } catch {
@@ -157,7 +168,7 @@ export function AddModelsDialog({
 
     try {
       const add: Array<{ providerId: string; modelId: string; modelType: string }> = []
-      const remove: Array<{ providerId: string; modelId: string }> = []
+      const remove: string[] = []
 
       for (const model of catalogModels) {
         const key = `${model.providerId}:${model.id}`
@@ -171,10 +182,8 @@ export function AddModelsDialog({
             modelType: model.type,
           })
         } else if (wasEnabled && !isNowEnabled) {
-          remove.push({
-            providerId: model.providerId,
-            modelId: model.id,
-          })
+          const dbId = enabledIdLookup.get(key)
+          if (dbId) remove.push(dbId)
         }
       }
 
@@ -213,7 +222,7 @@ export function AddModelsDialog({
       return true
     })
 
-  const modelTypesWithCounts = (["language", "embedding", "image"] as ModelType[]).filter(
+  const modelTypesWithCounts = (["language", "embedding", "image", "video"] as ModelType[]).filter(
     (t) => catalogModels.some((m) => m.type === t)
   )
 

@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    let added: any[] = []
-    let removed: any[] = []
+    let added: { id: string; modelId: string; modelType: string; isDefault: boolean }[] = []
+    let removed: { id: string; modelType: string; isDefault: boolean }[] = []
 
     if (remove && remove.length > 0) {
       removed = await deleteModels(remove, orgId)

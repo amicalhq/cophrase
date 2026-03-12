@@ -55,18 +55,32 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
   })
 
   async function handleSetDefault(modelId: string) {
-    await fetch(`/api/models/${modelId}/default`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId }),
-    })
+    try {
+      const res = await fetch(`/api/models/${modelId}/default`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId }),
+      })
+      if (!res.ok) {
+        console.error("Failed to set default model:", await res.text())
+      }
+    } catch (err) {
+      console.error("Failed to set default model:", err)
+    }
     onRefresh()
   }
 
   async function handleDelete(modelId: string) {
-    await fetch(`/api/models/${modelId}?orgId=${orgId}`, {
-      method: "DELETE",
-    })
+    try {
+      const res = await fetch(`/api/models/${modelId}?orgId=${orgId}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        console.error("Failed to delete model:", await res.text())
+      }
+    } catch (err) {
+      console.error("Failed to delete model:", err)
+    }
     onRefresh()
   }
 

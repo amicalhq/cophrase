@@ -44,12 +44,13 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
   { type: "ai-gateway", name: "Vercel AI Gateway", logoKey: "vercel" },
 ]
 
-type ModelType = "language" | "embedding" | "image"
+type ModelType = "language" | "embedding" | "image" | "video"
 
 const MODEL_TYPE_LABELS: Record<ModelType, string> = {
   language: "Language",
   embedding: "Embedding",
   image: "Image",
+  video: "Video",
 }
 
 export function AddProviderDialog({
@@ -116,7 +117,7 @@ export function AddProviderDialog({
 
       // Auto-check the latest model of each type
       const autoSelected = new Set<string>()
-      const types: ModelType[] = ["language", "embedding", "image"]
+      const types: ModelType[] = ["language", "embedding", "image", "video"]
       for (const type of types) {
         const modelsOfType = models.filter((m) => m.type === type)
         const first = modelsOfType[0]
@@ -195,7 +196,7 @@ export function AddProviderDialog({
   const modelsByType = (type: ModelType) =>
     availableModels.filter((m) => m.type === type)
 
-  const modelTypesWithCounts = (["language", "embedding", "image"] as ModelType[]).filter(
+  const modelTypesWithCounts = (["language", "embedding", "image", "video"] as ModelType[]).filter(
     (t) => modelsByType(t).length > 0
   )
 
