@@ -48,7 +48,7 @@ export default function SignInPage() {
       })
     }
 
-    router.push("/")
+    router.push("/orgs")
   }
 
   return (

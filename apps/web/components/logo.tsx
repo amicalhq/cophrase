@@ -1,0 +1,37 @@
+import { cn } from "@workspace/ui/lib/utils"
+
+interface LogoProps {
+  variant?: "full" | "icon"
+  iconClassName?: string
+  textClassName?: string
+  className?: string
+}
+
+export function Logo({
+  variant = "full",
+  iconClassName,
+  textClassName,
+  className,
+}: LogoProps) {
+  if (variant === "icon") {
+    return (
+      <div className={cn("flex items-center", className)}>
+        <span
+          className={cn("font-semibold tracking-tight", iconClassName)}
+        >
+          C
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn("flex items-center", className)}>
+      <span
+        className={cn("font-semibold tracking-tight", textClassName)}
+      >
+        CoPhrase
+      </span>
+    </div>
+  )
+}
