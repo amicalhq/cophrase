@@ -1,5 +1,5 @@
 import { db, asc } from "@workspace/db"
-import { aiProviders } from "@workspace/db/schema"
+import { aiProvider } from "@workspace/db/schema"
 
 export const metadata = {
   title: "AI Providers",
@@ -8,8 +8,8 @@ export const metadata = {
 export default async function ProvidersPage() {
   const providers = await db
     .select()
-    .from(aiProviders)
-    .orderBy(asc(aiProviders.name))
+    .from(aiProvider)
+    .orderBy(asc(aiProvider.name))
 
   return (
     <div className="mx-auto max-w-4xl p-8">
@@ -17,11 +17,7 @@ export default async function ProvidersPage() {
 
       {providers.length === 0 ? (
         <p className="text-muted-foreground">
-          No providers found. Run{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-sm">
-            pnpm --filter @workspace/db db:seed
-          </code>{" "}
-          to populate.
+          No providers configured yet.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -29,44 +25,25 @@ export default async function ProvidersPage() {
             <thead>
               <tr className="border-border border-b">
                 <th className="py-3 pr-4 font-medium">Name</th>
-                <th className="py-3 pr-4 font-medium">Provider</th>
-                <th className="py-3 pr-4 font-medium">Description</th>
-                <th className="py-3 pr-4 font-medium">Enabled</th>
+                <th className="py-3 pr-4 font-medium">Provider Type</th>
+                <th className="py-3 pr-4 font-medium">Base URL</th>
+                <th className="py-3 pr-4 font-medium">Created</th>
               </tr>
             </thead>
             <tbody>
               {providers.map((p) => (
                 <tr key={p.id} className="border-border border-b">
-                  <td className="py-3 pr-4 font-medium">
-                    {p.website ? (
-                      <a
-                        href={p.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary underline-offset-4 hover:underline"
-                      >
-                        {p.name}
-                      </a>
-                    ) : (
-                      p.name
-                    )}
-                  </td>
+                  <td className="py-3 pr-4 font-medium">{p.name}</td>
                   <td className="text-muted-foreground py-3 pr-4">
                     <code className="bg-muted rounded px-1.5 py-0.5 text-xs">
-                      {p.provider}
+                      {p.providerType}
                     </code>
                   </td>
                   <td className="text-muted-foreground py-3 pr-4">
-                    {p.description}
+                    {p.baseUrl ?? "—"}
                   </td>
-                  <td className="py-3 pr-4">
-                    <span
-                      className={
-                        p.isEnabled ? "text-green-600" : "text-muted-foreground"
-                      }
-                    >
-                      {p.isEnabled ? "Yes" : "No"}
-                    </span>
+                  <td className="text-muted-foreground py-3 pr-4">
+                    {p.createdAt.toLocaleDateString()}
                   </td>
                 </tr>
               ))}
