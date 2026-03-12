@@ -122,7 +122,7 @@ export function ContentTable({ data }: ContentTableProps) {
           placeholder="Search by title..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value || "")}
-          className="max-w-[280px]"
+          className="max-w-xs"
         />
         <ToggleGroup
           type="multiple"
@@ -135,7 +135,7 @@ export function ContentTable({ data }: ContentTableProps) {
           <ToggleGroupItem value="social">Social</ToggleGroupItem>
         </ToggleGroup>
         <Select value={stageFilter} onValueChange={handleStageChange}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-40">
             <SelectValue placeholder="Stage" />
           </SelectTrigger>
           <SelectContent>
