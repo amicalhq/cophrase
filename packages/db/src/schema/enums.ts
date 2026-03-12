@@ -1,14 +1,19 @@
 import { pgEnum } from "drizzle-orm/pg-core"
 
-export const aiProviderEnum = pgEnum("ai_provider", [
+export const providerTypeEnum = pgEnum("provider_type", [
   "openai",
-  "anthropic",
-  "google",
   "groq",
-  "lmstudio",
-  "claudecode",
-  "custom",
+  "ai-gateway",
 ])
+export type ProviderType = (typeof providerTypeEnum.enumValues)[number]
+
+export const modelTypeEnum = pgEnum("model_type", [
+  "language",
+  "embedding",
+  "image",
+  "video",
+])
+export type ModelType = (typeof modelTypeEnum.enumValues)[number]
 
 export const contentTypeEnum = pgEnum("content_type", ["blog", "social"])
 export type ContentType = (typeof contentTypeEnum.enumValues)[number]
