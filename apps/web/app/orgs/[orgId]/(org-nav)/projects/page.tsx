@@ -24,7 +24,7 @@ export default async function ProjectsPage({
         {projects.map((project) => (
           <Link
             key={project.id}
-            href={`/orgs/${orgId}/projects/${project.id}/overview`}
+            href={`/orgs/${orgId}/projects/${project.id}/content`}
             className="border-border hover:bg-accent flex items-center gap-3 rounded-md border p-3 transition-colors"
           >
             <Avatar className="h-8 w-8 rounded-md">

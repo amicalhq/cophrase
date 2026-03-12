@@ -135,7 +135,7 @@ export function OrgProjectPicker({
     const selectedOrg = allOrganizations.find((o) => o.id === selectedOrgId)
     if (selectedOrg) {
       setOpen(false)
-      router.push(`/orgs/${selectedOrg.id}/projects/${proj.id}/overview`)
+      router.push(`/orgs/${selectedOrg.id}/projects/${proj.id}/content`)
     }
   }
 
@@ -320,7 +320,7 @@ export function OrgProjectPicker({
     <div className="flex items-center">
       {/* Mobile */}
       <Link
-        href={`/orgs/${org.id}/projects/${project?.id}/overview`}
+        href={`/orgs/${org.id}/projects/${project?.id}/content`}
         className="text-foreground hover:bg-accent flex h-8 items-center rounded-md px-1.5 md:hidden"
       >
         {entityAvatar(project as { id: string; name: string }, "rounded-md")}
@@ -334,7 +334,7 @@ export function OrgProjectPicker({
       {/* Desktop */}
       <div className="hidden items-center md:flex">
         <Link
-          href={`/orgs/${org.id}/projects/${project?.id}/overview`}
+          href={`/orgs/${org.id}/projects/${project?.id}/content`}
           className="text-foreground hover:bg-accent flex h-8 max-w-[150px] items-center gap-2 rounded-l-md px-2 lg:max-w-[180px]"
         >
           {entityAvatar(project as { id: string; name: string }, "rounded-md")}

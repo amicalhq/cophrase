@@ -47,7 +47,7 @@ export function CreateProjectDialog({ orgId }: { orgId: string }) {
       setOpen(false)
       setName("")
       setDescription("")
-      router.push(`/orgs/${orgId}/projects/${project.id}/overview`)
+      router.push(`/orgs/${orgId}/projects/${project.id}/content`)
     } catch {
       setError("Something went wrong")
       setLoading(false)

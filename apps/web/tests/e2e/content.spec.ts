@@ -49,7 +49,7 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Name").fill(`Test Project ${testId}`)
     await page.getByRole("button", { name: "Create project" }).click()
 
-    await expect(page).toHaveURL(/\/overview/, { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/content/, { timeout: 10_000 })
 
     // Extract projectId from URL
     const projectUrl = page.url()
@@ -215,7 +215,7 @@ test.describe.serial("Content pieces", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL("/", { timeout: 10_000 })
 
-    await page.goto(`/orgs/${orgId}/projects/${projectId}/overview`)
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
     // Verify Content tab exists in navigation
     const contentTab = page.getByRole("link", { name: "Content" })
