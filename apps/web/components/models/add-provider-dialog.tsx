@@ -240,7 +240,7 @@ export function AddProviderDialog({
                       <img
                         src={`https://models.dev/logos/${option.logoKey}.svg`}
                         alt={option.name}
-                        className="h-8 w-8 object-contain"
+                        className="h-8 w-8 object-contain dark:invert"
                       />
                       <span className="text-xs font-medium">{option.name}</span>
                     </button>

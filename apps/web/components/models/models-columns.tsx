@@ -32,6 +32,7 @@ export const modelsColumns = [
           <Avatar className="h-4 w-4 rounded-sm">
             <AvatarImage
               src={`https://models.dev/logos/${providerType === "ai-gateway" ? "vercel" : providerType}.svg`}
+              className="dark:invert"
             />
             <AvatarFallback className="rounded-sm text-[8px]">
               {info.getValue().charAt(0)}

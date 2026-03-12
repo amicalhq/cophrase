@@ -24,6 +24,7 @@ export function ProviderCard({
         <AvatarImage
           src={`https://models.dev/logos/${providerType === "ai-gateway" ? "vercel" : providerType}.svg`}
           alt={name}
+          className="dark:invert"
         />
         <AvatarFallback className="rounded-md text-xs">
           {name.charAt(0).toUpperCase()}
