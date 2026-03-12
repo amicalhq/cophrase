@@ -73,7 +73,7 @@ export const columns: ColumnDef<ContentRow>[] = [
     cell: ({ row }) => {
       const type = row.getValue("type") as ContentRow["type"]
       return (
-        <Badge variant="secondary" className={typeColors[type]}>
+        <Badge variant="secondary" className={`h-6 px-2.5 text-xs ${typeColors[type]}`}>
           {typeLabels[type]}
         </Badge>
       )
@@ -89,7 +89,7 @@ export const columns: ColumnDef<ContentRow>[] = [
     cell: ({ row }) => {
       const stage = row.getValue("stage") as ContentRow["stage"]
       return (
-        <Badge variant="secondary" className={stageColors[stage]}>
+        <Badge variant="secondary" className={`h-6 px-2.5 text-xs ${stageColors[stage]}`}>
           {stageLabels[stage]}
         </Badge>
       )
