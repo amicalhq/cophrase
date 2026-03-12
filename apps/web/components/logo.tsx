@@ -13,24 +13,25 @@ export function Logo({
   textClassName,
   className,
 }: LogoProps) {
+  if (variant === "icon") {
+    return (
+      <div className={cn("flex items-center", className)}>
+        <span
+          className={cn("font-semibold tracking-tight text-base", iconClassName)}
+        >
+          C
+        </span>
+      </div>
+    )
+  }
+
   return (
     <div className={cn("flex items-center", className)}>
       <span
-        className={cn(
-          "font-semibold tracking-tight",
-          variant === "icon" ? "text-base" : "",
-          iconClassName,
-        )}
+        className={cn("font-semibold tracking-tight", textClassName)}
       >
-        C
+        CoPhrase
       </span>
-      {variant === "full" && (
-        <span
-          className={cn("font-semibold tracking-tight", textClassName)}
-        >
-          oPhrase
-        </span>
-      )}
     </div>
   )
 }
