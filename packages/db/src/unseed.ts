@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js"
 import { inArray, eq } from "drizzle-orm"
 import postgres from "postgres"
-import { aiProviders, content } from "./schema/index"
+import { content } from "./schema/index"
 import { user, organization, member, account } from "./schema/auth"
 import { project } from "./schema/projects"
 
@@ -11,15 +11,6 @@ const client = postgres(process.env.DATABASE_URL!)
 const db = drizzle(client)
 
 const SEED_IDS = {
-  providers: [
-    "aip_seed00001",
-    "aip_seed00002",
-    "aip_seed00003",
-    "aip_seed00004",
-    "aip_seed00005",
-    "aip_seed00006",
-    "aip_seed00007",
-  ],
   content: [
     "ct_seed00001",
     "ct_seed00002",
@@ -43,13 +34,6 @@ async function unseed() {
     .where(inArray(content.id, SEED_IDS.content))
     .returning({ id: content.id })
   console.log(`Removed ${contentResult.length} seed content pieces.`)
-
-  console.log("Removing seed ai_providers...")
-  const providerResult = await db
-    .delete(aiProviders)
-    .where(inArray(aiProviders.id, SEED_IDS.providers))
-    .returning({ id: aiProviders.id })
-  console.log(`Removed ${providerResult.length} seed ai_providers.`)
 
   console.log("Removing seed project...")
   await db.delete(project).where(eq(project.id, SEED_IDS.project))
