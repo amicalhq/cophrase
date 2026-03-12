@@ -9,13 +9,23 @@ import {
 } from "@workspace/ui/components/avatar"
 
 export default function OrgsPage() {
-  const { data: orgs, isPending } = authClient.useListOrganizations()
+  const { data: orgs, isPending, error } = authClient.useListOrganizations()
 
   if (isPending) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-12">
         <p className="text-muted-foreground text-sm">
           Loading organizations...
+        </p>
+      </main>
+    )
+  }
+
+  if (error || !orgs) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-12">
+        <p className="text-muted-foreground text-sm">
+          Failed to load organizations. Please try refreshing the page.
         </p>
       </main>
     )
@@ -30,7 +40,7 @@ export default function OrgsPage() {
         </Link>
       </div>
       <div className="space-y-2">
-        {orgs?.map((org) => (
+        {orgs.map((org) => (
           <Link
             key={org.id}
             href={`/orgs/${org.id}/projects`}
@@ -47,7 +57,7 @@ export default function OrgsPage() {
             </div>
           </Link>
         ))}
-        {orgs?.length === 0 && (
+        {orgs.length === 0 && (
           <p className="text-muted-foreground py-8 text-center text-sm">
             No organizations yet.{" "}
             <Link href="/sign-up/org" className="text-primary underline">

@@ -67,7 +67,7 @@ export function TabNavigation({ tabs }: TabNavigationProps) {
     <div className="border-border bg-background border-b">
       <nav
         ref={navRef}
-        role="tablist"
+        aria-label="Section navigation"
         className="relative flex overflow-x-auto px-3 md:px-4 lg:px-6"
       >
         {tabs.map((tab) => {
@@ -78,8 +78,7 @@ export function TabNavigation({ tabs }: TabNavigationProps) {
               key={tab.href}
               ref={(el) => setTabRef(tab.href, el)}
               href={tab.href}
-              role="tab"
-              aria-selected={isActive}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "whitespace-nowrap px-4 py-1.5 text-sm font-medium transition-colors",
                 isActive

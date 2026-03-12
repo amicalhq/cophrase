@@ -128,6 +128,3 @@ export function UserDropdown({
     </DropdownMenu>
   )
 }
-
-/** @deprecated Use UserDropdown instead */
-export const UserMenu = UserDropdown

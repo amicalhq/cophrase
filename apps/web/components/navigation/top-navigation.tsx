@@ -113,7 +113,22 @@ export function TopNavigation({
               </SheetHeader>
               <div className="flex h-full flex-col">
                 <div className="flex flex-1 flex-col gap-2">
-                  {/* Add more mobile menu items here as the app grows */}
+                  <Link
+                    href="/orgs"
+                    className="text-foreground hover:bg-accent rounded-md px-3 py-2 text-sm font-medium"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Organizations
+                  </Link>
+                  {hasOrg && (
+                    <Link
+                      href={`/orgs/${organization!.id}/projects`}
+                      className="text-foreground hover:bg-accent rounded-md px-3 py-2 text-sm font-medium"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Projects
+                    </Link>
+                  )}
                 </div>
                 <div className="mt-auto pt-4">
                   <UserDropdown size="full" className="w-full" />

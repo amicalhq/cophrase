@@ -1,34 +1,25 @@
-"use client"
+import { headers } from "next/headers"
+import { redirect } from "next/navigation"
+import { auth } from "@workspace/auth"
+import { isOrgMember } from "@/lib/data/projects"
+import { OrgNavLayoutClient } from "./org-nav-layout-client"
 
-import { useParams } from "next/navigation"
-import { authClient } from "@workspace/auth/client"
-import { TopNavigation } from "@/components/navigation/top-navigation"
-import { TabNavigation } from "@/components/navigation/tab-navigation"
-
-export default function OrgNavLayout({
+export default async function OrgNavLayout({
   children,
+  params,
 }: {
   children: React.ReactNode
+  params: Promise<{ orgId: string }>
 }) {
-  const params = useParams<{ orgId: string }>()
-  const orgId = params.orgId
+  const { orgId } = await params
 
-  const { data: activeOrg } = authClient.useActiveOrganization()
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) redirect("/sign-in")
 
-  const organization = activeOrg
-    ? { id: activeOrg.id, name: activeOrg.name, logo: activeOrg.logo }
-    : undefined
-
-  const orgTabs = [
-    { label: "Projects", href: `/orgs/${orgId}/projects` },
-    { label: "Settings", href: `/orgs/${orgId}/settings` },
-  ]
+  const isMember = await isOrgMember(session.user.id, orgId)
+  if (!isMember) redirect("/orgs")
 
   return (
-    <div className="bg-background min-h-screen">
-      <TopNavigation organization={organization} />
-      <TabNavigation tabs={orgTabs} />
-      {children}
-    </div>
+    <OrgNavLayoutClient orgId={orgId}>{children}</OrgNavLayoutClient>
   )
 }
