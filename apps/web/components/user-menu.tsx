@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useTheme } from "next-themes"
 import { authClient } from "@workspace/auth/client"
 import {
   Avatar,
@@ -18,7 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@workspace/ui/components/toggle-group"
 import { cn } from "@workspace/ui/lib/utils"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Sun02Icon, Moon02Icon, ComputerIcon } from "@hugeicons/core-free-icons"
 
 interface UserDropdownProps {
   size?: "icon" | "full"
@@ -121,10 +128,49 @@ export function UserDropdown({
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        <div className="flex items-center justify-between px-2 py-1.5">
+          <span className="text-sm">Theme</span>
+          <ThemeToggle />
+        </div>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
           Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+const themes = [
+  { value: "light", icon: Sun02Icon, label: "Light" },
+  { value: "system", icon: ComputerIcon, label: "System" },
+  { value: "dark", icon: Moon02Icon, label: "Dark" },
+] as const
+
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme()
+
+  return (
+    <ToggleGroup
+      type="single"
+      value={theme}
+      onValueChange={(value) => {
+        if (value) setTheme(value)
+      }}
+      variant="outline"
+      size="sm"
+      className="w-auto"
+    >
+      {themes.map(({ value, icon, label }) => (
+        <ToggleGroupItem
+          key={value}
+          value={value}
+          aria-label={label}
+          className="flex-1"
+        >
+          <HugeiconsIcon icon={icon} size={14} />
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   )
 }
