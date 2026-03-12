@@ -23,10 +23,6 @@ export function ProjectLayoutClient({
 
   const projectTabs = [
     {
-      label: "Overview",
-      href: `/orgs/${orgId}/projects/${project.id}/overview`,
-    },
-    {
       label: "Content",
       href: `/orgs/${orgId}/projects/${project.id}/content`,
     },
