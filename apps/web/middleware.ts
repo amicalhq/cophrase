@@ -8,7 +8,9 @@ export function middleware(request: NextRequest) {
 
   if (
     publicRoutes.includes(pathname) ||
-    pathname.startsWith("/api/auth")
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/workflows") ||
+    pathname.startsWith("/.well-known/workflow")
   ) {
     return NextResponse.next()
   }
