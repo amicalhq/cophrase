@@ -1,7 +1,5 @@
 import { relations } from "drizzle-orm";
 import { project } from "./projects";
-import { aiProvider } from "./providers";
-import { aiModel } from "./models";
 import {
   pgTable,
   text,
@@ -163,8 +161,6 @@ export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
   invitations: many(invitation),
   projects: many(project),
-  aiProviders: many(aiProvider),
-  aiModels: many(aiModel),
 }));
 
 export const memberRelations = relations(member, ({ one }) => ({
