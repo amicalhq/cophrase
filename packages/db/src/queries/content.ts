@@ -2,6 +2,7 @@ import { eq, and, desc } from "drizzle-orm"
 import { db } from "../index"
 import { content } from "../schema/content"
 import { user } from "../schema/auth"
+import type { ContentType } from "../schema/enums"
 
 export async function getContentByProject(projectId: string) {
   return await db
@@ -43,7 +44,7 @@ export async function createContent(input: {
   organizationId: string
   createdBy: string
   title: string
-  type: "blog" | "social"
+  type: ContentType
 }) {
   const [created] = await db
     .insert(content)

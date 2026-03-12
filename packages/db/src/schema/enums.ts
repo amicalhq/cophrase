@@ -11,6 +11,7 @@ export const aiProviderEnum = pgEnum("ai_provider", [
 ])
 
 export const contentTypeEnum = pgEnum("content_type", ["blog", "social"])
+export type ContentType = (typeof contentTypeEnum.enumValues)[number]
 
 export const contentStageEnum = pgEnum("content_stage", [
   "idea",
@@ -19,3 +20,4 @@ export const contentStageEnum = pgEnum("content_stage", [
   "ready",
   "published",
 ])
+export type ContentStage = (typeof contentStageEnum.enumValues)[number]

@@ -1,13 +1,14 @@
 "use client"
 
 import type { ColumnDef } from "@tanstack/react-table"
+import type { ContentType, ContentStage } from "@workspace/db"
 import { Badge } from "@workspace/ui/components/badge"
 
 export type ContentRow = {
   id: string
   title: string
-  type: "blog" | "social"
-  stage: "idea" | "draft" | "review" | "ready" | "published"
+  type: ContentType
+  stage: ContentStage
   creatorName: string | null
   updatedAt: string
 }

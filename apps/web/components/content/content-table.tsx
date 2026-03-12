@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -54,7 +54,6 @@ export function ContentTable({ data }: ContentTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "updatedAt", desc: true },
   ])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 
   const [searchQuery, setSearchQuery] = useQueryState("q", { defaultValue: "" })
   const [typeFilter, setTypeFilter] = useQueryState("type", {
@@ -66,6 +65,18 @@ export function ContentTable({ data }: ContentTableProps) {
 
   const selectedTypes = typeFilter ? typeFilter.split(",") : []
 
+  const columnFilters = useMemo<ColumnFiltersState>(() => {
+    const types = typeFilter ? typeFilter.split(",") : []
+    const filters: ColumnFiltersState = []
+    if (types.length > 0) {
+      filters.push({ id: "type", value: types })
+    }
+    if (stageFilter !== "all") {
+      filters.push({ id: "stage", value: [stageFilter] })
+    }
+    return filters
+  }, [typeFilter, stageFilter])
+
   const table = useReactTable({
     data,
     columns,
@@ -74,7 +85,6 @@ export function ContentTable({ data }: ContentTableProps) {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     state: {
       sorting,
       columnFilters,
@@ -88,23 +98,6 @@ export function ContentTable({ data }: ContentTableProps) {
       pagination: { pageSize: 20 },
     },
   })
-
-  // Sync URL filter state to column filters on mount and when URL params change
-  useEffect(() => {
-    if (selectedTypes.length > 0) {
-      table.getColumn("type")?.setFilterValue(selectedTypes)
-    } else {
-      table.getColumn("type")?.setFilterValue(undefined)
-    }
-  }, [typeFilter, table])
-
-  useEffect(() => {
-    if (stageFilter !== "all") {
-      table.getColumn("stage")?.setFilterValue([stageFilter])
-    } else {
-      table.getColumn("stage")?.setFilterValue(undefined)
-    }
-  }, [stageFilter, table])
 
   const handleTypeChange = (value: string[]) => {
     setTypeFilter(value.length > 0 ? value.join(",") : "")

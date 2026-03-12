@@ -131,13 +131,14 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByText("Launch Announcement")).toBeVisible()
 
     // Filter by Blog type using ToggleGroup button
-    await page.getByRole("radio", { name: "Blog" }).click()
+    const toggleGroup = page.getByRole("group")
+    await toggleGroup.getByRole("button", { name: "Blog" }).click()
 
     await expect(page.getByText("My First Blog Post")).toBeVisible()
     await expect(page.getByText("Launch Announcement")).not.toBeVisible()
 
     // Deselect Blog to show all again
-    await page.getByRole("radio", { name: "Blog" }).click()
+    await toggleGroup.getByRole("button", { name: "Blog" }).click()
     await expect(page.getByText("Launch Announcement")).toBeVisible()
   })
 
@@ -154,6 +155,57 @@ test.describe.serial("Content pieces", () => {
 
     await expect(page.getByText("Launch Announcement")).toBeVisible()
     await expect(page.getByText("My First Blog Post")).not.toBeVisible()
+  })
+
+  test("can filter by stage", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL("/", { timeout: 10_000 })
+
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
+
+    // Both items should be visible with "All stages" selected
+    await expect(page.getByText("My First Blog Post")).toBeVisible()
+    await expect(page.getByText("Launch Announcement")).toBeVisible()
+
+    // Filter by Idea stage (both items are in "idea" stage)
+    await page.getByRole("combobox").click()
+    await page.getByRole("option", { name: "Idea" }).click()
+
+    await expect(page.getByText("My First Blog Post")).toBeVisible()
+    await expect(page.getByText("Launch Announcement")).toBeVisible()
+
+    // Filter by Draft stage (no items in "draft" stage)
+    await page.getByRole("combobox").click()
+    await page.getByRole("option", { name: "Draft" }).click()
+
+    await expect(page.getByText("No content yet")).toBeVisible()
+
+    // Reset to All stages
+    await page.getByRole("combobox").click()
+    await page.getByRole("option", { name: "All stages" }).click()
+
+    await expect(page.getByText("My First Blog Post")).toBeVisible()
+    await expect(page.getByText("Launch Announcement")).toBeVisible()
+  })
+
+  test("creates content with Untitled fallback when title is empty", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL("/", { timeout: 10_000 })
+
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
+
+    // Create content without filling in a title
+    await page.getByRole("button", { name: "New content" }).click()
+    await page.getByRole("button", { name: "Create" }).click()
+
+    // Should see "Untitled" in the table
+    await expect(page.getByText("Untitled")).toBeVisible({ timeout: 5_000 })
   })
 
   test("content tab is visible in navigation", async ({ page }) => {

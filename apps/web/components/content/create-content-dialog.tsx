@@ -15,8 +15,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { cn } from "@workspace/ui/lib/utils"
-
-type ContentType = "blog" | "social"
+import type { ContentType } from "@workspace/db"
 
 const typeOptions: {
   value: ContentType
@@ -59,8 +58,13 @@ export function CreateContentDialog({
       })
 
       if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to create content")
+        const text = await res.text()
+        try {
+          const data = JSON.parse(text)
+          setError(data.error ?? "Failed to create content")
+        } catch {
+          setError("Failed to create content")
+        }
         setLoading(false)
         return
       }
@@ -70,7 +74,8 @@ export function CreateContentDialog({
       setTitle("")
       setType("blog")
       router.refresh()
-    } catch {
+    } catch (error) {
+      console.error("Failed to create content:", error)
       setError("Something went wrong")
       setLoading(false)
     }
