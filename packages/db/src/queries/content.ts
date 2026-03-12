@@ -61,5 +61,8 @@ export async function createContent(input: {
       type: content.type,
       stage: content.stage,
     })
+  if (!created) {
+    throw new Error("Failed to insert content row")
+  }
   return created
 }

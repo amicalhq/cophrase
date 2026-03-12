@@ -15,9 +15,9 @@ export const content = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
-    createdBy: text("created_by")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     title: text("title").notNull().default("Untitled"),
     type: contentTypeEnum("type").notNull(),
     stage: contentStageEnum("stage").notNull().default("idea"),

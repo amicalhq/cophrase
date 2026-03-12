@@ -7,6 +7,11 @@ import { sql } from "drizzle-orm"
 
 process.loadEnvFile("../../.env.local")
 
+if (process.env.NODE_ENV === "production") {
+  console.error("ERROR: Seed script must not run in production!")
+  process.exit(1)
+}
+
 const client = postgres(process.env.DATABASE_URL!)
 const db = drizzle(client)
 
