@@ -64,7 +64,7 @@ export const columns: ColumnDef<ContentRow>[] = [
     header: "Title",
     size: 1000,
     cell: ({ row }) => (
-      <span className="font-medium">{row.getValue("title")}</span>
+      <span className="block truncate font-medium">{row.getValue("title")}</span>
     ),
   },
   {
