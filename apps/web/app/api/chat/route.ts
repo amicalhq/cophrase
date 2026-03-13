@@ -28,9 +28,8 @@ export async function POST() {
   const words = mockText.split(/(?<=\s)|(?=\s)/)
   const textChunks = words.filter((w) => w.length > 0)
 
-  // Build chunks with explicit typing to match LanguageModelV3StreamPart
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chunks: any[] = [
+  // Build stream chunks matching LanguageModelV3StreamPart shape
+  const chunks = [
     { type: "stream-start", warnings: [] },
     { type: "text-start", id: "1" },
     ...textChunks.map((chunk) => ({
@@ -58,16 +57,18 @@ export async function POST() {
     },
   ]
 
-  const result = streamText({
-    model: new MockLanguageModelV3({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      doStream: async (): Promise<any> => ({
-        stream: simulateReadableStream({
-          chunks,
-          chunkDelayInMs: 50,
-        }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const model = new MockLanguageModelV3({
+    doStream: async () => ({
+      stream: simulateReadableStream({
+        chunks,
+        chunkDelayInMs: 50,
       }),
     }),
+  } as any)
+
+  const result = streamText({
+    model,
     prompt: "mock",
   })
 
