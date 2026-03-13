@@ -80,7 +80,7 @@ export function EditorToolbar({
       </div>
 
       <Select value={selectedVersion} onValueChange={onVersionChange}>
-        <SelectTrigger className="w-[10rem] text-xs h-7" size="sm">
+        <SelectTrigger className="w-[10rem] text-xs h-7" size="sm" aria-label="Version">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

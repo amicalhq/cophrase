@@ -44,7 +44,7 @@ export function HeadingDropdown() {
 
   return (
     <Select value={getCurrentValue()} onValueChange={handleChange}>
-      <SelectTrigger className="w-[7rem]" size="sm">
+      <SelectTrigger className="w-[7rem]" size="sm" aria-label="Text style">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

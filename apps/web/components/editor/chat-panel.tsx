@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import {
   AbstractChat,
   DefaultChatTransport,
@@ -111,13 +111,6 @@ function useChat({ api }: { api: string }) {
     },
     [isLoading, chat, notify],
   )
-
-  // Trigger re-renders when messages change (AbstractChat mutates state.messages).
-  useEffect(() => {
-    // poll-free: we rely on notify() calls from setStatus + sendMessage chain.
-    // This effect is intentionally empty — just ensuring the component re-renders
-    // by having messages in the dependency list.
-  }, [messages])
 
   return { messages, status, isLoading, sendMessage }
 }

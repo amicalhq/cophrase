@@ -1,8 +1,9 @@
-import { headers } from "next/headers"
-import { notFound, redirect } from "next/navigation"
-import { auth } from "@workspace/auth"
+import { notFound } from "next/navigation"
 import { getContentById } from "@/lib/data/content"
 import { AIEditor } from "@/components/editor/ai-editor"
+
+// Auth + org membership are already checked by the parent layout at
+// projects/[projectId]/layout.tsx — no need to re-check here.
 
 export default async function EditContentPage({
   params,
@@ -10,9 +11,6 @@ export default async function EditContentPage({
   params: Promise<{ orgId: string; projectId: string; contentId: string }>
 }) {
   const { orgId, projectId, contentId } = await params
-
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) redirect("/sign-in")
 
   const content = await getContentById(contentId, projectId)
   if (!content) notFound()

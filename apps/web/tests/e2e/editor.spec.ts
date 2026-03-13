@@ -121,15 +121,15 @@ test.describe.serial("AI Editor page", () => {
 
     // Type a message and send it
     await page.getByPlaceholder("Ask the AI agent...").fill("Hello AI")
-    await page.getByRole("button", { name: "Send" }).click()
+    await page.getByRole("button", { name: "Submit" }).click()
 
     // The user message should appear in the chat
     await expect(page.getByText("Hello AI")).toBeVisible({ timeout: 5_000 })
 
-    // A response should eventually appear (streamed or completed)
-    await expect(page.locator(".bg-muted").last()).toBeVisible({
-      timeout: 15_000,
-    })
+    // A response from the mock LLM should appear (first mock response contains this text)
+    await expect(
+      page.getByText(/Engaging Your Audience|analyzed your content|following edits/i),
+    ).toBeVisible({ timeout: 15_000 })
   })
 
   test("collapse chat panel and re-open", async ({ page }) => {
@@ -174,7 +174,7 @@ test.describe.serial("AI Editor page", () => {
     await page.keyboard.press("ControlOrMeta+a")
 
     // The Bold button should not be active initially (not all text is bold)
-    const boldButton = page.getByRole("button", { name: "Bold" })
+    const boldButton = page.getByRole("button", { name: "Bold" }).first()
     await expect(boldButton).toBeVisible()
 
     // Click the Bold button to apply bold formatting
@@ -198,7 +198,7 @@ test.describe.serial("AI Editor page", () => {
     await expect(page.getByText("Key Benefits")).toBeVisible()
 
     // Switch to v1 using the version select
-    await page.getByRole("combobox").click()
+    await page.getByRole("combobox", { name: "Version" }).click()
     await page.getByRole("option", { name: "v1 — Mar 10" }).click()
 
     // Key Benefits heading should no longer be visible in v1
