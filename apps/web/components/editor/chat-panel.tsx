@@ -8,9 +8,32 @@ import {
   type ChatStatus,
   type UIMessage,
 } from "ai"
-import { ArrowLeft01Icon, SentIcon } from "@hugeicons/core-free-icons"
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@workspace/ui/components/button"
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation"
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+} from "@/components/ai-elements/message"
+import {
+  PromptInput,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  type PromptInputMessage,
+} from "@/components/ai-elements/prompt-input"
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ai-elements/reasoning"
 
 // ---------------------------------------------------------------------------
 // Minimal React-aware Chat subclass
@@ -81,24 +104,12 @@ function useChat({ api }: { api: string }) {
   const status = chat.status
   const isLoading = status === "submitted" || status === "streaming"
 
-  const [input, setInput] = useState("")
-
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setInput(e.target.value)
-    },
-    [],
-  )
-
-  const handleSubmit = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault()
-      const text = input.trim()
-      if (!text || isLoading) return
-      setInput("")
+  const sendMessage = useCallback(
+    (text: string) => {
+      if (!text.trim() || isLoading) return
       chat.sendMessage({ text }).then(() => notify())
     },
-    [input, isLoading, chat, notify],
+    [isLoading, chat, notify],
   )
 
   // Trigger re-renders when messages change (AbstractChat mutates state.messages).
@@ -108,18 +119,25 @@ function useChat({ api }: { api: string }) {
     // by having messages in the dependency list.
   }, [messages])
 
-  return { messages, input, handleInputChange, handleSubmit, isLoading }
+  return { messages, status, isLoading, sendMessage }
 }
 
 // ---------------------------------------------------------------------------
-// Helper: extract text from a UIMessage
+// Helper: extract text parts from a UIMessage
 // ---------------------------------------------------------------------------
 
-function getMessageText(message: SimpleMessage): string {
+function getReasoningText(message: SimpleMessage): string | null {
+  const reasoningPart = message.parts.find((p) => p.type === "reasoning")
+  if (!reasoningPart || !("reasoning" in reasoningPart)) return null
+  return String(reasoningPart.reasoning)
+}
+
+function getTextParts(
+  message: SimpleMessage,
+): Array<{ id: string; text: string }> {
   return message.parts
-    .filter((p) => p.type === "text")
-    .map((p) => ("text" in p ? String(p.text) : ""))
-    .join("")
+    .filter((p) => p.type === "text" && "text" in p)
+    .map((p, i) => ({ id: `${message.id}-text-${i}`, text: String((p as { text: string }).text) }))
 }
 
 // ---------------------------------------------------------------------------
@@ -131,8 +149,16 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ onCollapse }: ChatPanelProps) {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } =
-    useChat({ api: "/api/chat" })
+  const { messages, status, isLoading, sendMessage } = useChat({
+    api: "/api/chat",
+  })
+
+  const handlePromptSubmit = useCallback(
+    ({ text }: PromptInputMessage) => {
+      sendMessage(text)
+    },
+    [sendMessage],
+  )
 
   return (
     <div className="flex h-full flex-col">
@@ -151,57 +177,69 @@ export function ChatPanel({ onCollapse }: ChatPanelProps) {
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-3 py-4">
-        {messages.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            Ask the AI agent to help you write, edit, or improve your content.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
-                >
-                  {getMessageText(message)}
-                </div>
-              </div>
-            ))}
+      <Conversation className="flex-1">
+        <ConversationContent>
+          {messages.length === 0 ? (
+            <ConversationEmptyState
+              title="Ask the AI agent"
+              description="Ask the AI agent to help you write, edit, or improve your content."
+            />
+          ) : (
+            messages.map((message) => {
+              const textParts = getTextParts(message)
+              const reasoningText = getReasoningText(message)
+              const isStreaming =
+                status === "streaming" &&
+                message === messages[messages.length - 1]
 
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-muted animate-pulse rounded-lg px-3 py-2 text-sm">
+              return (
+                <Message key={message.id} from={message.role}>
+                  {message.role === "assistant" && reasoningText && (
+                    <Reasoning isStreaming={isStreaming}>
+                      <ReasoningTrigger />
+                      <ReasoningContent>{reasoningText}</ReasoningContent>
+                    </Reasoning>
+                  )}
+                  <MessageContent>
+                    {message.role === "assistant" ? (
+                      textParts.map(({ id, text }) => (
+                        <MessageResponse key={id} isAnimating={isStreaming}>
+                          {text}
+                        </MessageResponse>
+                      ))
+                    ) : (
+                      textParts.map(({ id, text }) => (
+                        <span key={id}>{text}</span>
+                      ))
+                    )}
+                  </MessageContent>
+                </Message>
+              )
+            })
+          )}
+
+          {isLoading && messages.length === 0 && (
+            <Message from="assistant">
+              <MessageContent>
+                <span className="text-muted-foreground animate-pulse text-sm">
                   Thinking...
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+                </span>
+              </MessageContent>
+            </Message>
+          )}
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
 
       {/* Prompt input */}
       <div className="border-t p-3">
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={handleInputChange}
-            placeholder="Ask the AI agent..."
-            disabled={isLoading}
-            className="border-input bg-background placeholder:text-muted-foreground flex-1 rounded-md border px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-offset-0 disabled:opacity-50"
-          />
-          <Button type="submit" size="sm" disabled={isLoading || !input.trim()}>
-            <HugeiconsIcon icon={SentIcon} size={14} />
-            Send
-          </Button>
-        </form>
+        <PromptInput onSubmit={handlePromptSubmit}>
+          <PromptInputTextarea placeholder="Ask the AI agent..." />
+          <PromptInputFooter>
+            <div />
+            <PromptInputSubmit status={status} />
+          </PromptInputFooter>
+        </PromptInput>
         <p className="text-muted-foreground mt-1.5 text-xs">Mock LLM</p>
       </div>
     </div>
