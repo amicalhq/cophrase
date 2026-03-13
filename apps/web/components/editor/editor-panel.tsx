@@ -26,6 +26,7 @@ export function EditorPanel() {
     MOCK_VERSIONS.find((v) => v.id === DEFAULT_VERSION)?.content ?? ""
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit,
       Placeholder.configure({
