@@ -2,7 +2,7 @@ import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
 import { auth } from "@workspace/auth"
 import { getProjectByIdAndOrg, isOrgMember } from "@/lib/data/projects"
-import { ProjectLayoutClient } from "./project-layout-client"
+import { ProjectProvider } from "./project-context"
 
 export default async function ProjectLayout({
   children,
@@ -23,8 +23,8 @@ export default async function ProjectLayout({
   if (!project) notFound()
 
   return (
-    <ProjectLayoutClient orgId={orgId} project={project}>
+    <ProjectProvider orgId={orgId} project={project}>
       {children}
-    </ProjectLayoutClient>
+    </ProjectProvider>
   )
 }
