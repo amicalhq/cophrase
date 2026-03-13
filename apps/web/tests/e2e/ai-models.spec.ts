@@ -54,39 +54,85 @@ test.describe.serial("AI Models page", () => {
     ).toBeVisible()
   })
 
-  test("add provider", async ({ page }) => {
+  test("test connection shows error for invalid API key", async ({ page }) => {
     await signIn(page, testUser.email, testUser.password)
-
     await page.goto(`/orgs/${orgId}/models`)
 
-    // Click Add provider button
+    // Open add provider dialog
     await page.getByRole("button", { name: "Add provider" }).click()
 
-    // Select OpenAI provider type card
+    // Select OpenAI
     await page.getByText("OpenAI").click()
 
-    // Fill in provider name
-    await page.getByLabel("Name").fill("Test OpenAI")
+    // Fill in name and a fake API key
+    await page.getByLabel("Name").fill("Test Provider")
+    await page.getByLabel("API Key").fill("sk-invalid-key")
 
-    // Fill in API key
+    // Click "Test connection" button
+    await page.getByRole("button", { name: "Test connection" }).click()
+
+    // Verify the error banner appears using data-testid
+    const banner = page.getByTestId("connection-test-banner")
+    await expect(banner).toBeVisible({ timeout: 10_000 })
+    await expect(banner).toContainText(/invalid|error|denied|unauthorized/i)
+
+    // Verify we're still on step 1 — the "Test connection" button is still visible
+    await expect(
+      page.getByRole("button", { name: "Test connection" })
+    ).toBeVisible()
+
+    // Close dialog
+    await page.keyboard.press("Escape")
+  })
+
+  test("add provider: Next is blocked by failed connection test", async ({ page }) => {
+    await signIn(page, testUser.email, testUser.password)
+    await page.goto(`/orgs/${orgId}/models`)
+
+    // Open add provider dialog
+    await page.getByRole("button", { name: "Add provider" }).click()
+
+    // Select OpenAI and fill credentials
+    await page.getByText("OpenAI").click()
+    await page.getByLabel("Name").fill("Test OpenAI")
     await page.getByLabel("API Key").fill("sk-test-12345")
 
-    // Click Next: Select models
-    await page.getByRole("button", { name: "Next: Select models →" }).click()
+    // Click Next — connection test will fail with fake key
+    await page.getByRole("button", { name: /Next/ }).click()
 
-    // Wait for models to load (external API call to models.dev)
-    await expect(page.getByRole("checkbox").first()).toBeVisible({
-      timeout: 15_000,
+    // Verify error banner appears
+    const banner = page.getByTestId("connection-test-banner")
+    await expect(banner).toBeVisible({ timeout: 10_000 })
+
+    // Verify still on step 1 (dialog title is "Add provider", not "Enable models")
+    await expect(
+      page.getByRole("button", { name: "Test connection" })
+    ).toBeVisible()
+
+    // Close dialog
+    await page.keyboard.press("Escape")
+  })
+
+  test("setup: create provider via API", async ({ page }) => {
+    // Sign in via the browser to get auth cookies
+    await signIn(page, testUser.email, testUser.password)
+
+    // Create provider directly via API (bypasses connection test)
+    const res = await page.request.post("/api/providers", {
+      data: {
+        orgId,
+        name: "Test OpenAI",
+        providerType: "openai",
+        apiKey: "sk-test-12345",
+        models: [
+          { modelId: "gpt-4o", modelType: "language" },
+        ],
+      },
     })
+    expect(res.ok()).toBeTruthy()
 
-    // Verify at least one model checkbox is checked (auto-selected)
-    const checkedCheckboxes = page.getByRole("checkbox", { checked: true })
-    await expect(checkedCheckboxes.first()).toBeVisible()
-
-    // Submit the form
-    await page.getByRole("button", { name: "Add provider & models" }).click()
-
-    // Verify the provider card appears
+    // Verify provider card appears on page
+    await page.goto(`/orgs/${orgId}/models`)
     await expect(page.getByText("Test OpenAI")).toBeVisible({ timeout: 10_000 })
   })
 
@@ -95,8 +141,7 @@ test.describe.serial("AI Models page", () => {
 
     await page.goto(`/orgs/${orgId}/models`)
 
-    // After adding provider, at least one model should appear in the models section
-    // The models table shows "X model(s)" count
+    // The API-created provider has 1 model (gpt-4o)
     await expect(
       page.getByText(/\d+ model\(s\)/)
     ).toBeVisible({ timeout: 10_000 })
@@ -109,6 +154,11 @@ test.describe.serial("AI Models page", () => {
 
     // Click the provider card
     await page.getByText("Test OpenAI").click()
+
+    // Verify "Test connection" button exists in edit dialog
+    await expect(
+      page.getByRole("button", { name: "Test connection" })
+    ).toBeVisible()
 
     // Edit the name
     const nameInput = page.getByLabel("Name")
