@@ -9,7 +9,7 @@ export default function EditorLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { orgId, project } = useProject()
+  const { project } = useProject()
   const { data: activeOrg } = authClient.useActiveOrganization()
 
   const organization = activeOrg
