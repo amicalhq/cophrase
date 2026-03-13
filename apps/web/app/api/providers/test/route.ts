@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(result)
-  } catch {
+  } catch (err) {
+    console.error("Provider test connection error:", err)
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },

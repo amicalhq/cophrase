@@ -259,7 +259,7 @@ export function EditProviderDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={testStatus === "testing"}
+                  disabled={testStatus === "testing" || loading || deleteLoading}
                   onClick={handleTestConnection}
                 >
                   {testStatus === "testing" ? "Testing..." : "Test connection"}
