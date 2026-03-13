@@ -13,6 +13,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { Badge } from "@workspace/ui/components/badge"
+import { ConnectionTestBanner } from "./connection-test-banner"
 
 interface EditProviderDialogProps {
   open: boolean
@@ -53,6 +54,10 @@ export function EditProviderDialog({
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState("")
 
+  // Connection test state
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle")
+  const [testError, setTestError] = useState("")
+
   const showBaseUrl = BASE_URL_PROVIDER_TYPES.includes(provider.providerType)
 
   // Reset state when dialog opens/closes or provider changes
@@ -66,8 +71,40 @@ export function EditProviderDialog({
       setShowDeleteConfirm(false)
       setDeleteLoading(false)
       setDeleteError("")
+      setTestStatus("idle")
+      setTestError("")
     }
   }, [open, provider])
+
+  async function handleTestConnection() {
+    setTestStatus("testing")
+    setTestError("")
+    try {
+      const body: Record<string, string | undefined> = { orgId, providerId: provider.id }
+      if (apiKey.trim()) {
+        body.apiKey = apiKey.trim()
+      }
+      if (baseURL.trim()) {
+        body.baseURL = baseURL.trim()
+      }
+
+      const res = await fetch("/api/providers/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setTestStatus("success")
+      } else {
+        setTestStatus("error")
+        setTestError(data.error ?? "Connection failed")
+      }
+    } catch {
+      setTestStatus("error")
+      setTestError("Something went wrong")
+    }
+  }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -172,7 +209,11 @@ export function EditProviderDialog({
                 type="password"
                 placeholder="Leave blank to keep current key"
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                onChange={(e) => {
+                  setApiKey(e.target.value)
+                  setTestStatus("idle")
+                  setTestError("")
+                }}
                 autoComplete="off"
               />
             </div>
@@ -188,10 +229,16 @@ export function EditProviderDialog({
                   id="edit-provider-base-url"
                   placeholder="https://api.openai.com/v1"
                   value={baseURL}
-                  onChange={(e) => setBaseURL(e.target.value)}
+                  onChange={(e) => {
+                    setBaseURL(e.target.value)
+                    setTestStatus("idle")
+                    setTestError("")
+                  }}
                 />
               </div>
             )}
+
+            <ConnectionTestBanner status={testStatus} error={testError} />
           </div>
 
           <DialogFooter className="pt-4">
@@ -207,9 +254,20 @@ export function EditProviderDialog({
               >
                 Delete provider
               </Button>
-              <Button type="submit" disabled={loading || !name.trim()}>
-                {loading ? "Saving..." : "Save changes"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={testStatus === "testing"}
+                  onClick={handleTestConnection}
+                >
+                  {testStatus === "testing" ? "Testing..." : "Test connection"}
+                </Button>
+                <Button type="submit" disabled={loading || !name.trim()}>
+                  {loading ? "Saving..." : "Save changes"}
+                </Button>
+              </div>
             </div>
           </DialogFooter>
         </form>
