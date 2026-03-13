@@ -10,15 +10,10 @@ export default async function EditContentPage({
 }: {
   params: Promise<{ orgId: string; projectId: string; contentId: string }>
 }) {
-  const { orgId, projectId, contentId } = await params
+  const { projectId, contentId } = await params
 
   const content = await getContentById(contentId, projectId)
   if (!content) notFound()
 
-  return (
-    <AIEditor
-      contentTitle={content.title}
-      backHref={`/orgs/${orgId}/projects/${projectId}/content`}
-    />
-  )
+  return <AIEditor contentTitle={content.title} />
 }

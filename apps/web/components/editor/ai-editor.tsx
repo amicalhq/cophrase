@@ -1,7 +1,6 @@
 "use client"
 
 import { useRef, useState } from "react"
-import Link from "next/link"
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -9,7 +8,6 @@ import {
   type PanelImperativeHandle,
 } from "@workspace/ui/components/resizable"
 import { Button } from "@workspace/ui/components/button"
-import { Separator } from "@workspace/ui/components/separator"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import { ChatPanel } from "./chat-panel"
@@ -17,10 +15,9 @@ import { EditorPanel } from "./editor-panel"
 
 interface AIEditorProps {
   contentTitle: string
-  backHref: string
 }
 
-export function AIEditor({ contentTitle, backHref }: AIEditorProps) {
+export function AIEditor({ contentTitle: _contentTitle }: AIEditorProps) {
   const [isChatOpen, setIsChatOpen] = useState(true)
   const chatPanelRef = useRef<PanelImperativeHandle>(null)
 
@@ -36,20 +33,6 @@ export function AIEditor({ contentTitle, backHref }: AIEditorProps) {
 
   return (
     <>
-      {/* Minimal header with breadcrumbs */}
-      <div className="border-border flex h-11 shrink-0 items-center border-b px-3">
-        <nav className="flex items-center gap-1.5 text-sm">
-          <Link
-            href={backHref}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Content
-          </Link>
-          <Separator orientation="vertical" className="mx-1 h-4" />
-          <span className="text-foreground font-medium">{contentTitle}</span>
-        </nav>
-      </div>
-
       {/* Split panel editor */}
       <div className="relative flex-1 overflow-hidden">
         <ResizablePanelGroup orientation="horizontal">

@@ -26,7 +26,7 @@ export default async function ContentPage({
         <h1 className="text-xl font-semibold">Content</h1>
         <CreateContentDialog orgId={orgId} projectId={projectId} />
       </div>
-      <ContentTable data={content} />
+      <ContentTable data={content} orgId={orgId} projectId={projectId} />
     </main>
   )
 }
