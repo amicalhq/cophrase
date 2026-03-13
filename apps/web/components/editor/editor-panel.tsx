@@ -18,7 +18,7 @@ import { BoldButton } from "./toolbars/formatting-buttons"
 import { ItalicButton } from "./toolbars/formatting-buttons"
 import { UnderlineButton } from "./toolbars/formatting-buttons"
 import { LinkButton } from "./toolbars/insert-buttons"
-import { SlashMenu } from "./extensions/floating-menu"
+import { SlashCommand } from "./extensions/slash-command"
 
 export function EditorPanel() {
   const [selectedVersion, setSelectedVersion] = useState(DEFAULT_VERSION)
@@ -45,6 +45,7 @@ export function EditorPanel() {
       }),
       Typography,
       Image,
+      SlashCommand,
     ],
     content: initialContent,
     editorProps: {
@@ -70,18 +71,15 @@ export function EditorPanel() {
         />
         <div className="flex-1 overflow-y-auto">
           {editor && (
-            <>
-              <BubbleMenu
-                editor={editor}
-                className="bg-background border-border flex items-center gap-0.5 rounded-md border p-1 shadow-md"
-              >
-                <BoldButton />
-                <ItalicButton />
-                <UnderlineButton />
-                <LinkButton />
-              </BubbleMenu>
-              <SlashMenu editor={editor} />
-            </>
+            <BubbleMenu
+              editor={editor}
+              className="bg-background border-border flex items-center gap-0.5 rounded-md border p-1 shadow-md"
+            >
+              <BoldButton />
+              <ItalicButton />
+              <UnderlineButton />
+              <LinkButton />
+            </BubbleMenu>
           )}
           <EditorContent editor={editor} className="h-full" />
         </div>
