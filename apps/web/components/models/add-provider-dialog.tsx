@@ -22,6 +22,7 @@ import {
 } from "@workspace/ui/components/tabs"
 import { cn } from "@workspace/ui/lib/utils"
 import type { AvailableModel } from "@/lib/ai/types"
+import { ConnectionTestBanner } from "./connection-test-banner"
 
 interface AddProviderDialogProps {
   open: boolean
@@ -78,6 +79,10 @@ export function AddProviderDialog({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  // Connection test state
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle")
+  const [testError, setTestError] = useState("")
+
   // Reset all state when dialog closes
   useEffect(() => {
     if (!open) {
@@ -93,12 +98,48 @@ export function AddProviderDialog({
       setActiveTab("language")
       setLoading(false)
       setError("")
+      setTestStatus("idle")
+      setTestError("")
     }
   }, [open])
+
+  async function runConnectionTest(): Promise<boolean> {
+    setTestStatus("testing")
+    setTestError("")
+    try {
+      const res = await fetch("/api/providers/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          providerType,
+          apiKey: apiKey.trim(),
+          baseURL: baseURL.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setTestStatus("success")
+        return true
+      } else {
+        setTestStatus("error")
+        setTestError(data.error ?? "Connection failed")
+        return false
+      }
+    } catch {
+      setTestStatus("error")
+      setTestError("Something went wrong")
+      return false
+    }
+  }
 
   async function handleNextStep(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!providerType || !name.trim() || !apiKey.trim()) return
+
+    // Test connection first
+    const connected = await runConnectionTest()
+    if (!connected) return
 
     setFetchingModels(true)
     setFetchError("")
@@ -229,7 +270,11 @@ export function AddProviderDialog({
                     <button
                       key={option.type}
                       type="button"
-                      onClick={() => setProviderType(option.type)}
+                      onClick={() => {
+                        setProviderType(option.type)
+                        setTestStatus("idle")
+                        setTestError("")
+                      }}
                       className={cn(
                         "flex flex-col items-center gap-2 rounded-lg border p-3 text-center transition-colors hover:bg-muted",
                         providerType === option.type
@@ -268,7 +313,11 @@ export function AddProviderDialog({
                   type="password"
                   placeholder="sk-..."
                   value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  onChange={(e) => {
+                    setApiKey(e.target.value)
+                    setTestStatus("idle")
+                    setTestError("")
+                  }}
                   autoComplete="off"
                   required
                 />
@@ -284,23 +333,50 @@ export function AddProviderDialog({
                   id="provider-base-url"
                   placeholder="https://api.openai.com/v1"
                   value={baseURL}
-                  onChange={(e) => setBaseURL(e.target.value)}
+                  onChange={(e) => {
+                    setBaseURL(e.target.value)
+                    setTestStatus("idle")
+                    setTestError("")
+                  }}
                 />
               </div>
+
+              <ConnectionTestBanner status={testStatus} error={testError} />
             </div>
 
             <DialogFooter className="pt-4">
-              <Button
-                type="submit"
-                disabled={
-                  fetchingModels ||
-                  !providerType ||
-                  !name.trim() ||
-                  !apiKey.trim()
-                }
-              >
-                {fetchingModels ? "Loading..." : "Next: Select models →"}
-              </Button>
+              <div className="flex w-full items-center justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    testStatus === "testing" ||
+                    fetchingModels ||
+                    !providerType ||
+                    !apiKey.trim()
+                  }
+                  onClick={runConnectionTest}
+                >
+                  Test connection
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    testStatus === "testing" ||
+                    fetchingModels ||
+                    !providerType ||
+                    !name.trim() ||
+                    !apiKey.trim()
+                  }
+                >
+                  {testStatus === "testing"
+                    ? "Testing connection..."
+                    : fetchingModels
+                      ? "Fetching models..."
+                      : "Next: Select models →"}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         )}
