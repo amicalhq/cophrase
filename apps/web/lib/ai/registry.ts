@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai"
 import { createGroq } from "@ai-sdk/groq"
-import { createGateway } from "@ai-sdk/gateway"
+import { createGateway } from "ai"
 
 export const SUPPORTED_PROVIDERS = {
   openai: {
