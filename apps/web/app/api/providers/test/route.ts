@@ -44,38 +44,45 @@ export async function POST(request: NextRequest) {
   let resolvedKey: string
   let resolvedBaseURL: string | undefined = baseURL
 
-  if (providerId) {
-    // Edit dialog: resolve from stored provider
-    const provider = await getProviderById(providerId, orgId)
-    if (!provider) {
-      return NextResponse.json({ error: "Provider not found" }, { status: 404 })
+  try {
+    if (providerId) {
+      // Edit dialog: resolve from stored provider
+      const provider = await getProviderById(providerId, orgId)
+      if (!provider) {
+        return NextResponse.json({ error: "Provider not found" }, { status: 404 })
+      }
+      resolvedType = provider.providerType
+      resolvedKey = apiKey?.trim() || decrypt(provider.apiKeyEnc)
+      resolvedBaseURL = baseURL ?? provider.baseUrl ?? undefined
+    } else {
+      // Add dialog: credentials provided directly
+      if (!providerType || !isSupportedProvider(providerType)) {
+        return NextResponse.json(
+          { error: "Invalid provider type" },
+          { status: 400 },
+        )
+      }
+      if (!apiKey?.trim()) {
+        return NextResponse.json(
+          { error: "apiKey is required" },
+          { status: 400 },
+        )
+      }
+      resolvedType = providerType as ProviderType
+      resolvedKey = apiKey.trim()
     }
-    resolvedType = provider.providerType
-    resolvedKey = apiKey?.trim() || decrypt(provider.apiKeyEnc)
-    resolvedBaseURL = baseURL ?? provider.baseUrl ?? undefined
-  } else {
-    // Add dialog: credentials provided directly
-    if (!providerType || !isSupportedProvider(providerType)) {
-      return NextResponse.json(
-        { error: "Invalid provider type" },
-        { status: 400 },
-      )
-    }
-    if (!apiKey?.trim()) {
-      return NextResponse.json(
-        { error: "apiKey is required" },
-        { status: 400 },
-      )
-    }
-    resolvedType = providerType as ProviderType
-    resolvedKey = apiKey.trim()
+
+    const result = await testProviderConnection({
+      providerType: resolvedType,
+      apiKey: resolvedKey,
+      baseURL: resolvedBaseURL,
+    })
+
+    return NextResponse.json(result)
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 },
+    )
   }
-
-  const result = await testProviderConnection({
-    providerType: resolvedType,
-    apiKey: resolvedKey,
-    baseURL: resolvedBaseURL,
-  })
-
-  return NextResponse.json(result)
 }

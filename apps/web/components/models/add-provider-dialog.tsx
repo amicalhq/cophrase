@@ -22,7 +22,7 @@ import {
 } from "@workspace/ui/components/tabs"
 import { cn } from "@workspace/ui/lib/utils"
 import type { AvailableModel } from "@/lib/ai/types"
-import { ConnectionTestBanner } from "./connection-test-banner"
+import { ConnectionTestBanner, type ConnectionTestStatus } from "./connection-test-banner"
 
 interface AddProviderDialogProps {
   open: boolean
@@ -80,7 +80,7 @@ export function AddProviderDialog({
   const [error, setError] = useState("")
 
   // Connection test state
-  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle")
+  const [testStatus, setTestStatus] = useState<ConnectionTestStatus>("idle")
   const [testError, setTestError] = useState("")
 
   // Reset all state when dialog closes

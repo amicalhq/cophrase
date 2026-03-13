@@ -13,7 +13,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { Badge } from "@workspace/ui/components/badge"
-import { ConnectionTestBanner } from "./connection-test-banner"
+import { ConnectionTestBanner, type ConnectionTestStatus } from "./connection-test-banner"
 
 interface EditProviderDialogProps {
   open: boolean
@@ -55,7 +55,7 @@ export function EditProviderDialog({
   const [deleteError, setDeleteError] = useState("")
 
   // Connection test state
-  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle")
+  const [testStatus, setTestStatus] = useState<ConnectionTestStatus>("idle")
   const [testError, setTestError] = useState("")
 
   const showBaseUrl = BASE_URL_PROVIDER_TYPES.includes(provider.providerType)
