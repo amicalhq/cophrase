@@ -86,8 +86,8 @@ export function SlashMenu({ editor }: SlashMenuProps) {
       editor={editor}
       shouldShow={({ state }) => {
         const { $from } = state.selection
-        const currentLineText = $from.nodeBefore?.textContent ?? ""
-        return currentLineText === "/"
+        // Show when the current paragraph contains only "/"
+        return $from.parent.textContent === "/"
       }}
       className="bg-background border-border z-50 overflow-hidden rounded-md border shadow-md"
     >
