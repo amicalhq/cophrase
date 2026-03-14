@@ -1,4 +1,4 @@
-import type { CompatibleLanguageModel } from "@workflow/ai/agent"
+import type { LanguageModel } from "ai"
 import {
   getModelById,
   getDefaultsForOrg,
@@ -21,7 +21,7 @@ import type { ProviderType } from "@workspace/db"
 export async function resolveModel(
   modelId: string | null,
   organizationId: string,
-): Promise<CompatibleLanguageModel> {
+): Promise<LanguageModel> {
   let resolvedModelId = modelId
 
   // Fall back to org default language model if no specific model
@@ -62,5 +62,5 @@ export async function resolveModel(
     ...(provider.baseUrl ? { baseURL: provider.baseUrl } : {}),
   })
 
-  return client(model.modelId) as CompatibleLanguageModel
+  return client(model.modelId) as LanguageModel
 }

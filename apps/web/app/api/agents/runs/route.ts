@@ -3,14 +3,13 @@ import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
 import { createUIMessageStreamResponse } from "ai"
 import type { ModelMessage } from "ai"
-import { start } from "workflow/api"
 import { getBuiltInAgent } from "@/lib/agents/built-in/registry"
 import { getAgentById } from "@workspace/db/queries/agents"
 import {
   createAgentRun,
   updateAgentRunStatus,
 } from "@workspace/db/queries/agent-runs"
-import { orchestratorChat } from "@/lib/agents/run-agent"
+import { runOrchestrator } from "@/lib/agents/run-agent"
 import type { ExecutionMode } from "@workspace/db"
 import type { AgentConfig, RunContext } from "@/lib/agents/types"
 
@@ -38,28 +37,16 @@ export async function POST(request: NextRequest) {
     }
 
   if (!agentId) {
-    return NextResponse.json(
-      { error: "agentId is required" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "agentId is required" }, { status: 400 })
   }
   if (!messages || messages.length === 0) {
-    return NextResponse.json(
-      { error: "messages are required" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "messages are required" }, { status: 400 })
   }
   if (!organizationId) {
-    return NextResponse.json(
-      { error: "organizationId is required" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "organizationId is required" }, { status: 400 })
   }
   if (!projectId) {
-    return NextResponse.json(
-      { error: "projectId is required" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "projectId is required" }, { status: 400 })
   }
 
   // Resolve agent: built-in first, then DB
@@ -85,7 +72,6 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Create agent run record
     const run = await createAgentRun({
       organizationId,
       projectId,
@@ -103,25 +89,12 @@ export async function POST(request: NextRequest) {
       runId: run.id,
     }
 
-    // Start the workflow
-    const workflowRun = await start(orchestratorChat, [
-      agentConfig,
-      messages,
-      run.id,
-      context,
-    ])
+    const stream = await runOrchestrator(agentConfig, messages, context)
 
-    // Update run with workflow run ID
-    await updateAgentRunStatus(run.id, "running", {
-      workflowRunId: workflowRun.runId,
-    })
-
-    // Return streaming response with run metadata headers
     return createUIMessageStreamResponse({
-      stream: workflowRun.readable,
+      stream,
       headers: {
         "x-run-id": run.id,
-        "x-workflow-run-id": workflowRun.runId,
       },
     })
   } catch (error) {

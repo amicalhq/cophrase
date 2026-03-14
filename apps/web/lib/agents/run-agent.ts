@@ -1,146 +1,218 @@
+/**
+ * Agent runner — uses AI SDK streamText directly.
+ *
+ * V1: No Workflow DevKit durability wrapper. The agent runs as a standard
+ * streamText call with tools. Durability (checkpointing, replay, resume)
+ * will be added post-v1 once we resolve the serialization constraints
+ * of Workflow DevKit (model instances and tool functions are not serializable).
+ */
+
 import type { ModelMessage, ToolSet, UIMessageChunk } from "ai"
-import { DurableAgent } from "@workflow/ai/agent"
-import { getWritable } from "workflow"
+import { streamText, stepCountIs } from "ai"
+import { z } from "zod"
+import { tool } from "ai"
 import { resolveModel } from "./resolve-model"
-import { resolveTools } from "./resolve-tools"
 import { getAgentTools } from "@workspace/db/queries/agents"
 import {
-  saveMessages,
-  getExistingMessageIds,
-} from "@workspace/db/queries/agent-runs"
-import { chatMessageHook } from "./hooks"
+  createArtifact,
+  getArtifactById,
+  getNextArtifactVersion,
+  searchArtifacts as searchArtifactsQuery,
+} from "@workspace/db/queries/artifacts"
+import { updateContentStage } from "@workspace/db/queries/content"
+import { getBuiltInAgent, getBuiltInAgentTools } from "./built-in/registry"
 import type { AgentConfig, AgentToolRecord, RunContext } from "./types"
+import type { ArtifactStatus } from "@workspace/db"
 
 // ---------------------------------------------------------------------------
-// Step functions — Node.js / DB operations must be in "use step" functions.
-// IMPORTANT: Step return values must be serializable (plain objects/arrays).
-// Do NOT return class instances, functions, or AI SDK tool objects from steps.
+// Tool construction
 // ---------------------------------------------------------------------------
 
-async function loadToolRecords(agentId: string): Promise<AgentToolRecord[]> {
-  "use step"
-  return (await getAgentTools(agentId)) as AgentToolRecord[]
-}
+function buildTools(
+  toolRecords: AgentToolRecord[],
+  ctx: RunContext,
+): ToolSet {
+  const tools: ToolSet = {}
 
-async function resolveModelStep(modelId: string | null, organizationId: string) {
-  "use step"
-  return resolveModel(modelId, organizationId)
-}
+  tools["save-artifact"] = tool({
+    description:
+      "Save an artifact (research notes, blog draft, etc.) to the database.",
+    inputSchema: z.object({
+      type: z.string().describe('Artifact type, e.g. "research-notes", "blog-draft"'),
+      title: z.string().describe("A short title for the artifact"),
+      data: z.record(z.string(), z.unknown()).describe("The artifact payload as JSON"),
+      parentIds: z.array(z.string()).optional().describe("IDs of parent artifacts"),
+    }),
+    execute: async ({ type, title, data, parentIds }) => {
+      const version = ctx.contentId
+        ? await getNextArtifactVersion(ctx.contentId, type)
+        : 1
 
-async function persistNewMessages(
-  runId: string,
-  messages: ModelMessage[],
-) {
-  "use step"
-  const existingIds = await getExistingMessageIds(runId)
-  const newMessages = messages.filter(
-    (m) => "id" in m && typeof m.id === "string" && !existingIds.has(m.id),
-  )
+      const artifact = await createArtifact({
+        organizationId: ctx.organizationId,
+        projectId: ctx.projectId,
+        contentId: ctx.contentId || undefined,
+        agentId: ctx.agentId,
+        runId: ctx.runId,
+        type,
+        title,
+        data,
+        version,
+        parentIds,
+      })
 
-  if (newMessages.length === 0) return
+      if (type === "blog-draft" && ctx.contentId) {
+        await updateContentStage(ctx.contentId, "draft")
+      }
 
-  await saveMessages(
-    runId,
-    newMessages.map((m) => ({
-      id: (m as ModelMessage & { id: string }).id,
-      role: m.role as "user" | "assistant" | "system" | "tool",
-      parts: "content" in m ? m.content : null,
-      metadata: undefined,
-    })),
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Workflow functions
-// ---------------------------------------------------------------------------
-
-/**
- * Single-shot agent run. Creates a DurableAgent, resolves tools, and streams.
- */
-export async function runAgent(
-  agentConfig: AgentConfig,
-  input: {
-    messages: ModelMessage[]
-    context: RunContext
-  },
-) {
-  "use workflow"
-
-  // Tool records are plain data (serializable) — safe to fetch in a step
-  const toolRecords = await loadToolRecords(agentConfig.id)
-
-  // Tools contain functions (non-serializable) — must be built in the workflow,
-  // NOT inside a step. resolveTools returns ToolSet which contains execute fns.
-  // Each tool's execute fn has "use step" internally for durability.
-  const tools = resolveTools(agentConfig, toolRecords, input.context)
-
-  const agent = new DurableAgent({
-    // Model resolution does I/O (DB + decrypt) — wrapped in a step
-    model: () => resolveModelStep(agentConfig.modelId ?? null, input.context.organizationId),
-    tools: tools as ToolSet,
-    system: agentConfig.prompt,
+      return { artifactId: artifact.id, type: artifact.type, version: artifact.version }
+    },
   })
 
-  const result = await agent.stream({
-    messages: input.messages,
-    writable: getWritable<UIMessageChunk>(),
+  tools["load-artifact"] = tool({
+    description: "Load a previously saved artifact by its ID.",
+    inputSchema: z.object({
+      artifactId: z.string().describe("The artifact ID to load"),
+    }),
+    execute: async ({ artifactId }) => {
+      const artifact = await getArtifactById(artifactId)
+      if (!artifact) return { error: `Artifact not found: ${artifactId}` }
+      return {
+        id: artifact.id,
+        type: artifact.type,
+        title: artifact.title,
+        data: artifact.data,
+        version: artifact.version,
+        status: artifact.status,
+      }
+    },
   })
 
-  await persistNewMessages(input.context.runId, result.messages)
-
-  return result
-}
-
-/**
- * Multi-turn orchestrator chat. Runs in a while(true) loop, suspending on a
- * chatMessageHook between turns.
- */
-export async function orchestratorChat(
-  agentConfig: AgentConfig,
-  initialMessages: ModelMessage[],
-  runId: string,
-  context: RunContext,
-) {
-  "use workflow"
-
-  const toolRecords = await loadToolRecords(agentConfig.id)
-
-  // Build tools in workflow context (not a step) — they contain functions
-  const tools = resolveTools(agentConfig, toolRecords, context)
-
-  const agent = new DurableAgent({
-    model: () => resolveModelStep(agentConfig.modelId ?? null, context.organizationId),
-    tools: tools as ToolSet,
-    system: agentConfig.prompt,
+  tools["search-artifacts"] = tool({
+    description: "Search for existing artifacts. Filter by type, content, run, or status.",
+    inputSchema: z.object({
+      contentId: z.string().optional(),
+      runId: z.string().optional(),
+      type: z.string().optional(),
+      status: z.enum(["pending", "ready", "approved", "rejected"]).optional(),
+    }),
+    execute: async ({ contentId, runId, type, status }) => {
+      const results = await searchArtifactsQuery({
+        organizationId: ctx.organizationId,
+        contentId: contentId ?? (ctx.contentId || undefined),
+        runId,
+        type,
+        status: status as ArtifactStatus | undefined,
+      })
+      return { count: results.length, artifacts: results }
+    },
   })
 
-  let messages = initialMessages
+  for (const record of toolRecords) {
+    switch (record.type) {
+      case "function": {
+        if (record.referenceId === "web-search") {
+          tools["web-search"] = tool({
+            description: "Search the web for information on a topic.",
+            inputSchema: z.object({
+              query: z.string().describe("The search query"),
+              numResults: z.number().min(1).max(10).optional(),
+            }),
+            execute: async ({ query, numResults = 5 }) => {
+              const apiKey = process.env.EXA_API_KEY
+              if (!apiKey) return { error: "EXA_API_KEY not configured" }
 
-  const firstResult = await agent.stream({
-    messages,
-    writable: getWritable<UIMessageChunk>(),
-    preventClose: true,
-  })
+              const response = await fetch("https://api.exa.ai/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+                body: JSON.stringify({
+                  query,
+                  numResults,
+                  type: "auto",
+                  contents: { text: { maxCharacters: 2000 } },
+                }),
+              })
 
-  messages = firstResult.messages
-  await persistNewMessages(runId, messages)
+              if (!response.ok) {
+                return { error: `Exa API error: ${response.status}` }
+              }
 
-  while (true) {
-    const hook = chatMessageHook.create({
-      token: `chat:${runId}`,
-    })
+              const data = await response.json()
+              return {
+                results: (data.results ?? []).map((r: any) => ({
+                  title: r.title,
+                  url: r.url,
+                  snippet: r.text?.slice(0, 500),
+                })),
+              }
+            },
+          })
+        }
+        break
+      }
 
-    const newMessages = await hook
+      case "agent": {
+        const subAgent = getBuiltInAgent(record.referenceId)
+        if (subAgent) {
+          tools[subAgent.name] = tool({
+            description: subAgent.description,
+            inputSchema: z.object({
+              input: z.string().describe("Instructions for the sub-agent"),
+            }),
+            execute: async ({ input }) => {
+              const model = await resolveModel(
+                subAgent.modelId ?? null,
+                ctx.organizationId,
+              )
+              const subToolRecords = getBuiltInAgentTools(subAgent.id)
+              const subTools = buildTools(subToolRecords, ctx)
 
-    messages = [...messages, ...newMessages]
+              const result = await streamText({
+                model,
+                system: subAgent.prompt,
+                messages: [{ role: "user" as const, content: input }],
+                tools: subTools,
+                stopWhen: stepCountIs(10),
+              })
 
-    const result = await agent.stream({
-      messages,
-      writable: getWritable<UIMessageChunk>(),
-      preventClose: true,
-    })
+              return await result.text
+            },
+          })
+        }
+        break
+      }
 
-    messages = result.messages
-    await persistNewMessages(runId, messages)
+      case "mcp-server":
+        break
+    }
   }
+
+  return tools
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Runs the orchestrator agent and returns a UI message stream.
+ */
+export async function runOrchestrator(
+  agentConfig: AgentConfig,
+  messages: ModelMessage[],
+  context: RunContext,
+): Promise<ReadableStream<UIMessageChunk>> {
+  const toolRecords = await getAgentTools(agentConfig.id)
+  const tools = buildTools(toolRecords, context)
+  const model = await resolveModel(agentConfig.modelId ?? null, context.organizationId)
+
+  const result = streamText({
+    model,
+    system: agentConfig.prompt,
+    messages,
+    tools,
+    stopWhen: stepCountIs(20),
+  })
+
+  return result.toUIMessageStream()
 }
