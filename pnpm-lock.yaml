@@ -161,6 +161,9 @@ importers:
       workflow:
         specifier: ^4.2.0-beta.68
         version: 4.2.0-beta.68(@nestjs/common@11.1.16(reflect-metadata@0.2.2)(rxjs@6.6.7))(@nestjs/core@11.1.16(@nestjs/common@11.1.16(reflect-metadata@0.2.2)(rxjs@6.6.7))(reflect-metadata@0.2.2)(rxjs@6.6.7))(@opentelemetry/api@1.9.0)(@swc/cli@0.8.0(@swc/core@1.15.3(@swc/helpers@0.5.15))(chokidar@5.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.15))(@swc/helpers@0.5.15)(next@16.1.6(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(typescript@5.9.3)
+      zod:
+        specifier: '4'
+        version: 4.3.6
     devDependencies:
       '@playwright/test':
         specifier: ^1.58.2
