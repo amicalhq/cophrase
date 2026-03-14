@@ -11,6 +11,9 @@
     "./queries/providers": "./src/queries/providers.ts",
     "./queries/models": "./src/queries/models.ts",
     "./queries/resources": "./src/queries/resources.ts",
+    "./queries/agents": "./src/queries/agents.ts",
+    "./queries/artifacts": "./src/queries/artifacts.ts",
+    "./queries/agent-runs": "./src/queries/agent-runs.ts",
     "./crypto": "./src/crypto.ts"
   },
   "scripts": {
