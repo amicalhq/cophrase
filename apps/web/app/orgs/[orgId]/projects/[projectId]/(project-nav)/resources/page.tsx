@@ -7,7 +7,7 @@ export default async function ResourcesPage({
   params: Promise<{ orgId: string; projectId: string }>
 }) {
   const { orgId, projectId } = await params
-  const rawResources = await getResourcesByProject(projectId)
+  const rawResources = await getResourcesByProject(projectId, orgId)
 
   const resources = rawResources.map((r) => ({
     id: r.id,

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search") || undefined
 
   try {
-    const resources = await getResourcesByProject(projectId, {
+    const resources = await getResourcesByProject(projectId, orgId, {
       type: type && validTypes.includes(type) ? type : undefined,
       category:
         category && validCategories.includes(category) ? category : undefined,

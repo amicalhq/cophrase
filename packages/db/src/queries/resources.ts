@@ -5,6 +5,7 @@ import type { ResourceType, ResourceCategory } from "../schema/enums"
 
 export async function getResourcesByProject(
   projectId: string,
+  organizationId?: string,
   filters?: {
     type?: ResourceType
     category?: ResourceCategory
@@ -12,6 +13,10 @@ export async function getResourcesByProject(
   },
 ) {
   const conditions = [eq(resource.projectId, projectId)]
+
+  if (organizationId) {
+    conditions.push(eq(resource.organizationId, organizationId))
+  }
 
   if (filters?.type) {
     conditions.push(eq(resource.type, filters.type))
