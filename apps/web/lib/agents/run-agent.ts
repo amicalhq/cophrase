@@ -54,7 +54,7 @@ export async function runAgent(
 
   const agent = new DurableAgent({
     model: () =>
-      resolveModel(agentConfig.modelId!, input.context.organizationId),
+      resolveModel(agentConfig.modelId ?? null, input.context.organizationId),
     tools,
     system: agentConfig.prompt,
   })
@@ -90,7 +90,7 @@ export async function orchestratorChat(
 
   const agent = new DurableAgent({
     model: () =>
-      resolveModel(agentConfig.modelId!, context.organizationId),
+      resolveModel(agentConfig.modelId ?? null, context.organizationId),
     tools,
     system: agentConfig.prompt,
   })

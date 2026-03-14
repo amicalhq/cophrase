@@ -1,5 +1,8 @@
 import type { CompatibleLanguageModel } from "@workflow/ai/agent"
-import { getModelById } from "@workspace/db/queries/models"
+import {
+  getModelById,
+  getDefaultsForOrg,
+} from "@workspace/db/queries/models"
 import { getProviderById } from "@workspace/db/queries/providers"
 import { decrypt } from "@workspace/db/crypto"
 import {
@@ -9,18 +12,35 @@ import {
 import type { ProviderType } from "@workspace/db"
 
 /**
- * Resolves a model DB record into an AI SDK LanguageModel.
+ * Resolves a model into an AI SDK LanguageModel.
  *
- * Loads the model and its provider from the database, decrypts the API key,
- * and creates the appropriate provider client.
+ * If modelId is provided, loads that specific model. If null, falls back to
+ * the org's default language model. Built-in agents use modelId=null so they
+ * inherit the org's default.
  */
 export async function resolveModel(
-  modelId: string,
+  modelId: string | null,
   organizationId: string,
 ): Promise<CompatibleLanguageModel> {
-  const model = await getModelById(modelId)
+  let resolvedModelId = modelId
+
+  // Fall back to org default language model if no specific model
+  if (!resolvedModelId) {
+    const defaults = await getDefaultsForOrg(organizationId)
+    const defaultLanguageModel = defaults.find(
+      (d) => d.modelType === "language",
+    )
+    if (!defaultLanguageModel) {
+      throw new Error(
+        `No default language model configured for org ${organizationId}. Please set a default model in Settings > Models.`,
+      )
+    }
+    resolvedModelId = defaultLanguageModel.modelId
+  }
+
+  const model = await getModelById(resolvedModelId)
   if (!model) {
-    throw new Error(`Model not found: ${modelId}`)
+    throw new Error(`Model not found: ${resolvedModelId}`)
   }
 
   const provider = await getProviderById(model.providerId, organizationId)
