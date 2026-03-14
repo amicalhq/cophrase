@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
         fileMimeType,
       )
       // Update the resource with file metadata
-      await updateResource(created.id, projectId, {
+      await updateResource(created.id, projectId, project.organizationId, {
         fileUrl: key,
         fileName,
         fileMimeType,

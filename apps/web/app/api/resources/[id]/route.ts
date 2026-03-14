@@ -49,7 +49,7 @@ export async function GET(
   }
 
   try {
-    const resourceData = await getResourceById(id, projectId)
+    const resourceData = await getResourceById(id, projectId, orgId)
     if (!resourceData) {
       return NextResponse.json(
         { error: "Resource not found" },
@@ -149,7 +149,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const existing = await getResourceById(id, projectId)
+  const existing = await getResourceById(id, projectId, orgId)
   if (!existing) {
     return NextResponse.json(
       { error: "Resource not found" },
@@ -181,10 +181,13 @@ export async function PATCH(
     }
 
     const response: Record<string, unknown> = { id }
+    let oldFileUrl: string | null = null
 
-    // Handle file replacement
+    // Handle file replacement — generate new URL but keep old file until upload confirms
     if (existing.type === "file" && fileName && fileMimeType && fileSize) {
-      if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(fileMimeType)) {
+      if (
+        !(ALLOWED_MIME_TYPES as readonly string[]).includes(fileMimeType)
+      ) {
         return NextResponse.json(
           { error: "File type not allowed" },
           { status: 400 },
@@ -197,10 +200,7 @@ export async function PATCH(
         )
       }
 
-      // Delete old S3 object
-      if (existing.fileUrl) {
-        await deleteS3Object(existing.fileUrl)
-      }
+      oldFileUrl = existing.fileUrl
 
       // Generate new presigned URL
       const { url, key } = await generatePresignedUploadUrl(
@@ -217,7 +217,17 @@ export async function PATCH(
       response.uploadUrl = url
     }
 
-    await updateResource(id, projectId, updateData)
+    await updateResource(id, projectId, orgId, updateData)
+
+    // Delete old S3 object after DB update succeeds
+    if (oldFileUrl) {
+      try {
+        await deleteS3Object(oldFileUrl)
+      } catch (error) {
+        console.error("Failed to delete old S3 object:", error)
+        // Non-fatal: old object becomes orphaned but new one is in place
+      }
+    }
 
     return NextResponse.json(response)
   } catch (error) {
@@ -256,7 +266,7 @@ export async function DELETE(
   }
 
   try {
-    const deleted = await deleteResource(id, projectId)
+    const deleted = await deleteResource(id, projectId, orgId)
     if (!deleted) {
       return NextResponse.json(
         { error: "Resource not found" },
@@ -270,7 +280,6 @@ export async function DELETE(
         await deleteS3Object(deleted.fileUrl)
       } catch (error) {
         console.error("Failed to delete S3 object:", error)
-        // DB record already deleted, log and continue
       }
     }
 

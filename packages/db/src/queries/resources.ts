@@ -43,7 +43,11 @@ export async function getResourcesByProject(
     .orderBy(desc(resource.updatedAt))
 }
 
-export async function getResourceById(id: string, projectId: string) {
+export async function getResourceById(
+  id: string,
+  projectId: string,
+  organizationId: string,
+) {
   const [result] = await db
     .select({
       id: resource.id,
@@ -62,7 +66,13 @@ export async function getResourceById(id: string, projectId: string) {
       updatedAt: resource.updatedAt,
     })
     .from(resource)
-    .where(and(eq(resource.id, id), eq(resource.projectId, projectId)))
+    .where(
+      and(
+        eq(resource.id, id),
+        eq(resource.projectId, projectId),
+        eq(resource.organizationId, organizationId),
+      ),
+    )
   return result ?? null
 }
 
@@ -121,6 +131,7 @@ export async function createResource(input: {
 export async function updateResource(
   id: string,
   projectId: string,
+  organizationId: string,
   input: {
     title?: string
     category?: ResourceCategory
@@ -138,28 +149,50 @@ export async function updateResource(
     (v) => v !== undefined,
   )
 
-  if (hasResourceUpdates) {
-    await db
-      .update(resource)
-      .set(resourceData)
-      .where(and(eq(resource.id, id), eq(resource.projectId, projectId)))
-  }
+  return await db.transaction(async (tx) => {
+    if (hasResourceUpdates) {
+      await tx
+        .update(resource)
+        .set(resourceData)
+        .where(
+          and(
+            eq(resource.id, id),
+            eq(resource.projectId, projectId),
+            eq(resource.organizationId, organizationId),
+          ),
+        )
+    }
 
-  if (content !== undefined) {
-    await db
-      .update(resourceContent)
-      .set({ content })
-      .where(eq(resourceContent.resourceId, id))
-  }
+    if (content !== undefined) {
+      await tx
+        .update(resourceContent)
+        .set({ content })
+        .where(eq(resourceContent.resourceId, id))
+    }
 
-  return { id }
+    return { id }
+  })
 }
 
-export async function deleteResource(id: string, projectId: string) {
+export async function deleteResource(
+  id: string,
+  projectId: string,
+  organizationId: string,
+) {
   const [deleted] = await db
     .delete(resource)
-    .where(and(eq(resource.id, id), eq(resource.projectId, projectId)))
-    .returning({ id: resource.id, type: resource.type, fileUrl: resource.fileUrl })
+    .where(
+      and(
+        eq(resource.id, id),
+        eq(resource.projectId, projectId),
+        eq(resource.organizationId, organizationId),
+      ),
+    )
+    .returning({
+      id: resource.id,
+      type: resource.type,
+      fileUrl: resource.fileUrl,
+    })
   return deleted ?? null
 }
 
