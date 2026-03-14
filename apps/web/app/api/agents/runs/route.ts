@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
-import { createUIMessageStreamResponse } from "ai"
-import type { ModelMessage } from "ai"
+import { createUIMessageStreamResponse, convertToModelMessages } from "ai"
+import type { ModelMessage, UIMessage } from "ai"
 import { getBuiltInAgent } from "@/lib/agents/built-in/registry"
 import { getAgentById } from "@workspace/db/queries/agents"
 import {
@@ -26,10 +26,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { agentId, messages, organizationId, projectId, contentId, executionMode } =
+  const { agentId, messages: rawMessages, organizationId, projectId, contentId, executionMode } =
     body as {
       agentId?: string
-      messages?: ModelMessage[]
+      messages?: UIMessage[] | ModelMessage[]
       organizationId?: string
       projectId?: string
       contentId?: string
@@ -39,8 +39,19 @@ export async function POST(request: NextRequest) {
   if (!agentId) {
     return NextResponse.json({ error: "agentId is required" }, { status: 400 })
   }
-  if (!messages || messages.length === 0) {
+  if (!rawMessages || rawMessages.length === 0) {
     return NextResponse.json({ error: "messages are required" }, { status: 400 })
+  }
+
+  // Convert UIMessages (from DefaultChatTransport) to ModelMessages (for AI SDK)
+  let messages: ModelMessage[]
+  const firstMsg = rawMessages[0]!
+  if ("parts" in firstMsg) {
+    // UIMessage format (has 'parts') — convert
+    messages = await convertToModelMessages(rawMessages as UIMessage[])
+  } else {
+    // Already ModelMessage format
+    messages = rawMessages as ModelMessage[]
   }
   if (!organizationId) {
     return NextResponse.json({ error: "organizationId is required" }, { status: 400 })
