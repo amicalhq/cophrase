@@ -31,7 +31,7 @@ export interface AgentToolRecord {
 export interface RunContext {
   organizationId: string
   projectId: string
-  contentId: string
+  contentId?: string
   agentId: string
   runId: string
 }

@@ -3,6 +3,7 @@ import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
 import { getAgentRunById } from "@workspace/db/queries/agent-runs"
 import { getArtifactsByRun } from "@workspace/db/queries/artifacts"
+import { isOrgMember } from "@/lib/data/projects"
 
 export async function GET(
   _request: NextRequest,
@@ -22,6 +23,11 @@ export async function GET(
         { error: "Agent run not found" },
         { status: 404 },
       )
+    }
+
+    const isMember = await isOrgMember(session.user.id, agentRun.organizationId)
+    if (!isMember) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const artifacts = await getArtifactsByRun(runId)

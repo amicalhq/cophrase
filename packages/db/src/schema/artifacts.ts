@@ -13,7 +13,6 @@ import { artifactStatusEnum } from "./enums"
 import { organization } from "./auth"
 import { project } from "./projects"
 import { content } from "./content"
-import { agent } from "./agents"
 
 export const artifact = pgTable(
   "artifact",
@@ -68,9 +67,5 @@ export const artifactRelations = relations(artifact, ({ one }) => ({
   content: one(content, {
     fields: [artifact.contentId],
     references: [content.id],
-  }),
-  agent: one(agent, {
-    fields: [artifact.agentId],
-    references: [agent.id],
   }),
 }))

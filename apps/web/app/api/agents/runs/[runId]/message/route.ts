@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
-import type { ModelMessage } from "ai"
-import { resumeHook } from "workflow/api"
 import { getAgentRunById } from "@workspace/db/queries/agent-runs"
+import { isOrgMember } from "@/lib/data/projects"
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ runId: string }> },
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -15,21 +14,6 @@ export async function POST(
   }
 
   const { runId } = await params
-
-  let body: unknown
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
-
-  const { message } = body as { message?: ModelMessage }
-  if (!message) {
-    return NextResponse.json(
-      { error: "message is required" },
-      { status: 400 },
-    )
-  }
 
   try {
     const agentRun = await getAgentRunById(runId)
@@ -40,10 +24,15 @@ export async function POST(
       )
     }
 
-    // Resume the chat message hook with the new message
-    await resumeHook(`chat:${runId}`, [message])
+    const isMember = await isOrgMember(session.user.id, agentRun.organizationId)
+    if (!isMember) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json(
+      { error: "Multi-turn messaging is deferred to post-v1" },
+      { status: 501 },
+    )
   } catch (error) {
     console.error("Failed to send message to agent run:", error)
     return NextResponse.json(

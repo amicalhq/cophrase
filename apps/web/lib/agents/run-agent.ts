@@ -13,6 +13,7 @@ import { z } from "zod"
 import { tool } from "ai"
 import { resolveModel } from "./resolve-model"
 import { getAgentTools } from "@workspace/db/queries/agents"
+import { updateAgentRunStatus } from "@workspace/db/queries/agent-runs"
 import {
   createArtifact,
   getArtifactById,
@@ -230,6 +231,16 @@ export async function runOrchestrator(
     messages,
     tools,
     stopWhen: stepCountIs(20),
+    onFinish: async () => {
+      await updateAgentRunStatus(context.runId, "completed", {
+        completedAt: new Date(),
+      })
+    },
+    onError: async (err) => {
+      await updateAgentRunStatus(context.runId, "failed", {
+        error: { code: "AGENT_ERROR", message: String(err) },
+      })
+    },
   })
 
   return result.toUIMessageStream()

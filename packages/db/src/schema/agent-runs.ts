@@ -11,7 +11,6 @@ import { runStatusEnum, executionModeEnum, messageRoleEnum } from "./enums"
 import { organization, user } from "./auth"
 import { project } from "./projects"
 import { content } from "./content"
-import { agent } from "./agents"
 
 export const agentRun = pgTable(
   "agent_run",
@@ -66,10 +65,6 @@ export const agentRunRelations = relations(agentRun, ({ one, many }) => ({
   content: one(content, {
     fields: [agentRun.contentId],
     references: [content.id],
-  }),
-  agent: one(agent, {
-    fields: [agentRun.agentId],
-    references: [agent.id],
   }),
   creator: one(user, {
     fields: [agentRun.createdBy],

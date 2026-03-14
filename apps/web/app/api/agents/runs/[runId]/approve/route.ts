@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
-import { resumeHook } from "workflow/api"
 import { getAgentRunById } from "@workspace/db/queries/agent-runs"
+import { isOrgMember } from "@/lib/data/projects"
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ runId: string }> },
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -14,32 +14,6 @@ export async function POST(
   }
 
   const { runId } = await params
-
-  let body: unknown
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
-  }
-
-  const { toolCallId, approved, edits } = body as {
-    toolCallId?: string
-    approved?: boolean
-    edits?: unknown
-  }
-
-  if (!toolCallId) {
-    return NextResponse.json(
-      { error: "toolCallId is required" },
-      { status: 400 },
-    )
-  }
-  if (approved === undefined) {
-    return NextResponse.json(
-      { error: "approved is required" },
-      { status: 400 },
-    )
-  }
 
   try {
     const agentRun = await getAgentRunById(runId)
@@ -50,13 +24,15 @@ export async function POST(
       )
     }
 
-    // Resume the approval hook with the decision
-    await resumeHook(`approval:${runId}:${toolCallId}`, {
-      approved,
-      comment: typeof edits === "string" ? edits : undefined,
-    })
+    const isMember = await isOrgMember(session.user.id, agentRun.organizationId)
+    if (!isMember) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json(
+      { error: "Approval workflow is deferred to post-v1" },
+      { status: 501 },
+    )
   } catch (error) {
     console.error("Failed to process approval:", error)
     return NextResponse.json(

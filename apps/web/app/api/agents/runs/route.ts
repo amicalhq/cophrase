@@ -10,6 +10,7 @@ import {
   updateAgentRunStatus,
 } from "@workspace/db/queries/agent-runs"
 import { runOrchestrator } from "@/lib/agents/run-agent"
+import { isOrgMember } from "@/lib/data/projects"
 import type { ExecutionMode } from "@workspace/db"
 import type { AgentConfig, RunContext } from "@/lib/agents/types"
 
@@ -60,6 +61,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "projectId is required" }, { status: 400 })
   }
 
+  const isMember = await isOrgMember(session.user.id, organizationId)
+  if (!isMember) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
   // Resolve agent: built-in first, then DB
   let agentConfig: AgentConfig | null = getBuiltInAgent(agentId)
   if (!agentConfig) {
@@ -95,7 +101,7 @@ export async function POST(request: NextRequest) {
     const context: RunContext = {
       organizationId,
       projectId,
-      contentId: contentId ?? "",
+      contentId: contentId ?? undefined,
       agentId,
       runId: run.id,
     }
