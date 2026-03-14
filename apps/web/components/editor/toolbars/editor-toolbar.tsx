@@ -31,16 +31,23 @@ import {
   AlignCenterButton,
   AlignRightButton,
 } from "./align-buttons"
+import { Toggle } from "@workspace/ui/components/toggle"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { AiChat02Icon } from "@hugeicons/core-free-icons"
 import { MOCK_VERSIONS } from "../mock-data"
 
 interface EditorToolbarProps {
   selectedVersion: string
   onVersionChange: (version: string) => void
+  isChatOpen: boolean
+  onChatToggle: () => void
 }
 
 export function EditorToolbar({
   selectedVersion,
   onVersionChange,
+  isChatOpen,
+  onChatToggle,
 }: EditorToolbarProps) {
   return (
     <div className="border-border flex h-11 shrink-0 items-center justify-between border-b px-2">
@@ -79,18 +86,29 @@ export function EditorToolbar({
         <AlignRightButton />
       </div>
 
-      <Select value={selectedVersion} onValueChange={onVersionChange}>
-        <SelectTrigger className="w-[10rem] text-xs h-7" size="sm" aria-label="Version">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {MOCK_VERSIONS.map((version) => (
-            <SelectItem key={version.id} value={version.id}>
-              {version.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-1.5">
+        <Select value={selectedVersion} onValueChange={onVersionChange}>
+          <SelectTrigger className="w-[10rem] text-xs h-7" size="sm" aria-label="Version">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MOCK_VERSIONS.map((version) => (
+              <SelectItem key={version.id} value={version.id}>
+                {version.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Toggle
+          size="sm"
+          pressed={isChatOpen}
+          onPressedChange={onChatToggle}
+          aria-label="Toggle AI agent"
+        >
+          <HugeiconsIcon icon={AiChat02Icon} size={16} />
+        </Toggle>
+      </div>
     </div>
   )
 }

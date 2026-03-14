@@ -9,7 +9,7 @@ import {
   type UIMessage,
 } from "ai"
 import { useRouter } from "next/navigation"
-import { ArrowLeft01Icon, ArrowLeft02Icon } from "@hugeicons/core-free-icons"
+import { ArrowLeft02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -138,11 +138,7 @@ function getTextParts(
 // ChatPanel component
 // ---------------------------------------------------------------------------
 
-interface ChatPanelProps {
-  onCollapse: () => void
-}
-
-export function ChatPanel({ onCollapse }: ChatPanelProps) {
+export function ChatPanel() {
   const router = useRouter()
   const { messages, status, isLoading, sendMessage } = useChat({
     api: "/api/chat",
@@ -158,28 +154,17 @@ export function ChatPanel({ onCollapse }: ChatPanelProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-11 items-center justify-between border-b px-2">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => router.back()}
-            aria-label="Go back"
-          >
-            <HugeiconsIcon icon={ArrowLeft02Icon} size={16} />
-          </Button>
-          <span className="text-sm font-medium">AI Agent</span>
-        </div>
+      <div className="border-border flex h-11 items-center gap-1 border-b px-2">
         <Button
           variant="ghost"
           size="icon"
           className="h-7 w-7"
-          onClick={onCollapse}
-          aria-label="Collapse chat"
+          onClick={() => router.back()}
+          aria-label="Go back"
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
+          <HugeiconsIcon icon={ArrowLeft02Icon} size={16} />
         </Button>
+        <span className="text-sm font-medium">AI Agent</span>
       </div>
 
       {/* Messages area */}
@@ -242,11 +227,10 @@ export function ChatPanel({ onCollapse }: ChatPanelProps) {
         <PromptInput onSubmit={handlePromptSubmit}>
           <PromptInputTextarea placeholder="Ask the AI agent..." />
           <PromptInputFooter>
-            <div />
+            <span className="text-muted-foreground text-xs">Mock LLM</span>
             <PromptInputSubmit status={status} />
           </PromptInputFooter>
         </PromptInput>
-        <p className="text-muted-foreground mt-1.5 text-xs">Mock LLM</p>
       </div>
     </div>
   )

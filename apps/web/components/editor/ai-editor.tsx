@@ -7,9 +7,6 @@ import {
   ResizableHandle,
   type PanelImperativeHandle,
 } from "@workspace/ui/components/resizable"
-import { Button } from "@workspace/ui/components/button"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import { authClient } from "@workspace/auth/client"
 import { useProject } from "@/app/orgs/[orgId]/projects/[projectId]/project-context"
 import { TopNavigation } from "@/components/navigation/top-navigation"
@@ -30,14 +27,12 @@ export function AIEditor({ contentTitle }: AIEditorProps) {
   const [isChatOpen, setIsChatOpen] = useState(true)
   const chatPanelRef = useRef<PanelImperativeHandle>(null)
 
-  const handleCollapse = () => {
-    chatPanelRef.current?.collapse()
-    setIsChatOpen(false)
-  }
-
-  const handleExpand = () => {
-    chatPanelRef.current?.expand()
-    setIsChatOpen(true)
+  const handleChatToggle = () => {
+    if (isChatOpen) {
+      chatPanelRef.current?.collapse()
+    } else {
+      chatPanelRef.current?.expand()
+    }
   }
 
   return (
@@ -61,31 +56,13 @@ export function AIEditor({ contentTitle }: AIEditorProps) {
               setIsChatOpen(panelSize.asPercentage > 0)
             }}
           >
-            <ChatPanel onCollapse={handleCollapse} />
+            <ChatPanel />
           </ResizablePanel>
 
           <ResizableHandle withHandle className={isChatOpen ? "" : "hidden"} />
 
           <ResizablePanel defaultSize={65} minSize={40}>
-            <div className="flex h-full">
-              {/* Expand chat toggle strip — only visible when chat is collapsed */}
-              {!isChatOpen && (
-                <div className="border-border flex shrink-0 items-start border-r pt-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="mx-1 h-7 w-7"
-                    onClick={handleExpand}
-                    aria-label="Open chat"
-                  >
-                    <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
-                  </Button>
-                </div>
-              )}
-              <div className="flex-1 overflow-hidden">
-                <EditorPanel />
-              </div>
-            </div>
+            <EditorPanel isChatOpen={isChatOpen} onChatToggle={handleChatToggle} />
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

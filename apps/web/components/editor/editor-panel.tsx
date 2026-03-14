@@ -20,7 +20,12 @@ import { UnderlineButton } from "./toolbars/formatting-buttons"
 import { LinkButton } from "./toolbars/insert-buttons"
 import { SlashCommand } from "./extensions/slash-command"
 
-export function EditorPanel() {
+interface EditorPanelProps {
+  isChatOpen: boolean
+  onChatToggle: () => void
+}
+
+export function EditorPanel({ isChatOpen, onChatToggle }: EditorPanelProps) {
   const [selectedVersion, setSelectedVersion] = useState(DEFAULT_VERSION)
 
   const initialContent =
@@ -68,6 +73,8 @@ export function EditorPanel() {
         <EditorToolbar
           selectedVersion={selectedVersion}
           onVersionChange={handleVersionChange}
+          isChatOpen={isChatOpen}
+          onChatToggle={onChatToggle}
         />
         <div className="flex-1 overflow-y-auto">
           {editor && (
