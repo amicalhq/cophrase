@@ -67,20 +67,24 @@ export function AIEditor({ contentTitle }: AIEditorProps) {
           <ResizableHandle withHandle className={isChatOpen ? "" : "hidden"} />
 
           <ResizablePanel defaultSize={65} minSize={40}>
-            <div className="relative h-full">
-              {/* Expand chat toggle */}
+            <div className="flex h-full">
+              {/* Expand chat toggle strip — only visible when chat is collapsed */}
               {!isChatOpen && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute left-2 top-2 z-10 h-7 w-7"
-                  onClick={handleExpand}
-                  aria-label="Open chat"
-                >
-                  <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
-                </Button>
+                <div className="border-border flex shrink-0 items-start border-r pt-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="mx-1 h-7 w-7"
+                    onClick={handleExpand}
+                    aria-label="Open chat"
+                  >
+                    <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
+                  </Button>
+                </div>
               )}
-              <EditorPanel />
+              <div className="flex-1 overflow-hidden">
+                <EditorPanel />
+              </div>
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>

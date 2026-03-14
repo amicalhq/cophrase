@@ -8,7 +8,8 @@ import {
   type ChatStatus,
   type UIMessage,
 } from "ai"
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons"
+import { useRouter } from "next/navigation"
+import { ArrowLeft01Icon, ArrowLeft02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -142,6 +143,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ onCollapse }: ChatPanelProps) {
+  const router = useRouter()
   const { messages, status, isLoading, sendMessage } = useChat({
     api: "/api/chat",
   })
@@ -156,8 +158,19 @@ export function ChatPanel({ onCollapse }: ChatPanelProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-11 items-center justify-between border-b px-3">
-        <span className="text-sm font-medium">AI Agent</span>
+      <div className="flex h-11 items-center justify-between border-b px-2">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => router.back()}
+            aria-label="Go back"
+          >
+            <HugeiconsIcon icon={ArrowLeft02Icon} size={16} />
+          </Button>
+          <span className="text-sm font-medium">AI Agent</span>
+        </div>
         <Button
           variant="ghost"
           size="icon"

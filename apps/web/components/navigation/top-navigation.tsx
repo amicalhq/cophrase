@@ -34,7 +34,7 @@ export function TopNavigation({
   const deepestLevel = hasProject ? "project" : hasOrg ? "org" : "none"
 
   return (
-    <div className="bg-background">
+    <div className="bg-background border-border border-b">
       <div className="flex h-11 items-center justify-between px-3 md:px-4 lg:px-6">
         {/* Left side — Logo and Breadcrumbs */}
         <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-1.5 lg:gap-2">
