@@ -55,3 +55,6 @@ docs
 
 # Superpowers
 .superpowers
+
+# MinIO local storage
+.minio-data/

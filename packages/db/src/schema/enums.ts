@@ -26,3 +26,18 @@ export const contentStageEnum = pgEnum("content_stage", [
   "published",
 ])
 export type ContentStage = (typeof contentStageEnum.enumValues)[number]
+
+export const resourceTypeEnum = pgEnum("resource_type", ["text", "link", "file"])
+export type ResourceType = (typeof resourceTypeEnum.enumValues)[number]
+
+export const resourceCategoryEnum = pgEnum("resource_category", [
+  "brand_voice",
+  "product_features",
+  "visual_identity",
+  "documentation",
+  "competitor_info",
+  "target_audience",
+  "website",
+  "other",
+])
+export type ResourceCategory = (typeof resourceCategoryEnum.enumValues)[number]

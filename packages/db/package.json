@@ -10,6 +10,7 @@
     "./queries/content": "./src/queries/content.ts",
     "./queries/providers": "./src/queries/providers.ts",
     "./queries/models": "./src/queries/models.ts",
+    "./queries/resources": "./src/queries/resources.ts",
     "./crypto": "./src/crypto.ts"
   },
   "scripts": {

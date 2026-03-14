@@ -27,6 +27,10 @@ export function ProjectLayoutClient({
       href: `/orgs/${orgId}/projects/${project.id}/content`,
     },
     {
+      label: "Resources",
+      href: `/orgs/${orgId}/projects/${project.id}/resources`,
+    },
+    {
       label: "Settings",
       href: `/orgs/${orgId}/projects/${project.id}/settings`,
     },
