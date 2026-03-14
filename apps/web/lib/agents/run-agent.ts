@@ -13,7 +13,10 @@ import { z } from "zod"
 import { tool } from "ai"
 import { resolveModel } from "./resolve-model"
 import { getAgentTools } from "@workspace/db/queries/agents"
-import { updateAgentRunStatus } from "@workspace/db/queries/agent-runs"
+import {
+  updateAgentRunStatus,
+  saveMessages,
+} from "@workspace/db/queries/agent-runs"
 import {
   createArtifact,
   getArtifactById,
@@ -130,7 +133,7 @@ function buildTools(
             }),
             execute: async ({ query, numResults = 5 }) => {
               const apiKey = process.env.EXA_API_KEY
-              if (!apiKey) return { error: "EXA_API_KEY not configured" }
+              if (!apiKey) throw new Error("EXA_API_KEY is not configured")
 
               const response = await fetch("https://api.exa.ai/search", {
                 method: "POST",
@@ -144,7 +147,7 @@ function buildTools(
               })
 
               if (!response.ok) {
-                return { error: `Exa API error: ${response.status}` }
+                throw new Error(`Exa API error: ${response.status} ${response.statusText}`)
               }
 
               const data = await response.json()
@@ -167,9 +170,15 @@ function buildTools(
           tools[subAgent.name] = tool({
             description: subAgent.description,
             inputSchema: z.object({
-              input: z.string().describe("Instructions for the sub-agent"),
+              instructions: z
+                .string()
+                .describe("Detailed instructions for what the sub-agent should do"),
+              artifactIds: z
+                .array(z.string())
+                .optional()
+                .describe("IDs of artifacts the sub-agent should load and use as input"),
             }),
-            execute: async ({ input }) => {
+            execute: async ({ instructions, artifactIds }) => {
               const model = await resolveModel(
                 subAgent.modelId ?? null,
                 ctx.organizationId,
@@ -177,10 +186,16 @@ function buildTools(
               const subToolRecords = getBuiltInAgentTools(subAgent.id)
               const subTools = buildTools(subToolRecords, ctx)
 
+              // Build a rich prompt including artifact references
+              let prompt = instructions
+              if (artifactIds && artifactIds.length > 0) {
+                prompt += `\n\nUse load-artifact to load these artifacts as input: ${artifactIds.join(", ")}`
+              }
+
               const result = await streamText({
                 model,
                 system: subAgent.prompt,
-                messages: [{ role: "user" as const, content: input }],
+                messages: [{ role: "user" as const, content: prompt }],
                 tools: subTools,
                 stopWhen: stepCountIs(10),
               })
@@ -231,17 +246,38 @@ export async function runOrchestrator(
     messages,
     tools,
     stopWhen: stepCountIs(20),
-    onFinish: async () => {
+  })
+
+  // Persist messages and update run status after stream is consumed (non-blocking).
+  // result.response is a PromiseLike that resolves when streaming completes.
+  const persistAndComplete = async () => {
+    try {
+      const response = await result.response
+      // Save conversation messages (ResponseMessage may not have id, so generate one)
+      const newMsgs = response.messages.map((m, i) => ({
+        id: `${context.runId}-msg-${i}`,
+        role: m.role as "user" | "assistant" | "system" | "tool",
+        parts: "content" in m ? m.content : null,
+        metadata: undefined,
+      }))
+
+      if (newMsgs.length > 0) {
+        await saveMessages(context.runId, newMsgs)
+      }
+
       await updateAgentRunStatus(context.runId, "completed", {
         completedAt: new Date(),
       })
-    },
-    onError: async (err) => {
+    } catch (err) {
+      console.error("Agent run failed:", err)
       await updateAgentRunStatus(context.runId, "failed", {
         error: { code: "AGENT_ERROR", message: String(err) },
-      })
-    },
-  })
+      }).catch(() => {})
+    }
+  }
+
+  // Fire and forget — don't block the stream response
+  persistAndComplete()
 
   return result.toUIMessageStream()
 }
