@@ -19,11 +19,13 @@ import { UserDropdown } from "@/components/user-menu"
 interface TopNavigationProps {
   organization?: { id: string; name: string; logo?: string | null }
   project?: { id: string; name: string }
+  pageTitle?: string
 }
 
 export function TopNavigation({
   organization,
   project,
+  pageTitle,
 }: TopNavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
 
@@ -61,8 +63,14 @@ export function TopNavigation({
                   organization={organization}
                   project={project}
                   triggerType="project"
-                  showText={deepestLevel === "project"}
+                  showText={deepestLevel === "project" && !pageTitle}
                 />
+              </>
+            )}
+            {pageTitle && (
+              <>
+                <span className="text-muted-foreground/50">/</span>
+                <span className="truncate text-sm font-medium">{pageTitle}</span>
               </>
             )}
           </div>
@@ -84,6 +92,12 @@ export function TopNavigation({
                   project={project}
                   triggerType="project"
                 />
+              </>
+            )}
+            {pageTitle && (
+              <>
+                <span className="text-muted-foreground/50">/</span>
+                <span className="text-sm font-medium">{pageTitle}</span>
               </>
             )}
           </div>
