@@ -32,7 +32,7 @@ import {
   AlignRightButton,
 } from "./align-buttons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { SidebarLeft01Icon } from "@hugeicons/core-free-icons"
+import { LayoutAlignLeftIcon } from "@hugeicons/core-free-icons"
 import { MOCK_VERSIONS } from "../mock-data"
 
 interface EditorToolbarProps {
@@ -62,7 +62,7 @@ export function EditorToolbar({
               : "text-muted-foreground hover:bg-muted"
           }`}
         >
-          <HugeiconsIcon icon={SidebarLeft01Icon} size={16} />
+          <HugeiconsIcon icon={LayoutAlignLeftIcon} size={16} />
         </button>
 
         <Separator orientation="vertical" className="mx-1 h-5" />
