@@ -28,9 +28,7 @@ export const artifact = pgTable(
     contentId: text("content_id").references(() => content.id, {
       onDelete: "set null",
     }),
-    agentId: text("agent_id")
-      .notNull()
-      .references(() => agent.id, { onDelete: "cascade" }),
+    agentId: text("agent_id").notNull(), // No FK — built-in agents live in code, not DB
     runId: text("run_id").notNull(),
     type: text("type").notNull(),
     title: text("title").notNull(),

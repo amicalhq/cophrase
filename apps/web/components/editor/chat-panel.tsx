@@ -132,7 +132,7 @@ function useAgentChat({
   const sendMessage = useCallback(
     (text: string) => {
       if (!text.trim() || isLoading) return
-      chat.sendMessage({ text }).then(() => notify()).catch(() => notify())
+      chat.sendMessage({ text }).then(() => notify()).catch((err) => { console.error("sendMessage error:", err); notify() })
     },
     [isLoading, chat, notify],
   )

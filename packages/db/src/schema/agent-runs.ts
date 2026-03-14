@@ -26,9 +26,7 @@ export const agentRun = pgTable(
     contentId: text("content_id").references(() => content.id, {
       onDelete: "set null",
     }),
-    agentId: text("agent_id")
-      .notNull()
-      .references(() => agent.id, { onDelete: "cascade" }),
+    agentId: text("agent_id").notNull(), // No FK — built-in agents live in code, not DB
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
