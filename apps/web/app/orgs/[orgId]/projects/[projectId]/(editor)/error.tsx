@@ -3,7 +3,7 @@
 import { Button } from "@workspace/ui/components/button"
 
 export default function EditorError({
-  error,
+  error: _error,
   reset,
 }: {
   error: Error & { digest?: string }
