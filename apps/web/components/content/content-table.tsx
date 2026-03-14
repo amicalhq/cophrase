@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import {
   useReactTable,
   getCoreRowModel,
@@ -39,6 +40,8 @@ import { columns, type ContentRow } from "./columns"
 
 interface ContentTableProps {
   data: ContentRow[]
+  orgId: string
+  projectId: string
 }
 
 const stageOptions = [
@@ -50,7 +53,8 @@ const stageOptions = [
   { label: "Published", value: "published" },
 ]
 
-export function ContentTable({ data }: ContentTableProps) {
+export function ContentTable({ data, orgId, projectId }: ContentTableProps) {
+  const router = useRouter()
   const [sorting, setSorting] = useState<SortingState>([
     { id: "updatedAt", desc: true },
   ])
@@ -199,7 +203,15 @@ export function ContentTable({ data }: ContentTableProps) {
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() =>
+                    router.push(
+                      `/orgs/${orgId}/projects/${projectId}/content/${row.original.id}/edit`,
+                    )
+                  }
+                >
                   {row.getVisibleCells().map((cell) => {
                     const align = (cell.column.columnDef.meta as { align?: string })?.align
                     return (
