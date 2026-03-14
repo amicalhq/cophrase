@@ -32,7 +32,7 @@ import {
   AlignRightButton,
 } from "./align-buttons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { AiMagicIcon } from "@hugeicons/core-free-icons"
+import { SidebarLeft01Icon } from "@hugeicons/core-free-icons"
 import { MOCK_VERSIONS } from "../mock-data"
 
 interface EditorToolbarProps {
@@ -51,6 +51,22 @@ export function EditorToolbar({
   return (
     <div className="border-border flex h-11 shrink-0 items-center justify-between border-b px-2">
       <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={onChatToggle}
+          aria-label="Toggle sidebar"
+          aria-pressed={isChatOpen}
+          className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+            isChatOpen
+              ? "text-foreground hover:bg-muted"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          <HugeiconsIcon icon={SidebarLeft01Icon} size={16} />
+        </button>
+
+        <Separator orientation="vertical" className="mx-1 h-5" />
+
         <UndoButton />
         <RedoButton />
 
@@ -99,19 +115,6 @@ export function EditorToolbar({
           </SelectContent>
         </Select>
 
-        <button
-          type="button"
-          onClick={onChatToggle}
-          aria-label="Toggle AI agent"
-          aria-pressed={isChatOpen}
-          className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-            isChatOpen
-              ? "text-violet-500 hover:bg-violet-500/10"
-              : "text-muted-foreground hover:bg-muted"
-          }`}
-        >
-          <HugeiconsIcon icon={AiMagicIcon} size={18} />
-        </button>
       </div>
     </div>
   )
