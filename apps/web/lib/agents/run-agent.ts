@@ -8,7 +8,7 @@
  */
 
 import type { ModelMessage, ToolSet, UIMessageChunk } from "ai"
-import { streamText, stepCountIs } from "ai"
+import { streamText, generateText, stepCountIs } from "ai"
 import { z } from "zod"
 import { tool } from "ai"
 import { resolveModel } from "./resolve-model"
@@ -40,7 +40,10 @@ function buildArtifactTools(ctx: RunContext): ToolSet {
       inputSchema: z.object({
         type: z.string().describe('Artifact type, e.g. "research-notes", "blog-draft"'),
         title: z.string().describe("A short title for the artifact"),
-        data: z.any().describe("The artifact payload — can be any JSON object with relevant content"),
+        data: z.record(z.string(), z.unknown()).describe(
+        "The artifact payload as a JSON object. For research-notes: { keywords, sources, insights }. " +
+        "For blog-draft: { markdown, title, metadata: { wordCount, readingTime } }."
+      ),
         parentIds: z.array(z.string()).optional().describe("IDs of parent artifacts"),
       }),
       execute: async ({ type, title, data, parentIds }) => {
@@ -51,7 +54,7 @@ function buildArtifactTools(ctx: RunContext): ToolSet {
         const artifact = await createArtifact({
           organizationId: ctx.organizationId,
           projectId: ctx.projectId,
-          contentId: ctx.contentId || undefined,
+          contentId: ctx.contentId ?? undefined,
           agentId: ctx.agentId,
           runId: ctx.runId,
           type,
@@ -194,7 +197,7 @@ function buildTools(
                 prompt += `\n\nUse load-artifact to load these artifacts as input: ${artifactIds.join(", ")}`
               }
 
-              const result = await streamText({
+              const result = await generateText({
                 model,
                 system: subAgent.prompt,
                 messages: [{ role: "user" as const, content: prompt }],
@@ -202,7 +205,7 @@ function buildTools(
                 stopWhen: stepCountIs(10),
               })
 
-              return await result.text
+              return result.text
             },
           })
         }
@@ -250,16 +253,22 @@ export async function runOrchestrator(
     stopWhen: stepCountIs(20),
   })
 
+  // Ensure backend completes processing even if client disconnects.
+  // Without this, a client disconnect would cancel the stream and leave
+  // the run stuck in "running" status forever.
+  result.consumeStream()
+
   // Persist messages and update run status after stream is consumed (non-blocking).
-  // result.response is a PromiseLike that resolves when streaming completes.
+  // result.response resolves when streaming completes (including after disconnect).
   const persistAndComplete = async () => {
     try {
       const response = await result.response
-      // Save conversation messages (ResponseMessage may not have id, so generate one)
+      // Save response messages. ResponseMessage contains ModelMessage content format,
+      // so we serialize the content as JSON for the parts column.
       const newMsgs = response.messages.map((m, i) => ({
         id: `${context.runId}-msg-${i}`,
         role: m.role as "user" | "assistant" | "system" | "tool",
-        parts: "content" in m ? m.content : null,
+        parts: JSON.stringify("content" in m ? m.content : null),
         metadata: undefined,
       }))
 
