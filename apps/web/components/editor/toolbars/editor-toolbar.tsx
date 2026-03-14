@@ -104,13 +104,13 @@ export function EditorToolbar({
           onClick={onChatToggle}
           aria-label="Toggle AI agent"
           aria-pressed={isChatOpen}
-          className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-all ${
+          className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
             isChatOpen
-              ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/25"
-              : "hover:bg-muted text-muted-foreground"
+              ? "text-violet-500 hover:bg-violet-500/10"
+              : "text-muted-foreground hover:bg-muted"
           }`}
         >
-          <HugeiconsIcon icon={AiMagicIcon} size={16} />
+          <HugeiconsIcon icon={AiMagicIcon} size={18} />
         </button>
       </div>
     </div>
