@@ -10,10 +10,17 @@ export default async function EditContentPage({
 }: {
   params: Promise<{ orgId: string; projectId: string; contentId: string }>
 }) {
-  const { projectId, contentId } = await params
+  const { orgId, projectId, contentId } = await params
 
   const content = await getContentById(contentId, projectId)
   if (!content) notFound()
 
-  return <AIEditor contentTitle={content.title} />
+  return (
+    <AIEditor
+      contentTitle={content.title}
+      orgId={orgId}
+      projectId={projectId}
+      contentId={contentId}
+    />
+  )
 }

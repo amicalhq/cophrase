@@ -12,12 +12,23 @@ import { useProject } from "@/app/orgs/[orgId]/projects/[projectId]/project-cont
 import { TopNavigation } from "@/components/navigation/top-navigation"
 import { ChatPanel } from "./chat-panel"
 import { EditorPanel } from "./editor-panel"
+import { ArtifactPicker } from "./artifact-picker"
+import { ArtifactViewer } from "./artifact-viewer"
+import type { ArtifactData } from "./artifact-viewer"
 
 interface AIEditorProps {
   contentTitle: string
+  orgId: string
+  projectId: string
+  contentId: string
 }
 
-export function AIEditor({ contentTitle }: AIEditorProps) {
+export function AIEditor({
+  contentTitle,
+  orgId,
+  projectId,
+  contentId,
+}: AIEditorProps) {
   const { project } = useProject()
   const { data: activeOrg } = authClient.useActiveOrganization()
 
@@ -26,6 +37,10 @@ export function AIEditor({ contentTitle }: AIEditorProps) {
     : undefined
   const [isChatOpen, setIsChatOpen] = useState(true)
   const chatPanelRef = useRef<PanelImperativeHandle>(null)
+
+  const [runId, setRunId] = useState<string | null>(null)
+  const [selectedArtifact, setSelectedArtifact] =
+    useState<ArtifactData | null>(null)
 
   const handleChatToggle = () => {
     if (isChatOpen) {
@@ -56,13 +71,36 @@ export function AIEditor({ contentTitle }: AIEditorProps) {
               setIsChatOpen(panelSize.asPercentage > 0)
             }}
           >
-            <ChatPanel />
+            <ChatPanel
+              orgId={orgId}
+              projectId={projectId}
+              contentId={contentId}
+              onRunId={setRunId}
+            />
           </ResizablePanel>
 
           <ResizableHandle withHandle className={isChatOpen ? "" : "hidden"} />
 
           <ResizablePanel defaultSize={65} minSize={40}>
-            <EditorPanel isChatOpen={isChatOpen} onChatToggle={handleChatToggle} />
+            <div className="flex h-full flex-col">
+              {runId && (
+                <ArtifactPicker
+                  runId={runId}
+                  onSelect={setSelectedArtifact}
+                  selectedId={selectedArtifact?.id ?? null}
+                />
+              )}
+              {selectedArtifact ? (
+                <div className="flex-1 overflow-y-auto">
+                  <ArtifactViewer artifact={selectedArtifact} />
+                </div>
+              ) : (
+                <EditorPanel
+                  isChatOpen={isChatOpen}
+                  onChatToggle={handleChatToggle}
+                />
+              )}
+            </div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

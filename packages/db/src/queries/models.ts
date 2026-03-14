@@ -4,6 +4,25 @@ import { aiModel } from "../schema/models"
 import { aiProvider } from "../schema/providers"
 import type { ModelType } from "../schema/enums"
 
+export async function getModelById(id: string) {
+  const [result] = await db
+    .select({
+      id: aiModel.id,
+      modelId: aiModel.modelId,
+      modelType: aiModel.modelType,
+      isDefault: aiModel.isDefault,
+      organizationId: aiModel.organizationId,
+      providerId: aiModel.providerId,
+      providerName: aiProvider.name,
+      providerType: aiProvider.providerType,
+      createdAt: aiModel.createdAt,
+    })
+    .from(aiModel)
+    .innerJoin(aiProvider, eq(aiModel.providerId, aiProvider.id))
+    .where(eq(aiModel.id, id))
+  return result ?? null
+}
+
 export async function getModelsByOrg(organizationId: string) {
   return await db
     .select({

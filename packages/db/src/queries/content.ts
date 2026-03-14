@@ -2,7 +2,7 @@ import { eq, and, desc } from "drizzle-orm"
 import { db } from "../index"
 import { content } from "../schema/content"
 import { user } from "../schema/auth"
-import type { ContentType } from "../schema/enums"
+import type { ContentType, ContentStage } from "../schema/enums"
 
 export async function getContentByProject(projectId: string) {
   return await db
@@ -65,4 +65,13 @@ export async function createContent(input: {
     throw new Error("Failed to insert content row")
   }
   return created
+}
+
+export async function updateContentStage(id: string, stage: ContentStage, organizationId: string) {
+  const [result] = await db
+    .update(content)
+    .set({ stage })
+    .where(and(eq(content.id, id), eq(content.organizationId, organizationId)))
+    .returning()
+  return result ?? null
 }
