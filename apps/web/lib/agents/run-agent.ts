@@ -62,7 +62,7 @@ function buildArtifactTools(ctx: RunContext): ToolSet {
         })
 
         if (type === "blog-draft" && ctx.contentId) {
-          await updateContentStage(ctx.contentId, "draft")
+          await updateContentStage(ctx.contentId, "draft", ctx.organizationId)
         }
 
         return { artifactId: artifact.id, type: artifact.type, version: artifact.version }
@@ -75,7 +75,9 @@ function buildArtifactTools(ctx: RunContext): ToolSet {
       }),
       execute: async ({ artifactId }) => {
         const artifact = await getArtifactById(artifactId)
-        if (!artifact) return { error: `Artifact not found: ${artifactId}` }
+        if (!artifact || artifact.organizationId !== ctx.organizationId) {
+          return { error: "Artifact not found" }
+        }
         return {
           id: artifact.id,
           type: artifact.type,
@@ -272,12 +274,16 @@ export async function runOrchestrator(
       console.error("Agent run failed:", err)
       await updateAgentRunStatus(context.runId, "failed", {
         error: { code: "AGENT_ERROR", message: String(err) },
-      }).catch(() => {})
+      }).catch((statusErr) => {
+        console.error("Failed to update agent run status:", context.runId, statusErr)
+      })
     }
   }
 
   // Fire and forget — don't block the stream response
-  persistAndComplete()
+  persistAndComplete().catch((err) => {
+    console.error("Unhandled error in persistAndComplete for run:", context.runId, err)
+  })
 
   return result.toUIMessageStream()
 }

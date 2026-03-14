@@ -67,11 +67,11 @@ export async function createContent(input: {
   return created
 }
 
-export async function updateContentStage(id: string, stage: ContentStage) {
+export async function updateContentStage(id: string, stage: ContentStage, organizationId: string) {
   const [result] = await db
     .update(content)
     .set({ stage })
-    .where(eq(content.id, id))
+    .where(and(eq(content.id, id), eq(content.organizationId, organizationId)))
     .returning()
   return result ?? null
 }
