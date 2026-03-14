@@ -40,7 +40,7 @@ function buildTools(
     inputSchema: z.object({
       type: z.string().describe('Artifact type, e.g. "research-notes", "blog-draft"'),
       title: z.string().describe("A short title for the artifact"),
-      data: z.record(z.string(), z.unknown()).describe("The artifact payload as JSON"),
+      data: z.any().describe("The artifact payload — can be any JSON object with relevant content"),
       parentIds: z.array(z.string()).optional().describe("IDs of parent artifacts"),
     }),
     execute: async ({ type, title, data, parentIds }) => {
