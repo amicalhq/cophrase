@@ -143,13 +143,13 @@ test.describe.serial("AI Editor page", () => {
     await expect(page.getByText("AI Agent")).toBeVisible()
 
     // Collapse the chat panel
-    await page.getByRole("button", { name: "Collapse chat" }).click()
+    await page.getByRole("button", { name: "Toggle sidebar" }).click()
 
     // AI Agent header should be hidden
     await expect(page.getByText("AI Agent")).not.toBeVisible()
 
-    // Re-open chat via the Open chat button
-    await page.getByRole("button", { name: "Open chat" }).click()
+    // Re-open chat via the Toggle sidebar button
+    await page.getByRole("button", { name: "Toggle sidebar" }).click()
 
     // AI Agent header should be visible again
     await expect(page.getByText("AI Agent")).toBeVisible()

@@ -182,8 +182,8 @@ export const SlashCommand = Extension.create({
           )
         },
         render() {
-          let reactRenderer: ReactRenderer<CommandListRef, CommandListProps>
-          let popup: TippyInstance[]
+          let reactRenderer: ReactRenderer<CommandListRef, CommandListProps> | null = null
+          let popup: TippyInstance[] = []
 
           return {
             onStart(props: SuggestionProps<CommandItem>) {
@@ -209,7 +209,7 @@ export const SlashCommand = Extension.create({
             },
 
             onUpdate(props: SuggestionProps<CommandItem>) {
-              reactRenderer.updateProps({
+              reactRenderer?.updateProps({
                 items: props.items,
                 command: props.command,
               })
@@ -226,12 +226,12 @@ export const SlashCommand = Extension.create({
                 popup[0]?.hide()
                 return true
               }
-              return reactRenderer.ref?.onKeyDown(props) ?? false
+              return reactRenderer?.ref?.onKeyDown(props) ?? false
             },
 
             onExit() {
               popup[0]?.destroy()
-              reactRenderer.destroy()
+              reactRenderer?.destroy()
             },
           }
         },

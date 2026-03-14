@@ -1,5 +1,7 @@
 import { streamText, simulateReadableStream } from "ai"
 import { MockLanguageModelV3 } from "ai/test"
+import { headers } from "next/headers"
+import { auth } from "@workspace/auth"
 
 // Cycle through 3 mock responses
 const MOCK_RESPONSES = [
@@ -22,6 +24,11 @@ function getNextMockResponse(): string {
 }
 
 export async function POST() {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 })
+  }
+
   const mockText = getNextMockResponse()
 
   // Split text into word-sized chunks for realistic streaming

@@ -108,7 +108,7 @@ function useChat({ api }: { api: string }) {
   const sendMessage = useCallback(
     (text: string) => {
       if (!text.trim() || isLoading) return
-      chat.sendMessage({ text }).then(() => notify())
+      chat.sendMessage({ text }).then(() => notify()).catch(() => notify())
     },
     [isLoading, chat, notify],
   )
@@ -221,6 +221,12 @@ export function ChatPanel() {
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
+
+      {status === "error" && (
+        <div className="mx-3 mb-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          Failed to get a response. Please try again.
+        </div>
+      )}
 
       {/* Prompt input */}
       <div className="border-t p-3">
