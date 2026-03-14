@@ -31,9 +31,8 @@ import {
   AlignCenterButton,
   AlignRightButton,
 } from "./align-buttons"
-import { Toggle } from "@workspace/ui/components/toggle"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { AiChat02Icon } from "@hugeicons/core-free-icons"
+import { AiMagicIcon } from "@hugeicons/core-free-icons"
 import { MOCK_VERSIONS } from "../mock-data"
 
 interface EditorToolbarProps {
@@ -100,14 +99,19 @@ export function EditorToolbar({
           </SelectContent>
         </Select>
 
-        <Toggle
-          size="sm"
-          pressed={isChatOpen}
-          onPressedChange={onChatToggle}
+        <button
+          type="button"
+          onClick={onChatToggle}
           aria-label="Toggle AI agent"
+          aria-pressed={isChatOpen}
+          className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-all ${
+            isChatOpen
+              ? "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm shadow-violet-500/25"
+              : "hover:bg-muted text-muted-foreground"
+          }`}
         >
-          <HugeiconsIcon icon={AiChat02Icon} size={16} />
-        </Toggle>
+          <HugeiconsIcon icon={AiMagicIcon} size={16} />
+        </button>
       </div>
     </div>
   )
