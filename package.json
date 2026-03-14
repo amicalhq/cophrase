@@ -8,7 +8,8 @@
     "lint": "turbo lint",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
-    "test:e2e": "turbo test:e2e"
+    "test:e2e": "turbo test:e2e",
+    "dev:s3": "minio server ./.minio-data --console-address :9001"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

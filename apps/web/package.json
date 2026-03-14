@@ -18,6 +18,8 @@
   "dependencies": {
     "@ai-sdk/groq": "^3.0.30",
     "@ai-sdk/openai": "^3.0.45",
+    "@aws-sdk/client-s3": "^3.1009.0",
+    "@aws-sdk/s3-request-presigner": "^3.1009.0",
     "@hugeicons/core-free-icons": "^4.0.0",
     "@hugeicons/react": "^1.1.5",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
