@@ -244,7 +244,9 @@ export async function runAgentWorkflow(
 
     return { messageCount: result.messages.length, steps: result.steps.length }
   } catch (err) {
-    await persistRunFailure(args.runId, String(err))
+    await persistRunFailure(args.runId, String(err)).catch((statusErr) => {
+      console.error("Failed to persist run failure for run:", args.runId, statusErr)
+    })
     throw err
   }
 }
