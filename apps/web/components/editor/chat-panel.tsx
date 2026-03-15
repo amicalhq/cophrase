@@ -88,14 +88,9 @@ class ReactChat extends AbstractChat<SimpleMessage> {
       transport: new WorkflowChatTransport({
         api,
         fetch: customFetch,
-        prepareSendMessagesRequest: async (config) => ({
+        prepareSendMessagesRequest: async ({ messages, ...config }) => ({
           ...config,
-          body: {
-            ...(typeof config.body === "object" && config.body !== null
-              ? config.body
-              : {}),
-            ...body,
-          },
+          body: { messages, ...body },
         }),
       }),
       state,
