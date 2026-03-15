@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   AbstractChat,
-  DefaultChatTransport,
   type ChatState,
   type ChatStatus,
   type UIMessage,
 } from "ai"
+import { WorkflowChatTransport } from "@workflow/ai"
 import { useRouter } from "next/navigation"
 import { ArrowLeft02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -85,10 +85,13 @@ class ReactChat extends AbstractChat<SimpleMessage> {
     }
 
     super({
-      transport: new DefaultChatTransport({
+      transport: new WorkflowChatTransport({
         api,
-        body,
         fetch: customFetch,
+        prepareSendMessagesRequest: async ({ messages, ...config }) => ({
+          ...config,
+          body: { messages, ...body },
+        }),
       }),
       state,
     })

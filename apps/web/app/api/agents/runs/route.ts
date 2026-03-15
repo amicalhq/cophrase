@@ -4,17 +4,15 @@ import { auth } from "@workspace/auth"
 import { z } from "zod"
 import { createUIMessageStreamResponse, convertToModelMessages } from "ai"
 import type { ModelMessage, UIMessage } from "ai"
-import { getBuiltInAgent } from "@/lib/agents/built-in/registry"
-import { getAgentById } from "@workspace/db/queries/agents"
-import {
-  createAgentRun,
-  updateAgentRunStatus,
-} from "@workspace/db/queries/agent-runs"
-import { runOrchestrator } from "@/lib/agents/run-agent"
+import { start } from "workflow/api"
+import { getBuiltInAgent, getBuiltInAgentTools } from "@/lib/agents/built-in/registry"
+import { getAgentById, getAgentTools } from "@workspace/db/queries/agents"
+import { createAgentRun } from "@workspace/db/queries/agent-runs"
+import { runAgentWorkflow } from "@/lib/agents/run-agent"
+import type { WorkflowRunArgs } from "@/lib/agents/run-agent"
 import { isOrgMember } from "@/lib/data/projects"
 import { getContentById } from "@/lib/data/content"
-import type { ExecutionMode } from "@workspace/db"
-import type { AgentConfig, RunContext } from "@/lib/agents/types"
+import type { AgentConfig, AgentToolRecord } from "@/lib/agents/types"
 
 const startRunSchema = z.object({
   agentId: z.string().min(1),
@@ -49,7 +47,7 @@ export async function POST(request: NextRequest) {
   const { agentId, messages: rawMessages, organizationId, projectId, contentId, executionMode } =
     parsed.data
 
-  // Convert UIMessages (from DefaultChatTransport) to ModelMessages (for AI SDK)
+  // Convert UIMessages (from WorkflowChatTransport) to ModelMessages (for AI SDK)
   let messages: ModelMessage[]
   const firstMsg = rawMessages[0]!
   if ("parts" in firstMsg) {
@@ -107,20 +105,43 @@ export async function POST(request: NextRequest) {
       executionMode: executionMode ?? agentConfig.executionMode,
     })
 
-    const context: RunContext = {
+    // Resolve tool records (built-in first, then DB)
+    let toolRecords = getBuiltInAgentTools(agentId)
+    if (toolRecords.length === 0) {
+      const dbTools = await getAgentTools(agentId)
+      toolRecords = dbTools as AgentToolRecord[]
+    }
+    const hasSubAgentTools = toolRecords.some((r) => r.type === "agent")
+
+    // Build serializable workflow args
+    const workflowArgs: WorkflowRunArgs = {
+      agentId,
+      agentPrompt: agentConfig.prompt,
+      agentModelId: agentConfig.modelId ?? null,
+      toolRecords: toolRecords.map((r) => ({
+        id: r.id,
+        agentId: r.agentId,
+        type: r.type,
+        referenceId: r.referenceId,
+        required: r.required,
+        config: r.config,
+      })),
+      hasSubAgentTools,
       organizationId,
       projectId,
       contentId: contentId ?? undefined,
-      agentId,
       runId: run.id,
     }
 
-    const stream = await runOrchestrator(agentConfig, messages, context)
+    // Pass messages as JSON string to avoid workflow devalue serialization issues
+    const messagesJson = JSON.stringify(messages)
+    const workflowRun = await start(runAgentWorkflow, [workflowArgs, messagesJson])
 
     return createUIMessageStreamResponse({
-      stream,
+      stream: workflowRun.readable,
       headers: {
         "x-run-id": run.id,
+        "x-workflow-run-id": workflowRun.runId,
       },
     })
   } catch (error) {
