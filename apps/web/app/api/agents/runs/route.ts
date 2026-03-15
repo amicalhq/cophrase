@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   const { agentId, messages: rawMessages, organizationId, projectId, contentId, executionMode } =
     parsed.data
 
-  // Convert UIMessages (from DefaultChatTransport) to ModelMessages (for AI SDK)
+  // Convert UIMessages (from WorkflowChatTransport) to ModelMessages (for AI SDK)
   let messages: ModelMessage[]
   const firstMsg = rawMessages[0]!
   if ("parts" in firstMsg) {

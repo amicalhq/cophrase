@@ -214,9 +214,8 @@ export async function runAgentWorkflow(
 ) {
   "use workflow"
 
-  const messages: ModelMessage[] = JSON.parse(messagesJson)
-
   try {
+    const messages: ModelMessage[] = JSON.parse(messagesJson)
     // Build tools — execute functions delegate to step functions in steps.ts
     const tools = buildTools(args)
 

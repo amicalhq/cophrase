@@ -23,12 +23,6 @@ import {
   saveMessages,
 } from "@workspace/db/queries/agent-runs"
 import { updateContentStage } from "@workspace/db/queries/content"
-import {
-  getModelById,
-  getDefaultsForOrg,
-} from "@workspace/db/queries/models"
-import { getProviderById } from "@workspace/db/queries/providers"
-import { decrypt } from "@workspace/db/crypto"
 import { resolveModel } from "./resolve-model"
 import { getBuiltInAgent, getBuiltInAgentTools } from "./built-in/registry"
 import type { ArtifactStatus } from "@workspace/db"
@@ -44,6 +38,9 @@ import type { CompatibleLanguageModel } from "@workflow/ai/agent"
  * Closes over serializable strings only (modelId, organizationId).
  * DB access + model creation happens inside the "use step" boundary,
  * avoiding both closure serialization issues and AI Gateway dependency.
+ *
+ * Delegates to resolveModel() so all provider types (openai, groq,
+ * ai-gateway) are supported via the SUPPORTED_PROVIDERS registry.
  */
 export function createModelStepFn(
   modelId: string | null,
@@ -52,54 +49,8 @@ export function createModelStepFn(
   return async () => {
     "use step"
 
-    let resolvedModelId = modelId
-
-    if (!resolvedModelId) {
-      const defaults = await getDefaultsForOrg(organizationId)
-      const defaultLM = defaults.find((d) => d.modelType === "language")
-      if (!defaultLM) {
-        throw new Error(
-          `No default language model configured for org ${organizationId}. ` +
-            `Please set a default model in Settings > Models.`,
-        )
-      }
-      resolvedModelId = defaultLM.modelId
-    }
-
-    const model = await getModelById(resolvedModelId)
-    if (!model) throw new Error(`Model not found: ${resolvedModelId}`)
-
-    const provider = await getProviderById(model.providerId, organizationId)
-    if (!provider) {
-      throw new Error(
-        `Provider not found: ${model.providerId} for org ${organizationId}`,
-      )
-    }
-
-    const apiKey = decrypt(provider.apiKeyEnc)
-    const opts = {
-      apiKey,
-      ...(provider.baseUrl ? { baseURL: provider.baseUrl } : {}),
-    }
-
-    switch (provider.providerType) {
-      case "openai": {
-        const { createOpenAI } = await import("@ai-sdk/openai")
-        return createOpenAI(opts)(
-          model.modelId,
-        ) as unknown as CompatibleLanguageModel
-      }
-      case "groq": {
-        const { createGroq } = await import("@ai-sdk/groq")
-        return createGroq(opts)(
-          model.modelId,
-        ) as unknown as CompatibleLanguageModel
-      }
-      default:
-        throw new Error(
-          `Unsupported provider type: ${provider.providerType}`,
-        )
-    }
+    const model = await resolveModel(modelId, organizationId)
+    return model as unknown as CompatibleLanguageModel
   }
 }
 
@@ -517,7 +468,5 @@ export async function persistRunFailure(
 
   await updateAgentRunStatus(runId, "failed", {
     error: { code: "AGENT_ERROR", message: errorMessage },
-  }).catch((statusErr: unknown) => {
-    console.error("Failed to update agent run status:", runId, statusErr)
   })
 }
