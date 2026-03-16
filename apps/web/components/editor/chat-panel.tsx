@@ -48,12 +48,21 @@ interface HarnessMessage {
   content: string
   reasoningText?: string
   toolCalls?: ToolCallResult[]
+  isError?: boolean
   createdAt: string
 }
 
 interface ToolCallResult {
   toolName: string
   result: unknown
+}
+
+function isErrorMetadata(metadata: unknown): boolean {
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    "error" in metadata
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +124,7 @@ function useHarnessChat(contentId: string) {
             id: string
             role: string
             parts: unknown
+            metadata: unknown
             createdAt: string
           }>
           nextCursor?: string
@@ -123,6 +133,7 @@ function useHarnessChat(contentId: string) {
           id: m.id,
           role: m.role as HarnessMessage["role"],
           content: typeof m.parts === "string" ? m.parts : "",
+          isError: isErrorMetadata(m.metadata),
           createdAt: m.createdAt,
         }))
         setMessages(converted)
@@ -149,6 +160,7 @@ function useHarnessChat(contentId: string) {
           id: string
           role: string
           parts: unknown
+          metadata: unknown
           createdAt: string
         }>
         nextCursor?: string
@@ -157,6 +169,7 @@ function useHarnessChat(contentId: string) {
         id: m.id,
         role: m.role as HarnessMessage["role"],
         content: typeof m.parts === "string" ? m.parts : "",
+        isError: isErrorMetadata(m.metadata),
         createdAt: m.createdAt,
       }))
       setMessages((prev) => [...converted, ...prev])
@@ -480,7 +493,11 @@ export function ChatPanel({ contentId, onArtifactClick }: ChatPanelProps) {
                         />
                       ))}
                     <MessageContent>
-                      {message.role === "assistant" ? (
+                      {message.isError ? (
+                        <div className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+                          {message.content}
+                        </div>
+                      ) : message.role === "assistant" ? (
                         <MessageResponse isAnimating={isAnimating}>
                           {message.content}
                         </MessageResponse>

@@ -179,14 +179,7 @@ ${agentDescriptions}`
       maxSteps: 20,
     })
 
-    // Step 5: Persist messages
-    const userMsg = {
-      organizationId: args.organizationId,
-      contentId: args.contentId,
-      role: "user" as const,
-      parts: userMessage.content,
-    }
-
+    // Step 5: Persist assistant messages (user message already saved by the API route)
     const assistantMsgs = result.messages
       .filter((m) => m.role === "assistant")
       .map((m) => ({
@@ -196,7 +189,7 @@ ${agentDescriptions}`
         parts: "content" in m ? m.content : null,
       }))
 
-    await persistHarnessMessages([userMsg, ...assistantMsgs])
+    await persistHarnessMessages(assistantMsgs)
 
     return { messageCount: result.messages.length, steps: result.steps.length }
   } catch (err) {

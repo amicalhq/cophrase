@@ -5,6 +5,7 @@ import { z } from "zod"
 import { createUIMessageStreamResponse } from "ai"
 import { start } from "workflow/api"
 import { getContentByIdOnly } from "@workspace/db/queries/content"
+import { saveHarnessMessages } from "@workspace/db/queries/harness-messages"
 import { isOrgMember } from "@/lib/data/projects"
 import { runHarnessWorkflow } from "@/lib/harness/run-harness"
 
@@ -62,6 +63,16 @@ export async function POST(
       ? data.message
       : data.messages[data.messages.length - 1]!.content
     const userMessage = JSON.stringify({ role: "user", content: messageText })
+
+    // Persist the user message immediately so it survives workflow failures
+    await saveHarnessMessages([
+      {
+        organizationId: contentRow.organizationId,
+        contentId,
+        role: "user" as const,
+        parts: messageText,
+      },
+    ])
 
     const workflowRun = await start(runHarnessWorkflow, [
       {
