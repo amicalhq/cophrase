@@ -68,6 +68,39 @@ function isErrorMetadata(metadata: unknown): boolean {
   )
 }
 
+/**
+ * Extract plain text from the `parts` field which can be:
+ * - A plain string (user messages)
+ * - An array of content parts like [{ text: "...", type: "text" }]
+ * - Deeply nested JSON strings from double-serialization
+ */
+function extractPartsText(parts: unknown): string {
+  if (typeof parts === "string") return parts
+  if (Array.isArray(parts)) {
+    return parts
+      .map((p) => {
+        if (typeof p === "string") return p
+        if (typeof p === "object" && p !== null && "text" in p) {
+          const text = (p as { text: unknown }).text
+          if (typeof text === "string") {
+            // Handle double-serialized JSON strings
+            if (text.startsWith("[{")) {
+              try {
+                return extractPartsText(JSON.parse(text))
+              } catch {
+                return text
+              }
+            }
+            return text
+          }
+        }
+        return ""
+      })
+      .join("")
+  }
+  return ""
+}
+
 // ---------------------------------------------------------------------------
 // SSE stream parser — extracts text, reasoning, and tool calls from the
 // AI SDK UI message stream format
@@ -85,8 +118,8 @@ function parseSSEChunk(
     const evt = JSON.parse(json) as Record<string, unknown>
     const type = evt.type as string
 
-    if (type === "text-delta" && typeof evt.textDelta === "string") {
-      state.text += evt.textDelta
+    if (type === "text-delta" && typeof evt.delta === "string") {
+      state.text += evt.delta
     } else if (
       type === "reasoning-delta" &&
       typeof evt.delta === "string"
@@ -159,7 +192,7 @@ function useHarnessChat(contentId: string) {
         const converted: HarnessMessage[] = data.messages.map((m) => ({
           id: m.id,
           role: m.role as HarnessMessage["role"],
-          content: typeof m.parts === "string" ? m.parts : "",
+          content: extractPartsText(m.parts),
           isError: isErrorMetadata(m.metadata),
           createdAt: m.createdAt,
         }))
@@ -195,7 +228,7 @@ function useHarnessChat(contentId: string) {
       const converted: HarnessMessage[] = data.messages.map((m) => ({
         id: m.id,
         role: m.role as HarnessMessage["role"],
-        content: typeof m.parts === "string" ? m.parts : "",
+        content: extractPartsText(m.parts),
         isError: isErrorMetadata(m.metadata),
         createdAt: m.createdAt,
       }))

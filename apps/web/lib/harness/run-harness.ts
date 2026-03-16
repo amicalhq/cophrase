@@ -25,6 +25,38 @@ import type { ContentContext } from "./types"
 import type { ContentType } from "@workspace/db"
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Extract plain text from DB `parts` (string or [{text,type}] array). */
+function extractTextFromParts(parts: unknown): string {
+  if (typeof parts === "string") return parts
+  if (Array.isArray(parts)) {
+    return parts
+      .map((p) => {
+        if (typeof p === "string") return p
+        if (typeof p === "object" && p !== null && "text" in p) {
+          const text = (p as { text: unknown }).text
+          if (typeof text === "string") {
+            // Unwrap double-serialized JSON strings
+            if (text.startsWith("[{")) {
+              try {
+                return extractTextFromParts(JSON.parse(text))
+              } catch {
+                return text
+              }
+            }
+            return text
+          }
+        }
+        return ""
+      })
+      .join("")
+  }
+  return String(parts ?? "")
+}
+
+// ---------------------------------------------------------------------------
 // Serializable workflow args
 // ---------------------------------------------------------------------------
 
@@ -157,8 +189,7 @@ ${agentDescriptions}`
     const rawMessages = [
       ...history.map((m) => ({
         role: m.role,
-        content:
-          typeof m.parts === "string" ? m.parts : JSON.stringify(m.parts),
+        content: extractTextFromParts(m.parts),
       })),
       userMessage,
     ]
