@@ -554,7 +554,7 @@ export function ChatPanel({ contentId, onArtifactClick }: ChatPanelProps) {
                   <Message key={message.id} from={message.role}>
                     {message.role === "assistant" &&
                       message.reasoningText && (
-                        <Reasoning isStreaming={isAnimating}>
+                        <Reasoning isStreaming={isAnimating} defaultOpen={false}>
                           <ReasoningTrigger />
                           <ReasoningContent>
                             {message.reasoningText}
