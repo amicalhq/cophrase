@@ -126,12 +126,15 @@ function parseSSEChunk(
     ) {
       state.reasoning += evt.delta
     } else if (type === "tool-input-start") {
-      // Tool call started — show "calling" state immediately
-      state.toolCalls.push({
-        toolCallId: (evt.toolCallId as string) ?? "",
-        toolName: (evt.toolName as string) ?? "unknown",
-        state: "calling",
-      })
+      // Tool call started — deduplicate by toolCallId
+      const id = (evt.toolCallId as string) ?? ""
+      if (!state.toolCalls.some((t) => t.toolCallId === id)) {
+        state.toolCalls.push({
+          toolCallId: id,
+          toolName: (evt.toolName as string) ?? "unknown",
+          state: "calling",
+        })
+      }
     } else if (type === "tool-input-available") {
       // Tool input is ready — update with the input
       const id = evt.toolCallId as string
@@ -140,18 +143,19 @@ function parseSSEChunk(
         tc.input = evt.input
       }
     } else if (type === "tool-result") {
-      // Tool finished — update with result
+      // Tool finished — update with result (AI SDK uses `output`, not `result`)
       const id = evt.toolCallId as string
+      const output = evt.output ?? evt.result
       const tc = state.toolCalls.find((t) => t.toolCallId === id)
       if (tc) {
         tc.state = "complete"
-        tc.result = evt.result
+        tc.result = output
       } else {
         state.toolCalls.push({
           toolCallId: id ?? "",
           toolName: (evt.toolName as string) ?? "unknown",
           state: "complete",
-          result: evt.result,
+          result: output,
         })
       }
     }
