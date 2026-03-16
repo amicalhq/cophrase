@@ -53,8 +53,11 @@ interface HarnessMessage {
 }
 
 interface ToolCallResult {
+  toolCallId: string
   toolName: string
-  result: unknown
+  state: "calling" | "complete"
+  input?: unknown
+  result?: unknown
 }
 
 function isErrorMetadata(metadata: unknown): boolean {
@@ -89,11 +92,35 @@ function parseSSEChunk(
       typeof evt.delta === "string"
     ) {
       state.reasoning += evt.delta
-    } else if (type === "tool-result") {
+    } else if (type === "tool-input-start") {
+      // Tool call started — show "calling" state immediately
       state.toolCalls.push({
+        toolCallId: (evt.toolCallId as string) ?? "",
         toolName: (evt.toolName as string) ?? "unknown",
-        result: evt.result,
+        state: "calling",
       })
+    } else if (type === "tool-input-available") {
+      // Tool input is ready — update with the input
+      const id = evt.toolCallId as string
+      const tc = state.toolCalls.find((t) => t.toolCallId === id)
+      if (tc) {
+        tc.input = evt.input
+      }
+    } else if (type === "tool-result") {
+      // Tool finished — update with result
+      const id = evt.toolCallId as string
+      const tc = state.toolCalls.find((t) => t.toolCallId === id)
+      if (tc) {
+        tc.state = "complete"
+        tc.result = evt.result
+      } else {
+        state.toolCalls.push({
+          toolCallId: id ?? "",
+          toolName: (evt.toolName as string) ?? "unknown",
+          state: "complete",
+          result: evt.result,
+        })
+      }
     }
   } catch {
     // ignore malformed lines
@@ -296,54 +323,71 @@ function ToolCallBlock({
   toolCall: ToolCallResult
   onArtifactClick?: (artifactId: string) => void
 }) {
-  const { toolName, result } = toolCall
-  const label = formatToolLabel(toolName)
+  const { toolName, state, input, result } = toolCall
+  const label = formatToolLabel(toolName, input)
   const artifacts = extractArtifacts(result)
+  const isCalling = state === "calling"
 
   return (
     <Collapsible className="not-prose my-2">
       <CollapsibleTrigger className="flex w-full items-center gap-2 text-muted-foreground text-xs transition-colors hover:text-foreground">
-        <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
-          Tool
+        <Badge
+          variant={isCalling ? "secondary" : "outline"}
+          className="h-5 px-1.5 text-[10px]"
+        >
+          {isCalling ? "Running" : "Tool"}
         </Badge>
-        <span>{label}</span>
-        <ChevronDownIcon className="ml-auto size-3" />
+        <span>
+          {label}
+          {isCalling && (
+            <LoaderIcon className="ml-1 inline size-3 animate-spin" />
+          )}
+        </span>
+        {!isCalling && (
+          <ChevronDownIcon className="ml-auto size-3" />
+        )}
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
-        {artifacts.length > 0 && onArtifactClick && (
-          <div className="mb-2 flex flex-wrap gap-1">
-            {artifacts.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                className="text-primary underline hover:no-underline text-xs"
-                onClick={() => onArtifactClick(a.id)}
-              >
-                {a.title ?? a.type} v{a.version}
-              </button>
-            ))}
-          </div>
-        )}
-        {result != null && (
-          <pre className="bg-muted overflow-x-auto rounded-md p-2 text-[10px] max-h-40">
-            {typeof result === "string"
-              ? result
-              : JSON.stringify(result, null, 2)}
-          </pre>
-        )}
-      </CollapsibleContent>
+      {!isCalling && (
+        <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
+          {artifacts.length > 0 && onArtifactClick && (
+            <div className="mb-2 flex flex-wrap gap-1">
+              {artifacts.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className="text-primary underline hover:no-underline text-xs"
+                  onClick={() => onArtifactClick(a.id)}
+                >
+                  {a.title ?? a.type} v{a.version}
+                </button>
+              ))}
+            </div>
+          )}
+          {result != null && (
+            <pre className="bg-muted overflow-x-auto rounded-md p-2 text-[10px] max-h-40">
+              {typeof result === "string"
+                ? result
+                : JSON.stringify(result, null, 2)}
+            </pre>
+          )}
+        </CollapsibleContent>
+      )}
     </Collapsible>
   )
 }
 
-function formatToolLabel(toolName: string): string {
+function formatToolLabel(toolName: string, input?: unknown): string {
+  const inp = input as Record<string, unknown> | undefined
   switch (toolName) {
-    case "run-agent":
-      return "Ran agent"
+    case "run-agent": {
+      const agentId = inp?.agentId as string | undefined
+      const name = agentId?.replace("builtin:", "") ?? "agent"
+      return `Running ${name.replace(/-/g, " ")}`
+    }
     case "get-content-status":
-      return "Checked content status"
+      return "Checking content status"
     case "search-artifacts":
-      return "Searched artifacts"
+      return "Searching artifacts"
     default:
       return toolName.replace(/-/g, " ")
   }
