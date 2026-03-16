@@ -75,3 +75,21 @@ export async function updateContentStage(id: string, stage: ContentStage, organi
     .returning()
   return result ?? null
 }
+
+export async function getContentByIdOnly(id: string) {
+  const [result] = await db
+    .select({
+      id: content.id,
+      title: content.title,
+      type: content.type,
+      stage: content.stage,
+      organizationId: content.organizationId,
+      projectId: content.projectId,
+      createdBy: content.createdBy,
+      createdAt: content.createdAt,
+      updatedAt: content.updatedAt,
+    })
+    .from(content)
+    .where(eq(content.id, id))
+  return result ?? null
+}
