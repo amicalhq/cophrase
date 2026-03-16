@@ -17,7 +17,8 @@ export async function GET(
   const { contentId } = await params
   const { searchParams } = new URL(request.url)
   const cursor = searchParams.get("cursor") ?? undefined
-  const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 50)
+  const parsed = parseInt(searchParams.get("limit") ?? "20", 10)
+  const limit = Math.min(Number.isNaN(parsed) ? 20 : parsed, 50)
 
   const contentRow = await getContentByIdOnly(contentId)
   if (!contentRow) {

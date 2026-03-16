@@ -150,7 +150,7 @@ export async function runSubAgentInline(input: {
     }),
     execute: async ({ artifactId }: { artifactId: string }) => {
       const artifact = await getArtifactById(artifactId)
-      if (!artifact || artifact.organizationId !== input.organizationId) {
+      if (!artifact || artifact.organizationId !== input.organizationId || artifact.contentId !== input.contentId) {
         return { error: "Artifact not found" }
       }
       return {
@@ -167,16 +167,15 @@ export async function runSubAgentInline(input: {
   tools["search-artifacts"] = tool({
     description: "Search for existing artifacts.",
     inputSchema: z.object({
-      contentId: z.string().optional(),
       type: z.string().optional(),
       status: z.enum(["pending", "ready", "approved", "rejected"]).optional(),
     }),
-    execute: async ({ contentId, type, status }: {
-      contentId?: string; type?: string; status?: string
+    execute: async ({ type, status }: {
+      type?: string; status?: string
     }) => {
       const results = await searchArtifacts({
         organizationId: input.organizationId,
-        contentId: contentId ?? input.contentId,
+        contentId: input.contentId,
         type,
         status: status as ArtifactStatus | undefined,
       })

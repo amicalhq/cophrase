@@ -21,40 +21,9 @@ import {
   getAgentDescriptionsStep,
 } from "./steps"
 import { HARNESS_CONFIGS } from "./configs"
+import { extractTextFromParts } from "./utils"
 import type { ContentContext } from "./types"
 import type { ContentType } from "@workspace/db"
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Extract plain text from DB `parts` (string or [{text,type}] array). */
-function extractTextFromParts(parts: unknown): string {
-  if (typeof parts === "string") return parts
-  if (Array.isArray(parts)) {
-    return parts
-      .map((p) => {
-        if (typeof p === "string") return p
-        if (typeof p === "object" && p !== null && "text" in p) {
-          const text = (p as { text: unknown }).text
-          if (typeof text === "string") {
-            // Unwrap double-serialized JSON strings
-            if (text.startsWith("[{")) {
-              try {
-                return extractTextFromParts(JSON.parse(text))
-              } catch {
-                return text
-              }
-            }
-            return text
-          }
-        }
-        return ""
-      })
-      .join("")
-  }
-  return String(parts ?? "")
-}
 
 // ---------------------------------------------------------------------------
 // Serializable workflow args
@@ -179,19 +148,26 @@ ${agentDescriptions}`
     }
 
     // Parse user message (passed as JSON string to avoid devalue serialization issues)
-    const userMessage = JSON.parse(userMessageJson) as {
+    const userMsg = JSON.parse(userMessageJson) as {
       role: "user"
       content: string
     }
 
-    // Combine history + new user message
+    // The user message is saved in the route handler before the workflow starts.
+    // Check if it's already in the history to avoid duplicating it.
+    const lastMsg = history[history.length - 1]
+    const historyIncludesUserMsg =
+      lastMsg?.role === "user" &&
+      extractTextFromParts(lastMsg.parts) === userMsg.content
+
+    // Combine history + new user message (only if not already present)
     // Use JSON round-trip to get ModelMessage[] typing (same pattern as run-agent.ts)
     const rawMessages = [
       ...history.map((m) => ({
         role: m.role,
         content: extractTextFromParts(m.parts),
       })),
-      userMessage,
+      ...(historyIncludesUserMsg ? [] : [userMsg]),
     ]
     const messages = JSON.parse(JSON.stringify(rawMessages))
 

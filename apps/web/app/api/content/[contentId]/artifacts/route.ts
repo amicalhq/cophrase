@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
 import { getContentByIdOnly } from "@workspace/db/queries/content"
-import { getArtifactsByContent } from "@workspace/db/queries/artifacts"
+import { getArtifactsSummaryByContent } from "@workspace/db/queries/artifacts"
 import { isOrgMember } from "@/lib/data/projects"
 
 export async function GET(
@@ -26,7 +26,7 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const artifacts = await getArtifactsByContent(contentId)
+  const artifacts = await getArtifactsSummaryByContent(contentId)
 
   // Group by type for the picker UI
   const grouped: Record<string, typeof artifacts> = {}

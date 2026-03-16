@@ -35,6 +35,7 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning"
+import { extractTextFromParts as extractPartsText } from "@/lib/harness/utils"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -90,39 +91,6 @@ function extractReasoning(metadata: unknown): string | undefined {
     return (metadata as { reasoning: string }).reasoning || undefined
   }
   return undefined
-}
-
-/**
- * Extract plain text from the `parts` field which can be:
- * - A plain string (user messages)
- * - An array of content parts like [{ text: "...", type: "text" }]
- * - Deeply nested JSON strings from double-serialization
- */
-function extractPartsText(parts: unknown): string {
-  if (typeof parts === "string") return parts
-  if (Array.isArray(parts)) {
-    return parts
-      .map((p) => {
-        if (typeof p === "string") return p
-        if (typeof p === "object" && p !== null && "text" in p) {
-          const text = (p as { text: unknown }).text
-          if (typeof text === "string") {
-            // Handle double-serialized JSON strings
-            if (text.startsWith("[{")) {
-              try {
-                return extractPartsText(JSON.parse(text))
-              } catch {
-                return text
-              }
-            }
-            return text
-          }
-        }
-        return ""
-      })
-      .join("")
-  }
-  return ""
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +166,7 @@ function useHarnessChat(contentId: string) {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const cursorRef = useRef<string | undefined>(undefined)
+  const abortRef = useRef<AbortController | null>(null)
 
   // Load initial messages
   useEffect(() => {
@@ -288,11 +257,15 @@ function useHarnessChat(contentId: string) {
       setMessages((prev) => [...prev, userMsg])
       setStatus("streaming")
 
+      const controller = new AbortController()
+      abortRef.current = controller
+
       try {
         const res = await fetch(`/api/content/${contentId}/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: text }),
+          signal: controller.signal,
         })
 
         if (!res.ok) {
@@ -346,9 +319,16 @@ function useHarnessChat(contentId: string) {
           parseSSEChunk(buffer.trim(), state)
         }
 
+        abortRef.current = null
         setStatus("ready")
-      } catch {
-        setStatus("error")
+      } catch (err) {
+        abortRef.current = null
+        // Don't treat abort as an error
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setStatus("ready")
+        } else {
+          setStatus("error")
+        }
       }
     },
     [contentId, status],
@@ -356,6 +336,10 @@ function useHarnessChat(contentId: string) {
 
   // Cancel
   const cancel = useCallback(async () => {
+    // Abort the in-flight fetch stream
+    abortRef.current?.abort()
+    abortRef.current = null
+
     try {
       await fetch(`/api/content/${contentId}/chat/cancel`, {
         method: "POST",
@@ -365,6 +349,14 @@ function useHarnessChat(contentId: string) {
       // silently fail
     }
   }, [contentId])
+
+  // Abort on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+      abortRef.current = null
+    }
+  }, [])
 
   return {
     messages,
