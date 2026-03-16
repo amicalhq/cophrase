@@ -12,7 +12,7 @@ import { useProject } from "@/app/orgs/[orgId]/projects/[projectId]/project-cont
 import { TopNavigation } from "@/components/navigation/top-navigation"
 import { ChatPanel } from "./chat-panel"
 import { EditorPanel } from "./editor-panel"
-import { ArtifactPicker } from "./artifact-picker"
+import { useArtifacts } from "./artifact-picker"
 import type { ArtifactData } from "./artifact-viewer"
 
 interface AIEditorProps {
@@ -38,6 +38,8 @@ export function AIEditor({
   const [selectedArtifact, setSelectedArtifact] =
     useState<ArtifactData | null>(null)
 
+  const { artifacts, grouped } = useArtifacts(contentId)
+
   const handleChatToggle = () => {
     if (isChatOpen) {
       chatPanelRef.current?.collapse()
@@ -47,21 +49,11 @@ export function AIEditor({
   }
 
   const handleArtifactClick = useCallback(
-    async (artifactId: string) => {
-      try {
-        const res = await fetch(`/api/content/${contentId}/artifacts`)
-        if (!res.ok) return
-        const data = (await res.json()) as {
-          artifacts: ArtifactData[]
-          grouped: Record<string, ArtifactData[]>
-        }
-        const artifact = data.artifacts.find((a) => a.id === artifactId)
-        if (artifact) setSelectedArtifact(artifact)
-      } catch {
-        // silently fail
-      }
+    (artifactId: string) => {
+      const artifact = artifacts.find((a) => a.id === artifactId)
+      if (artifact) setSelectedArtifact(artifact)
     },
-    [contentId],
+    [artifacts],
   )
 
   return (
@@ -94,18 +86,14 @@ export function AIEditor({
           <ResizableHandle withHandle className={isChatOpen ? "" : "hidden"} />
 
           <ResizablePanel defaultSize={65} minSize={40}>
-            <div className="flex h-full flex-col">
-              <ArtifactPicker
-                contentId={contentId}
-                onSelect={setSelectedArtifact}
-                selectedId={selectedArtifact?.id ?? null}
-              />
-              <EditorPanel
-                isChatOpen={isChatOpen}
-                onChatToggle={handleChatToggle}
-                artifact={selectedArtifact}
-              />
-            </div>
+            <EditorPanel
+              isChatOpen={isChatOpen}
+              onChatToggle={handleChatToggle}
+              artifact={selectedArtifact}
+              artifacts={artifacts}
+              groupedArtifacts={grouped}
+              onArtifactSelect={setSelectedArtifact}
+            />
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

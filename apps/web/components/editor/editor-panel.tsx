@@ -15,6 +15,7 @@ import { ToolbarProvider } from "./toolbar-provider"
 import { EditorToolbar } from "./toolbars/editor-toolbar"
 import type { ArtifactData } from "./artifact-viewer"
 import { ResearchNotesView } from "./artifact-viewer"
+import { ArtifactSelect } from "./artifact-picker"
 import { BoldButton } from "./toolbars/formatting-buttons"
 import { ItalicButton } from "./toolbars/formatting-buttons"
 import { UnderlineButton } from "./toolbars/formatting-buttons"
@@ -25,11 +26,25 @@ interface EditorPanelProps {
   isChatOpen: boolean
   onChatToggle: () => void
   artifact: ArtifactData | null
+  artifacts: ArtifactData[]
+  groupedArtifacts: Record<string, ArtifactData[]>
+  onArtifactSelect: (artifact: ArtifactData | null) => void
 }
 
-const TEXT_ARTIFACT_TYPES = new Set(["blog-draft", "humanized-draft", "final-blog"])
+const TEXT_ARTIFACT_TYPES = new Set([
+  "blog-draft",
+  "humanized-draft",
+  "final-blog",
+])
 
-export function EditorPanel({ isChatOpen, onChatToggle, artifact }: EditorPanelProps) {
+export function EditorPanel({
+  isChatOpen,
+  onChatToggle,
+  artifact,
+  artifacts,
+  groupedArtifacts,
+  onArtifactSelect,
+}: EditorPanelProps) {
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -72,11 +87,24 @@ export function EditorPanel({ isChatOpen, onChatToggle, artifact }: EditorPanelP
     }
   }, [editor, artifact])
 
+  const artifactSelect = (
+    <ArtifactSelect
+      artifacts={artifacts}
+      grouped={groupedArtifacts}
+      selectedId={artifact?.id ?? null}
+      onSelect={onArtifactSelect}
+    />
+  )
+
   // When artifact is research-notes type, render the structured view instead of Tiptap
   if (artifact && artifact.type === "research-notes") {
     return (
       <div className="flex h-full flex-col">
-        <EditorToolbar isChatOpen={isChatOpen} onChatToggle={onChatToggle} />
+        <EditorToolbar
+          isChatOpen={isChatOpen}
+          onChatToggle={onChatToggle}
+          trailing={artifactSelect}
+        />
         <div className="flex-1 overflow-y-auto p-6">
           <ResearchNotesView
             data={
@@ -91,7 +119,11 @@ export function EditorPanel({ isChatOpen, onChatToggle, artifact }: EditorPanelP
   return (
     <ToolbarProvider editor={editor}>
       <div className="flex h-full flex-col">
-        <EditorToolbar isChatOpen={isChatOpen} onChatToggle={onChatToggle} />
+        <EditorToolbar
+          isChatOpen={isChatOpen}
+          onChatToggle={onChatToggle}
+          trailing={artifactSelect}
+        />
         <div className="flex-1 overflow-y-auto">
           {editor && (
             <BubbleMenu

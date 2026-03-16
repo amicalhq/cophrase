@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { Separator } from "@workspace/ui/components/separator"
 import { UndoButton, RedoButton } from "./history-buttons"
 import {
@@ -30,11 +31,13 @@ import { LayoutAlignLeftIcon } from "@hugeicons/core-free-icons"
 interface EditorToolbarProps {
   isChatOpen: boolean
   onChatToggle: () => void
+  trailing?: ReactNode
 }
 
 export function EditorToolbar({
   isChatOpen,
   onChatToggle,
+  trailing,
 }: EditorToolbarProps) {
   return (
     <div className="border-border flex h-11 shrink-0 items-center justify-between border-b px-2">
@@ -88,6 +91,10 @@ export function EditorToolbar({
         <AlignCenterButton />
         <AlignRightButton />
       </div>
+
+      {trailing && (
+        <div className="flex items-center gap-1.5">{trailing}</div>
+      )}
     </div>
   )
 }
