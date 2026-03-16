@@ -1,96 +1,124 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Button } from "@workspace/ui/components/button"
-import { Badge } from "@workspace/ui/components/badge"
-import { cn } from "@workspace/ui/lib/utils"
 import {
-  Search01Icon,
-  TextIcon,
-  AiBeautifyIcon,
-  File01Icon,
-} from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
-import type { IconSvgElement } from "@hugeicons/react"
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 import type { ArtifactData } from "./artifact-viewer"
 
-interface ArtifactPickerProps {
-  runId: string
-  selectedId: string | null
-  onSelect: (artifact: ArtifactData | null) => void
+const ARTIFACT_TYPE_LABELS: Record<string, string> = {
+  "research-notes": "Research",
+  "blog-draft": "Drafts",
+  "humanized-draft": "Humanized",
+  "final-blog": "Final",
 }
 
-const ARTIFACT_ICONS: Record<string, IconSvgElement> = {
-  "research-notes": Search01Icon,
-  "blog-draft": TextIcon,
-  "humanized-draft": AiBeautifyIcon,
+function typeLabel(type: string): string {
+  return ARTIFACT_TYPE_LABELS[type] ?? type.replace(/-/g, " ")
 }
 
-function getArtifactIcon(type: string): IconSvgElement {
-  return ARTIFACT_ICONS[type] ?? File01Icon
-}
+// ---------------------------------------------------------------------------
+// useArtifacts hook — fetches and polls content-scoped artifacts
+// ---------------------------------------------------------------------------
 
-export function ArtifactPicker({
-  runId,
-  selectedId,
-  onSelect,
-}: ArtifactPickerProps) {
+export function useArtifacts(contentId: string) {
   const [artifacts, setArtifacts] = useState<ArtifactData[]>([])
+  const [grouped, setGrouped] = useState<Record<string, ArtifactData[]>>({})
   const [loading, setLoading] = useState(false)
 
   const fetchArtifacts = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/agents/runs/${runId}/artifacts`)
+      const res = await fetch(`/api/content/${contentId}/artifacts`)
       if (!res.ok) return
-      const data = (await res.json()) as { artifacts: ArtifactData[] }
+      const data = (await res.json()) as {
+        artifacts: ArtifactData[]
+        grouped: Record<string, ArtifactData[]>
+      }
       setArtifacts(data.artifacts)
+      setGrouped(data.grouped)
     } catch {
       // silently fail — artifacts are supplementary
     } finally {
       setLoading(false)
     }
-  }, [runId])
+  }, [contentId])
 
-  // Fetch artifacts when runId changes, and poll while there are fewer than expected
   useEffect(() => {
     fetchArtifacts()
     const interval = setInterval(fetchArtifacts, 5000)
     return () => clearInterval(interval)
   }, [fetchArtifacts])
 
-  if (artifacts.length === 0 && !loading) return null
+  return { artifacts, grouped, loading }
+}
+
+// ---------------------------------------------------------------------------
+// ArtifactSelect — dropdown that replaces the old version picker
+// ---------------------------------------------------------------------------
+
+interface ArtifactSelectProps {
+  artifacts: ArtifactData[]
+  grouped: Record<string, ArtifactData[]>
+  selectedId: string | null
+  onSelect: (artifact: ArtifactData | null) => void
+}
+
+export function ArtifactSelect({
+  artifacts,
+  grouped,
+  selectedId,
+  onSelect,
+}: ArtifactSelectProps) {
+  if (artifacts.length === 0) return null
+
+  const types = Object.keys(grouped)
+
+  const handleChange = (value: string) => {
+    if (value === "__none__") {
+      onSelect(null)
+      return
+    }
+    const artifact = artifacts.find((a) => a.id === value)
+    onSelect(artifact ?? null)
+  }
 
   return (
-    <div className="border-border flex items-center gap-1 border-b px-2 py-1.5">
-      <span className="text-muted-foreground mr-1 text-xs font-medium">
-        Artifacts
-      </span>
-      {loading && artifacts.length === 0 && (
-        <span className="text-muted-foreground animate-pulse text-xs">
-          Loading...
-        </span>
-      )}
-      {artifacts.map((artifact) => (
-        <Button
-          key={artifact.id}
-          variant={selectedId === artifact.id ? "secondary" : "ghost"}
-          size="sm"
-          className={cn(
-            "h-7 gap-1.5 text-xs",
-            selectedId === artifact.id && "ring-ring ring-1",
-          )}
-          onClick={() =>
-            onSelect(selectedId === artifact.id ? null : artifact)
-          }
-        >
-          <HugeiconsIcon icon={getArtifactIcon(artifact.type)} size={14} />
-          <span className="max-w-[120px] truncate">{artifact.title}</span>
-          <Badge variant="outline" className="h-4 px-1 text-[10px]">
-            v{artifact.version}
-          </Badge>
-        </Button>
-      ))}
-    </div>
+    <Select
+      value={selectedId ?? "__none__"}
+      onValueChange={handleChange}
+    >
+      <SelectTrigger
+        className="w-[12rem] text-xs h-7"
+        size="sm"
+        aria-label="Artifact"
+        data-testid="artifact-picker"
+      >
+        <SelectValue placeholder="Select artifact..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__" className="text-xs">
+          No artifact
+        </SelectItem>
+        {types.map((type) => (
+          <SelectGroup key={type}>
+            <SelectLabel className="text-[10px] uppercase tracking-wider">
+              {typeLabel(type)}
+            </SelectLabel>
+            {grouped[type]!.map((a) => (
+              <SelectItem key={a.id} value={a.id} className="text-xs">
+                {a.title} — v{a.version}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }

@@ -19,6 +19,21 @@ export async function getArtifactsByContent(contentId: string) {
     .orderBy(desc(artifact.createdAt))
 }
 
+export async function getArtifactsSummaryByContent(contentId: string) {
+  return await db
+    .select({
+      id: artifact.id,
+      type: artifact.type,
+      title: artifact.title,
+      version: artifact.version,
+      status: artifact.status,
+      createdAt: artifact.createdAt,
+    })
+    .from(artifact)
+    .where(eq(artifact.contentId, contentId))
+    .orderBy(desc(artifact.createdAt))
+}
+
 export async function getArtifactById(id: string) {
   const [result] = await db
     .select()

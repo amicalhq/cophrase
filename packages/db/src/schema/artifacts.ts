@@ -27,14 +27,15 @@ export const artifact = pgTable(
     contentId: text("content_id").references(() => content.id, {
       onDelete: "set null",
     }),
-    agentId: text("agent_id").notNull(), // No FK — built-in agents live in code, not DB
-    runId: text("run_id").notNull(),
+    agentId: text("agent_id"), // Nullable — user edits have no agent. No FK — built-in agents live in code, not DB
+    runId: text("run_id"), // Nullable — user edits have no associated run
     type: text("type").notNull(),
     title: text("title").notNull(),
     data: jsonb("data").notNull(),
     version: integer("version").notNull().default(1),
     status: artifactStatusEnum("status").notNull().default("ready"),
     parentIds: jsonb("parent_ids").$type<string[]>(),
+    editedBy: text("edited_by"), // User ID when human-edited, null when agent-generated
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

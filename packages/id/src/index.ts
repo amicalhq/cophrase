@@ -1,4 +1,4 @@
-import { customAlphabet } from "nanoid"
+import { customAlphabet } from "nanoid/non-secure"
 
 const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
@@ -31,3 +31,4 @@ export const createAgentRunId = createIdGenerator("run", 16)
 export const createAgentMessageId = createIdGenerator("msg", 16)
 export const createMcpConnectionId = createIdGenerator("mcc", 10)
 export const createAgentToolId = createIdGenerator("ats", 10)
+export const createHarnessMessageId = createIdGenerator("hm", 16)

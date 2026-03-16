@@ -14,6 +14,7 @@
     "./queries/agents": "./src/queries/agents.ts",
     "./queries/artifacts": "./src/queries/artifacts.ts",
     "./queries/agent-runs": "./src/queries/agent-runs.ts",
+    "./queries/harness-messages": "./src/queries/harness-messages.ts",
     "./crypto": "./src/crypto.ts"
   },
   "scripts": {

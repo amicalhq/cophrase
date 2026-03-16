@@ -11,10 +11,6 @@ import {
   humanizerAgentConfig,
   humanizerAgentTools,
 } from "./humanizer-agent"
-import {
-  blogOrchestratorConfig,
-  blogOrchestratorTools,
-} from "./blog-orchestrator"
 
 /**
  * All built-in agent configurations, keyed by agent ID.
@@ -23,7 +19,6 @@ export const builtInAgents: Record<string, AgentConfig> = {
   [researchAgentConfig.id]: researchAgentConfig,
   [draftingAgentConfig.id]: draftingAgentConfig,
   [humanizerAgentConfig.id]: humanizerAgentConfig,
-  [blogOrchestratorConfig.id]: blogOrchestratorConfig,
 }
 
 /**
@@ -33,7 +28,6 @@ export const builtInAgentTools: Record<string, AgentToolRecord[]> = {
   [researchAgentConfig.id]: researchAgentTools,
   [draftingAgentConfig.id]: draftingAgentTools,
   [humanizerAgentConfig.id]: humanizerAgentTools,
-  [blogOrchestratorConfig.id]: blogOrchestratorTools,
 }
 
 /**
