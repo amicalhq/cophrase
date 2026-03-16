@@ -7,6 +7,12 @@ import { getContentByIdOnly } from "@workspace/db/queries/content"
 import { updateAgentRunStatus, saveMessages } from "@workspace/db/queries/agent-runs"
 import { updateContentStage } from "@workspace/db/queries/content"
 import { resolveModel } from "../agents/resolve-model"
+import {
+  handleRunAgent,
+  handleGetContentStatus,
+  handleSearchArtifacts,
+} from "./tool-handlers"
+import { getBuiltInAgent } from "../agents/built-in/registry"
 import type { ContentContext, ArtifactSummary } from "./types"
 import type { ArtifactStatus } from "@workspace/db"
 import type { CompatibleLanguageModel } from "@workflow/ai/agent"
@@ -244,4 +250,46 @@ export async function runSubAgentInline(input: {
       status: a.status,
     })),
   }
+}
+
+// ---------------------------------------------------------------------------
+// Step wrappers for harness tool handlers
+// (DB access must happen inside step functions, not in the workflow bundle)
+// ---------------------------------------------------------------------------
+
+export async function runAgentStep(input: {
+  agentId: string
+  instructions: string
+  organizationId: string
+  projectId: string
+  contentId: string
+  createdBy: string
+}) {
+  "use step"
+  return handleRunAgent(input)
+}
+
+export async function getContentStatusStep(ctx: ContentContext) {
+  "use step"
+  return handleGetContentStatus(ctx)
+}
+
+export async function searchArtifactsStep(input: {
+  organizationId: string
+  contentId: string
+  type?: string
+  status?: string
+}) {
+  "use step"
+  return handleSearchArtifacts(input)
+}
+
+export async function getAgentDescriptionsStep(agentIds: string[]) {
+  "use step"
+  return agentIds
+    .map((id) => {
+      const agent = getBuiltInAgent(id)
+      return agent ? `- ${id}: ${agent.description}` : `- ${id}`
+    })
+    .join("\n")
 }

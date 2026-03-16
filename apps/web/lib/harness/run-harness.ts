@@ -1,3 +1,11 @@
+/**
+ * Harness durable workflow — uses DurableAgent from @workflow/ai for
+ * checkpointing, retry, stream reconnection, and observability.
+ *
+ * All DB-accessing functions live in steps.ts (separate file required by
+ * the Workflow compiler — workflow bundles cannot include Node.js modules).
+ */
+
 import type { UIMessageChunk } from "ai"
 import { DurableAgent } from "@workflow/ai/agent"
 import { getWritable } from "workflow"
@@ -7,14 +15,12 @@ import {
   buildContextStep,
   createHarnessModelStepFn,
   persistHarnessMessages,
+  runAgentStep,
+  getContentStatusStep,
+  searchArtifactsStep,
+  getAgentDescriptionsStep,
 } from "./steps"
-import {
-  handleRunAgent,
-  handleGetContentStatus,
-  handleSearchArtifacts,
-} from "./tool-handlers"
 import { HARNESS_CONFIGS } from "./configs"
-import { getBuiltInAgent } from "../agents/built-in/registry"
 import type { ContentContext } from "./types"
 import type { ContentType } from "@workspace/db"
 
@@ -63,13 +69,10 @@ export async function runHarnessWorkflow(
     // Step 2: Build dynamic context
     const dynamicContext = await buildContextStep(ctx)
 
-    // Build available agents description for system prompt
-    const agentDescriptions = config.availableAgents
-      .map((id) => {
-        const agent = getBuiltInAgent(id)
-        return agent ? `- ${id}: ${agent.description}` : `- ${id}`
-      })
-      .join("\n")
+    // Step 3: Resolve agent descriptions (DB access via step)
+    const agentDescriptions = await getAgentDescriptionsStep(
+      config.availableAgents,
+    )
 
     const systemPrompt = `${config.systemPrompt}
 
@@ -78,7 +81,7 @@ ${dynamicContext}
 Available agents you can delegate to:
 ${agentDescriptions}`
 
-    // Build harness tools — delegates to shared tool-handlers.ts
+    // Build harness tools — delegates to step-wrapped tool handlers
     const tools = {
       "run-agent": {
         description:
@@ -96,7 +99,7 @@ ${agentDescriptions}`
           agentId: string
           instructions: string
         }) => {
-          return handleRunAgent({
+          return runAgentStep({
             agentId,
             instructions,
             organizationId: args.organizationId,
@@ -111,7 +114,7 @@ ${agentDescriptions}`
           "Get the current status of this content piece including stage and artifacts.",
         inputSchema: z.object({}),
         execute: async () => {
-          return handleGetContentStatus(ctx)
+          return getContentStatusStep(ctx)
         },
       },
       "search-artifacts": {
@@ -133,7 +136,7 @@ ${agentDescriptions}`
           type?: string
           status?: string
         }) => {
-          return handleSearchArtifacts({
+          return searchArtifactsStep({
             organizationId: args.organizationId,
             contentId: args.contentId,
             type,
@@ -161,7 +164,7 @@ ${agentDescriptions}`
     ]
     const messages = JSON.parse(JSON.stringify(rawMessages))
 
-    // Step 3: Create DurableAgent and stream
+    // Step 4: Create DurableAgent and stream
     const agent = new DurableAgent({
       model: createHarnessModelStepFn(args.organizationId),
       system: systemPrompt,
@@ -176,7 +179,7 @@ ${agentDescriptions}`
       maxSteps: 20,
     })
 
-    // Step 4: Persist messages
+    // Step 5: Persist messages
     const userMsg = {
       organizationId: args.organizationId,
       contentId: args.contentId,
