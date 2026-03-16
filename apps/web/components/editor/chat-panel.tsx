@@ -163,7 +163,7 @@ function useHarnessChat(contentId: string) {
           isError: isErrorMetadata(m.metadata),
           createdAt: m.createdAt,
         }))
-        setMessages(converted)
+        setMessages(converted.reverse())
         cursorRef.current = data.nextCursor ?? undefined
         setHasMore(!!data.nextCursor)
       } catch {
@@ -199,7 +199,7 @@ function useHarnessChat(contentId: string) {
         isError: isErrorMetadata(m.metadata),
         createdAt: m.createdAt,
       }))
-      setMessages((prev) => [...converted, ...prev])
+      setMessages((prev) => [...converted.reverse(), ...prev])
       cursorRef.current = data.nextCursor ?? undefined
       setHasMore(!!data.nextCursor)
     } catch {
