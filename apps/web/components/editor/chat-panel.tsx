@@ -68,6 +68,30 @@ function isErrorMetadata(metadata: unknown): boolean {
   )
 }
 
+function extractToolCalls(metadata: unknown): ToolCallResult[] | undefined {
+  if (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    "toolCalls" in metadata &&
+    Array.isArray((metadata as { toolCalls: unknown }).toolCalls)
+  ) {
+    return (metadata as { toolCalls: ToolCallResult[] }).toolCalls
+  }
+  return undefined
+}
+
+function extractReasoning(metadata: unknown): string | undefined {
+  if (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    "reasoning" in metadata &&
+    typeof (metadata as { reasoning: unknown }).reasoning === "string"
+  ) {
+    return (metadata as { reasoning: string }).reasoning || undefined
+  }
+  return undefined
+}
+
 /**
  * Extract plain text from the `parts` field which can be:
  * - A plain string (user messages)
@@ -197,6 +221,8 @@ function useHarnessChat(contentId: string) {
           id: m.id,
           role: m.role as HarnessMessage["role"],
           content: extractPartsText(m.parts),
+          reasoningText: extractReasoning(m.metadata),
+          toolCalls: extractToolCalls(m.metadata),
           isError: isErrorMetadata(m.metadata),
           createdAt: m.createdAt,
         }))
@@ -233,6 +259,8 @@ function useHarnessChat(contentId: string) {
         id: m.id,
         role: m.role as HarnessMessage["role"],
         content: extractPartsText(m.parts),
+        reasoningText: extractReasoning(m.metadata),
+        toolCalls: extractToolCalls(m.metadata),
         isError: isErrorMetadata(m.metadata),
         createdAt: m.createdAt,
       }))

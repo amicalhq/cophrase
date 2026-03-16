@@ -210,17 +210,62 @@ ${agentDescriptions}`
       maxSteps: 20,
     })
 
-    // Step 5: Persist assistant messages (user message already saved by the API route)
-    const assistantMsgs = result.messages
+    // Step 5: Persist a single assistant message with tool call metadata
+    // Collect all text across messages, and tool calls from steps
+    const allText = result.messages
       .filter((m) => m.role === "assistant")
-      .map((m) => ({
+      .map((m) => {
+        if (!("content" in m)) return ""
+        const content = m.content
+        if (typeof content === "string") return content
+        if (Array.isArray(content)) {
+          return content
+            .filter((p) =>
+              typeof p === "object" && p !== null && "type" in p &&
+              (p as { type: string }).type === "text" && "text" in p)
+            .map((p) => (p as { text: string }).text)
+            .join("")
+        }
+        return ""
+      })
+      .filter(Boolean)
+      .join("\n\n")
+
+    // Extract tool calls and results from steps
+    const toolCalls = result.steps.flatMap((step) =>
+      (step.toolCalls ?? []).map((tc) => {
+        const tr = (step.toolResults ?? []).find(
+          (r) => "toolCallId" in r && r.toolCallId === tc.toolCallId,
+        )
+        return {
+          toolCallId: tc.toolCallId,
+          toolName: tc.toolName,
+          input: "args" in tc ? tc.args : undefined,
+          result: tr && "result" in tr ? tr.result : undefined,
+          state: "complete" as const,
+        }
+      }),
+    )
+
+    // Extract reasoning from steps
+    const reasoning = result.steps
+      .map((step) => ("reasoning" in step ? step.reasoning : ""))
+      .filter(Boolean)
+      .join("\n")
+
+    const metadata: Record<string, unknown> = {}
+    if (toolCalls.length > 0) metadata.toolCalls = toolCalls
+    if (reasoning) metadata.reasoning = reasoning
+
+    await persistHarnessMessages([
+      {
         organizationId: args.organizationId,
         contentId: args.contentId,
         role: "assistant" as const,
-        parts: "content" in m ? m.content : null,
-      }))
-
-    await persistHarnessMessages(assistantMsgs)
+        parts: allText,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+      },
+    ])
 
     return { messageCount: result.messages.length, steps: result.steps.length }
   } catch (err) {
