@@ -8,9 +8,16 @@ import { getContentByIdOnly } from "@workspace/db/queries/content"
 import { isOrgMember } from "@/lib/data/projects"
 import { runHarnessWorkflow } from "@/lib/harness/run-harness"
 
-const chatSchema = z.object({
-  message: z.string().min(1),
-})
+// Accept both { message: string } (simple) and { messages: [...] } (useChat format)
+const chatSchema = z.union([
+  z.object({ message: z.string().min(1) }),
+  z.object({
+    messages: z.array(z.object({
+      role: z.string(),
+      content: z.string(),
+    })).min(1),
+  }),
+])
 
 export async function POST(
   request: NextRequest,
@@ -49,7 +56,12 @@ export async function POST(
   }
 
   try {
-    const userMessage = JSON.stringify({ role: "user", content: parsed.data.message })
+    // Extract the user message from either format
+    const data = parsed.data
+    const messageText = "message" in data
+      ? data.message
+      : data.messages[data.messages.length - 1]!.content
+    const userMessage = JSON.stringify({ role: "user", content: messageText })
 
     const workflowRun = await start(runHarnessWorkflow, [
       {

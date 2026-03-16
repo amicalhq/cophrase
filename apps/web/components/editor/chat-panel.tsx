@@ -45,8 +45,50 @@ type ChatStatus = "ready" | "streaming" | "error"
 interface HarnessMessage {
   id: string
   role: "user" | "assistant" | "system"
-  parts: unknown
+  content: string
+  reasoningText?: string
+  toolCalls?: ToolCallResult[]
   createdAt: string
+}
+
+interface ToolCallResult {
+  toolName: string
+  result: unknown
+}
+
+// ---------------------------------------------------------------------------
+// SSE stream parser — extracts text, reasoning, and tool calls from the
+// AI SDK UI message stream format
+// ---------------------------------------------------------------------------
+
+function parseSSEChunk(
+  line: string,
+  state: { text: string; reasoning: string; toolCalls: ToolCallResult[] },
+) {
+  if (!line.startsWith("data: ")) return
+  const json = line.slice(6)
+  if (!json || json === "[DONE]") return
+
+  try {
+    const evt = JSON.parse(json) as Record<string, unknown>
+    const type = evt.type as string
+
+    if (type === "text-delta" && typeof evt.textDelta === "string") {
+      state.text += evt.textDelta
+    } else if (
+      type === "reasoning-delta" &&
+      typeof evt.delta === "string"
+    ) {
+      state.reasoning += evt.delta
+    } else if (type === "tool-result") {
+      state.toolCalls.push({
+        toolName: (evt.toolName as string) ?? "unknown",
+        result: evt.result,
+      })
+    }
+  } catch {
+    // ignore malformed lines
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -56,7 +98,6 @@ interface HarnessMessage {
 function useHarnessChat(contentId: string) {
   const [messages, setMessages] = useState<HarnessMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>("ready")
-  const [workflowRunId, setWorkflowRunId] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const cursorRef = useRef<string | undefined>(undefined)
@@ -70,14 +111,25 @@ function useHarnessChat(contentId: string) {
         )
         if (!res.ok) return
         const data = (await res.json()) as {
-          messages: HarnessMessage[]
+          messages: Array<{
+            id: string
+            role: string
+            parts: unknown
+            createdAt: string
+          }>
           nextCursor?: string
         }
-        setMessages(data.messages)
+        const converted: HarnessMessage[] = data.messages.map((m) => ({
+          id: m.id,
+          role: m.role as HarnessMessage["role"],
+          content: typeof m.parts === "string" ? m.parts : "",
+          createdAt: m.createdAt,
+        }))
+        setMessages(converted)
         cursorRef.current = data.nextCursor ?? undefined
         setHasMore(!!data.nextCursor)
       } catch {
-        // silently fail on initial load
+        // silently fail
       }
     }
     loadMessages()
@@ -93,10 +145,21 @@ function useHarnessChat(contentId: string) {
       )
       if (!res.ok) return
       const data = (await res.json()) as {
-        messages: HarnessMessage[]
+        messages: Array<{
+          id: string
+          role: string
+          parts: unknown
+          createdAt: string
+        }>
         nextCursor?: string
       }
-      setMessages((prev) => [...data.messages, ...prev])
+      const converted: HarnessMessage[] = data.messages.map((m) => ({
+        id: m.id,
+        role: m.role as HarnessMessage["role"],
+        content: typeof m.parts === "string" ? m.parts : "",
+        createdAt: m.createdAt,
+      }))
+      setMessages((prev) => [...converted, ...prev])
       cursorRef.current = data.nextCursor ?? undefined
       setHasMore(!!data.nextCursor)
     } catch {
@@ -111,11 +174,10 @@ function useHarnessChat(contentId: string) {
     async (text: string) => {
       if (!text.trim() || status === "streaming") return
 
-      // Optimistically add user message
       const userMsg: HarnessMessage = {
         id: `temp-${Date.now()}`,
         role: "user",
-        parts: text,
+        content: text,
         createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, userMsg])
@@ -127,9 +189,6 @@ function useHarnessChat(contentId: string) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: text }),
         })
-
-        const runId = res.headers.get("x-workflow-run-id")
-        if (runId) setWorkflowRunId(runId)
 
         if (!res.ok) {
           setStatus("error")
@@ -143,32 +202,43 @@ function useHarnessChat(contentId: string) {
         }
 
         const decoder = new TextDecoder()
-        let assistantText = ""
         const assistantMsgId = `assistant-${Date.now()}`
+        const state = { text: "", reasoning: "", toolCalls: [] as ToolCallResult[] }
+        let buffer = ""
 
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          const chunk = decoder.decode(value, { stream: true })
-          assistantText += chunk
+          buffer += decoder.decode(value, { stream: true })
 
+          // Process complete lines
+          const lines = buffer.split("\n")
+          buffer = lines.pop() ?? "" // keep incomplete line in buffer
+          for (const line of lines) {
+            parseSSEChunk(line.trim(), state)
+          }
+
+          // Update the assistant message
           setMessages((prev) => {
+            const msg: HarnessMessage = {
+              id: assistantMsgId,
+              role: "assistant",
+              content: state.text,
+              reasoningText: state.reasoning || undefined,
+              toolCalls: state.toolCalls.length > 0 ? [...state.toolCalls] : undefined,
+              createdAt: new Date().toISOString(),
+            }
             const existing = prev.find((m) => m.id === assistantMsgId)
             if (existing) {
-              return prev.map((m) =>
-                m.id === assistantMsgId ? { ...m, parts: assistantText } : m,
-              )
+              return prev.map((m) => (m.id === assistantMsgId ? msg : m))
             }
-            return [
-              ...prev,
-              {
-                id: assistantMsgId,
-                role: "assistant" as const,
-                parts: assistantText,
-                createdAt: new Date().toISOString(),
-              },
-            ]
+            return [...prev, msg]
           })
+        }
+
+        // Process any remaining buffer
+        if (buffer.trim()) {
+          parseSSEChunk(buffer.trim(), state)
         }
 
         setStatus("ready")
@@ -181,18 +251,15 @@ function useHarnessChat(contentId: string) {
 
   // Cancel
   const cancel = useCallback(async () => {
-    if (!workflowRunId) return
     try {
       await fetch(`/api/content/${contentId}/chat/cancel`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workflowRunId }),
       })
       setStatus("ready")
     } catch {
       // silently fail
     }
-  }, [contentId, workflowRunId])
+  }, [contentId])
 
   return {
     messages,
@@ -206,68 +273,7 @@ function useHarnessChat(contentId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function getMessageText(message: HarnessMessage): string {
-  if (typeof message.parts === "string") return message.parts
-  // Handle AI SDK UIMessage parts array
-  if (Array.isArray(message.parts)) {
-    return message.parts
-      .filter(
-        (p): p is { type: string; text: string } =>
-          typeof p === "object" &&
-          p !== null &&
-          "type" in p &&
-          (p as { type: string }).type === "text" &&
-          "text" in p,
-      )
-      .map((p) => p.text)
-      .join("")
-  }
-  return ""
-}
-
-function getReasoningText(message: HarnessMessage): string | null {
-  if (!Array.isArray(message.parts)) return null
-  const reasoningPart = message.parts.find(
-    (p): p is { type: string; reasoning: string } =>
-      typeof p === "object" &&
-      p !== null &&
-      "type" in p &&
-      (p as { type: string }).type === "reasoning" &&
-      "reasoning" in p,
-  )
-  if (!reasoningPart) return null
-  return String(reasoningPart.reasoning)
-}
-
-interface ToolCallResult {
-  type: string
-  toolName: string
-  result: unknown
-}
-
-function getToolCallParts(message: HarnessMessage): ToolCallResult[] {
-  if (!Array.isArray(message.parts)) return []
-  return message.parts
-    .filter(
-      (p): p is { type: string; toolName: string; result: unknown } =>
-        typeof p === "object" &&
-        p !== null &&
-        "type" in p &&
-        (p as { type: string }).type === "tool-invocation" &&
-        "toolName" in p,
-    )
-    .map((p) => ({
-      type: p.type,
-      toolName: p.toolName,
-      result: "result" in p ? p.result : undefined,
-    }))
-}
-
-// ---------------------------------------------------------------------------
-// ToolCallBlock — renders a collapsible tool-call result
+// ToolCallBlock
 // ---------------------------------------------------------------------------
 
 function ToolCallBlock({
@@ -278,7 +284,6 @@ function ToolCallBlock({
   onArtifactClick?: (artifactId: string) => void
 }) {
   const { toolName, result } = toolCall
-
   const label = formatToolLabel(toolName)
   const artifacts = extractArtifacts(result)
 
@@ -341,7 +346,6 @@ interface ArtifactRef {
 function extractArtifacts(result: unknown): ArtifactRef[] {
   if (!result || typeof result !== "object") return []
   const r = result as Record<string, unknown>
-  // run-agent returns { artifacts: [...] }
   if (Array.isArray(r.artifacts)) {
     return r.artifacts.filter(
       (a): a is ArtifactRef =>
@@ -383,12 +387,13 @@ export function ChatPanel({ contentId, onArtifactClick }: ChatPanelProps) {
     [sendMessage],
   )
 
-  // Infinite scroll: load older messages when user scrolls to top
+  // Infinite scroll
   useEffect(() => {
     const container = scrollContainerRef.current
     if (!container) return
-    // The scrollable element is the first child of StickToBottom (the overflow container)
-    const scrollEl = container.querySelector("[data-stick-to-bottom-scroll]") as HTMLElement | null
+    const scrollEl = container.querySelector(
+      "[data-stick-to-bottom-scroll]",
+    ) as HTMLElement | null
     if (!scrollEl) return
 
     function onScroll() {
@@ -407,13 +412,11 @@ export function ChatPanel({ contentId, onArtifactClick }: ChatPanelProps) {
     return () => scrollEl.removeEventListener("scroll", onScroll)
   }, [hasMore, loadingMore, loadMore])
 
-  // Map our local status to AI SDK ChatStatus for PromptInputSubmit
-  const promptStatus =
-    status === "streaming"
-      ? ("streaming" as const)
-      : status === "error"
-        ? ("error" as const)
-        : ("ready" as const)
+  const promptStatus = isStreaming
+    ? ("streaming" as const)
+    : status === "error"
+      ? ("error" as const)
+      : ("ready" as const)
 
   return (
     <div className="flex h-full flex-col">
@@ -453,25 +456,23 @@ export function ChatPanel({ contentId, onArtifactClick }: ChatPanelProps) {
               />
             ) : (
               messages.map((message) => {
-                const text = getMessageText(message)
-                const reasoningText = getReasoningText(message)
-                const toolCalls = getToolCallParts(message)
                 const isLastMessage =
                   message === messages[messages.length - 1]
                 const isAnimating = isStreaming && isLastMessage
 
                 return (
                   <Message key={message.id} from={message.role}>
-                    {message.role === "assistant" && reasoningText && (
-                      <Reasoning isStreaming={isAnimating}>
-                        <ReasoningTrigger />
-                        <ReasoningContent>
-                          {reasoningText}
-                        </ReasoningContent>
-                      </Reasoning>
-                    )}
                     {message.role === "assistant" &&
-                      toolCalls.map((tc, i) => (
+                      message.reasoningText && (
+                        <Reasoning isStreaming={isAnimating}>
+                          <ReasoningTrigger />
+                          <ReasoningContent>
+                            {message.reasoningText}
+                          </ReasoningContent>
+                        </Reasoning>
+                      )}
+                    {message.role === "assistant" &&
+                      message.toolCalls?.map((tc, i) => (
                         <ToolCallBlock
                           key={`${message.id}-tool-${i}`}
                           toolCall={tc}
@@ -481,10 +482,10 @@ export function ChatPanel({ contentId, onArtifactClick }: ChatPanelProps) {
                     <MessageContent>
                       {message.role === "assistant" ? (
                         <MessageResponse isAnimating={isAnimating}>
-                          {text}
+                          {message.content}
                         </MessageResponse>
                       ) : (
-                        <span>{text}</span>
+                        <span>{message.content}</span>
                       )}
                     </MessageContent>
                   </Message>
