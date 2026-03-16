@@ -166,8 +166,8 @@ function parseSSEChunk(
       if (tc) {
         tc.input = evt.input
       }
-    } else if (type === "tool-result") {
-      // Tool finished — update with result (AI SDK uses `output`, not `result`)
+    } else if (type === "tool-result" || type === "tool-output-available") {
+      // Tool finished — AI SDK emits `tool-output-available` (not `tool-result`)
       const id = evt.toolCallId as string
       const output = evt.output ?? evt.result
       const tc = state.toolCalls.find((t) => t.toolCallId === id)

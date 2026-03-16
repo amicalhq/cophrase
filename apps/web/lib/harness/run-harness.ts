@@ -231,25 +231,30 @@ ${agentDescriptions}`
       .filter(Boolean)
       .join("\n\n")
 
-    // Extract tool calls and results from steps
-    const toolCalls = result.steps.flatMap((step) =>
-      (step.toolCalls ?? []).map((tc) => {
-        const tr = (step.toolResults ?? []).find(
-          (r) => "toolCallId" in r && r.toolCallId === tc.toolCallId,
-        )
+    // Extract tool calls from steps (AI SDK StepResult uses args/result)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toolCalls = result.steps.flatMap((step: any) => {
+      const tcs = step.toolCalls ?? []
+      const trs = step.toolResults ?? []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return tcs.map((tc: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tr = trs.find((r: any) => r.toolCallId === tc.toolCallId)
         return {
           toolCallId: tc.toolCallId,
           toolName: tc.toolName,
-          input: "args" in tc ? tc.args : undefined,
-          result: tr && "result" in tr ? tr.result : undefined,
+          input: tc.args ?? tc.input,
+          result: tr?.result ?? tr?.output,
           state: "complete" as const,
         }
-      }),
-    )
+      })
+    })
 
-    // Extract reasoning from steps
+    // Extract reasoning text from steps
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const reasoning = result.steps
-      .map((step) => ("reasoning" in step ? step.reasoning : ""))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((step: any) => step.reasoningText ?? "")
       .filter(Boolean)
       .join("\n")
 
