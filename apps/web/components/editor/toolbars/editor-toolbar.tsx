@@ -1,13 +1,6 @@
 "use client"
 
 import { Separator } from "@workspace/ui/components/separator"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 import { UndoButton, RedoButton } from "./history-buttons"
 import {
   HeadingDropdown,
@@ -33,18 +26,13 @@ import {
 } from "./align-buttons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { LayoutAlignLeftIcon } from "@hugeicons/core-free-icons"
-import { MOCK_VERSIONS } from "../mock-data"
 
 interface EditorToolbarProps {
-  selectedVersion: string
-  onVersionChange: (version: string) => void
   isChatOpen: boolean
   onChatToggle: () => void
 }
 
 export function EditorToolbar({
-  selectedVersion,
-  onVersionChange,
   isChatOpen,
   onChatToggle,
 }: EditorToolbarProps) {
@@ -99,22 +87,6 @@ export function EditorToolbar({
         <AlignLeftButton />
         <AlignCenterButton />
         <AlignRightButton />
-      </div>
-
-      <div className="flex items-center gap-1.5">
-        <Select value={selectedVersion} onValueChange={onVersionChange}>
-          <SelectTrigger className="w-[10rem] text-xs h-7" size="sm" aria-label="Version">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MOCK_VERSIONS.map((version) => (
-              <SelectItem key={version.id} value={version.id}>
-                {version.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
       </div>
     </div>
   )

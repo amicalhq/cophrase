@@ -16,14 +16,14 @@ export interface ArtifactData {
 // Research notes renderer
 // ---------------------------------------------------------------------------
 
-interface ResearchNotesData {
+export interface ResearchNotesData {
   keywords?: string[]
   sources?: Array<{ title: string; url?: string }>
   insights?: string[]
   [key: string]: unknown
 }
 
-function ResearchNotesView({ data }: { data: ResearchNotesData }) {
+export function ResearchNotesView({ data }: { data: ResearchNotesData }) {
   return (
     <div className="space-y-6">
       {data.keywords && data.keywords.length > 0 && (

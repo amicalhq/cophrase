@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect } from "react"
 import { useEditor, EditorContent } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
@@ -13,7 +13,8 @@ import Typography from "@tiptap/extension-typography"
 import Image from "@tiptap/extension-image"
 import { ToolbarProvider } from "./toolbar-provider"
 import { EditorToolbar } from "./toolbars/editor-toolbar"
-import { MOCK_VERSIONS, DEFAULT_VERSION } from "./mock-data"
+import type { ArtifactData } from "./artifact-viewer"
+import { ResearchNotesView } from "./artifact-viewer"
 import { BoldButton } from "./toolbars/formatting-buttons"
 import { ItalicButton } from "./toolbars/formatting-buttons"
 import { UnderlineButton } from "./toolbars/formatting-buttons"
@@ -23,14 +24,12 @@ import { SlashCommand } from "./extensions/slash-command"
 interface EditorPanelProps {
   isChatOpen: boolean
   onChatToggle: () => void
+  artifact: ArtifactData | null
 }
 
-export function EditorPanel({ isChatOpen, onChatToggle }: EditorPanelProps) {
-  const [selectedVersion, setSelectedVersion] = useState(DEFAULT_VERSION)
+const TEXT_ARTIFACT_TYPES = new Set(["blog-draft", "humanized-draft", "final-blog"])
 
-  const initialContent =
-    MOCK_VERSIONS.find((v) => v.id === DEFAULT_VERSION)?.content ?? ""
-
+export function EditorPanel({ isChatOpen, onChatToggle, artifact }: EditorPanelProps) {
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -52,7 +51,7 @@ export function EditorPanel({ isChatOpen, onChatToggle }: EditorPanelProps) {
       Image,
       SlashCommand,
     ],
-    content: initialContent,
+    content: "",
     editorProps: {
       attributes: {
         class:
@@ -61,21 +60,38 @@ export function EditorPanel({ isChatOpen, onChatToggle }: EditorPanelProps) {
     },
   })
 
-  const handleVersionChange = (version: string) => {
-    setSelectedVersion(version)
-    const content = MOCK_VERSIONS.find((v) => v.id === version)?.content ?? ""
-    editor?.commands.setContent(content)
+  // Sync text artifact content into Tiptap when artifact changes
+  useEffect(() => {
+    if (!editor) return
+    if (artifact && TEXT_ARTIFACT_TYPES.has(artifact.type)) {
+      const data = artifact.data as { markdown?: string; content?: string }
+      const content = data.markdown ?? data.content ?? ""
+      editor.commands.setContent(content)
+    } else if (!artifact) {
+      editor.commands.setContent("")
+    }
+  }, [editor, artifact])
+
+  // When artifact is research-notes type, render the structured view instead of Tiptap
+  if (artifact && artifact.type === "research-notes") {
+    return (
+      <div className="flex h-full flex-col">
+        <EditorToolbar isChatOpen={isChatOpen} onChatToggle={onChatToggle} />
+        <div className="flex-1 overflow-y-auto p-6">
+          <ResearchNotesView
+            data={
+              artifact.data as import("./artifact-viewer").ResearchNotesData
+            }
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
     <ToolbarProvider editor={editor}>
       <div className="flex h-full flex-col">
-        <EditorToolbar
-          selectedVersion={selectedVersion}
-          onVersionChange={handleVersionChange}
-          isChatOpen={isChatOpen}
-          onChatToggle={onChatToggle}
-        />
+        <EditorToolbar isChatOpen={isChatOpen} onChatToggle={onChatToggle} />
         <div className="flex-1 overflow-y-auto">
           {editor && (
             <BubbleMenu
