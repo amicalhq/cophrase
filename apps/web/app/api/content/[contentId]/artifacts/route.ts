@@ -31,8 +31,7 @@ export async function GET(
   // Group by type for the picker UI
   const grouped: Record<string, typeof artifacts> = {}
   for (const a of artifacts) {
-    if (!grouped[a.type]) grouped[a.type] = []
-    grouped[a.type]!.push(a)
+    ;(grouped[a.type] ??= []).push(a)
   }
 
   return NextResponse.json({ artifacts, grouped })

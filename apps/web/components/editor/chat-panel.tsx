@@ -38,7 +38,7 @@ type ChatStatus = "ready" | "streaming" | "error"
 
 interface HarnessMessage {
   id: string
-  role: "user" | "assistant" | "system" | "tool"
+  role: "user" | "assistant" | "system"
   parts: unknown
   createdAt: string
 }
@@ -229,16 +229,11 @@ function getReasoningText(message: HarnessMessage): string | null {
 // ---------------------------------------------------------------------------
 
 interface ChatPanelProps {
-  orgId: string
-  projectId: string
   contentId: string
   onArtifactClick?: (artifactId: string) => void
 }
 
-export function ChatPanel({
-  contentId,
-  onArtifactClick: _onArtifactClick,
-}: ChatPanelProps) {
+export function ChatPanel({ contentId }: ChatPanelProps) {
   const router = useRouter()
 
   const { messages, status, sendMessage, cancel } =
@@ -287,12 +282,7 @@ export function ChatPanel({
               description="Ask the AI agent to help you write, edit, or improve your content."
             />
           ) : (
-            messages
-              .filter(
-                (m): m is HarnessMessage & { role: "user" | "assistant" | "system" } =>
-                  m.role === "user" || m.role === "assistant" || m.role === "system",
-              )
-              .map((message) => {
+            messages.map((message) => {
               const text = getMessageText(message)
               const reasoningText = getReasoningText(message)
               const isLastMessage = message === messages[messages.length - 1]

@@ -7,7 +7,7 @@ import { db, eq, and } from "@workspace/db"
 import { agentRun } from "@workspace/db/schema"
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ contentId: string }> },
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -27,28 +27,10 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  // 1. Cancel the harness workflow if a workflowRunId was provided
-  let body: { workflowRunId?: string } = {}
-  try {
-    body = await request.json()
-  } catch {
-    // No body is fine — we still cancel agent runs below
-  }
-
-  if (body.workflowRunId) {
-    try {
-      // cancelRun may be available in newer workflow SDK versions
-      const runtime = (await import("workflow/runtime")) as Record<string, unknown>
-      if (typeof runtime.cancelRun === "function") {
-        await (runtime.cancelRun as (id: string) => Promise<void>)(body.workflowRunId)
-      }
-    } catch (err) {
-      // Non-fatal: sub-agent cancellation below still works
-      console.error("Failed to cancel harness workflow:", err)
-    }
-  }
-
-  // 2. Cancel any running agent runs for this content (sub-agents)
+  // Cancel any running agent runs for this content.
+  // The workflow SDK (4.2.0-beta.68) does not yet export cancelRun —
+  // sub-agent step functions check run status at step boundaries and
+  // abort if the status is "cancelled".
   const cancelled = await db
     .update(agentRun)
     .set({ status: "cancelled" })
@@ -62,6 +44,5 @@ export async function POST(
 
   return NextResponse.json({
     cancelledRuns: cancelled.map((r) => r.id),
-    workflowCancelled: !!body.workflowRunId,
   })
 }

@@ -24,8 +24,6 @@ interface AIEditorProps {
 
 export function AIEditor({
   contentTitle,
-  orgId,
-  projectId,
   contentId,
 }: AIEditorProps) {
   const { project } = useProject()
@@ -88,8 +86,6 @@ export function AIEditor({
             }}
           >
             <ChatPanel
-              orgId={orgId}
-              projectId={projectId}
               contentId={contentId}
               onArtifactClick={handleArtifactClick}
             />
