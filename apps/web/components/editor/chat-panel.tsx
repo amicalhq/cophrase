@@ -1,13 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import {
-  AbstractChat,
-  type ChatState,
-  type ChatStatus,
-  type UIMessage,
-} from "ai"
-import { WorkflowChatTransport } from "@workflow/ai"
 import { useRouter } from "next/navigation"
 import { ArrowLeft02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -38,145 +31,197 @@ import {
 } from "@/components/ai-elements/reasoning"
 
 // ---------------------------------------------------------------------------
-// Minimal React-aware Chat subclass
+// Types
 // ---------------------------------------------------------------------------
 
-type SimpleMessage = UIMessage
+type ChatStatus = "ready" | "streaming" | "error"
 
-class ReactChat extends AbstractChat<SimpleMessage> {
-  private notify: () => void
-  private onRunIdCapture?: (runId: string) => void
-
-  constructor(
-    api: string,
-    body: Record<string, unknown>,
-    notify: () => void,
-    onRunIdCapture?: (runId: string) => void,
-  ) {
-    const state: ChatState<SimpleMessage> = {
-      status: "ready" as ChatStatus,
-      error: undefined,
-      messages: [] as SimpleMessage[],
-      pushMessage(message: SimpleMessage) {
-        this.messages = [...this.messages, message]
-      },
-      popMessage() {
-        this.messages = this.messages.slice(0, -1)
-      },
-      replaceMessage(index: number, message: SimpleMessage) {
-        const next = [...this.messages]
-        next[index] = message
-        this.messages = next
-      },
-      snapshot<T>(thing: T): T {
-        return thing
-      },
-    }
-
-    // Use a custom fetch to intercept the response and extract x-run-id
-    const captureRunId = onRunIdCapture
-    const customFetch: typeof globalThis.fetch = async (input, init) => {
-      const response = await globalThis.fetch(input, init)
-      const runId = response.headers.get("x-run-id")
-      if (runId && captureRunId) {
-        captureRunId(runId)
-      }
-      return response
-    }
-
-    super({
-      transport: new WorkflowChatTransport({
-        api,
-        fetch: customFetch,
-        prepareSendMessagesRequest: async ({ messages, ...config }) => ({
-          ...config,
-          body: { messages, ...body },
-        }),
-      }),
-      state,
-    })
-
-    this.notify = notify
-    this.onRunIdCapture = onRunIdCapture
-  }
-
-  protected override setStatus(args: { status: ChatStatus; error?: Error }) {
-    super.setStatus(args)
-    this.notify()
-  }
+interface HarnessMessage {
+  id: string
+  role: "user" | "assistant" | "system" | "tool"
+  parts: unknown
+  createdAt: string
 }
 
 // ---------------------------------------------------------------------------
-// useAgentChat hook
+// useHarnessChat hook
 // ---------------------------------------------------------------------------
 
-function useAgentChat({
-  api,
-  body,
-  onRunId,
-}: {
-  api: string
-  body: Record<string, unknown>
-  onRunId?: (runId: string) => void
-}) {
-  const [, forceUpdate] = useState(0)
-  const notify = useCallback(() => forceUpdate((n) => n + 1), [])
+function useHarnessChat(contentId: string) {
+  const [messages, setMessages] = useState<HarnessMessage[]>([])
+  const [status, setStatus] = useState<ChatStatus>("ready")
+  const [workflowRunId, setWorkflowRunId] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const cursorRef = useRef<string | undefined>(undefined)
 
-  const chatRef = useRef<ReactChat | null>(null)
-  if (chatRef.current === null) {
-    chatRef.current = new ReactChat(api, body, notify, onRunId)
-  }
-  const chat = chatRef.current
+  // Load initial messages
+  useEffect(() => {
+    async function loadMessages() {
+      try {
+        const res = await fetch(
+          `/api/content/${contentId}/messages?limit=20`,
+        )
+        if (!res.ok) return
+        const data = (await res.json()) as {
+          messages: HarnessMessage[]
+          nextCursor?: string
+        }
+        setMessages(data.messages)
+        cursorRef.current = data.nextCursor ?? undefined
+        setHasMore(!!data.nextCursor)
+      } catch {
+        // silently fail on initial load
+      }
+    }
+    loadMessages()
+  }, [contentId])
 
-  const messages = chat.messages
-  const status = chat.status
-  const isLoading = status === "submitted" || status === "streaming"
+  // Load more (older) messages
+  const loadMore = useCallback(async () => {
+    if (!cursorRef.current || !hasMore) return
+    try {
+      const res = await fetch(
+        `/api/content/${contentId}/messages?cursor=${cursorRef.current}&limit=20`,
+      )
+      if (!res.ok) return
+      const data = (await res.json()) as {
+        messages: HarnessMessage[]
+        nextCursor?: string
+      }
+      setMessages((prev) => [...data.messages, ...prev])
+      cursorRef.current = data.nextCursor ?? undefined
+      setHasMore(!!data.nextCursor)
+    } catch {
+      // silently fail
+    }
+  }, [contentId, hasMore])
 
+  // Send message
   const sendMessage = useCallback(
-    (text: string) => {
-      if (!text.trim() || isLoading) return
-      chat.sendMessage({ text }).then(() => notify()).catch((err) => { console.error("sendMessage error:", err); notify() })
+    async (text: string) => {
+      if (!text.trim() || status === "streaming") return
+
+      // Optimistically add user message
+      const userMsg: HarnessMessage = {
+        id: `temp-${Date.now()}`,
+        role: "user",
+        parts: text,
+        createdAt: new Date().toISOString(),
+      }
+      setMessages((prev) => [...prev, userMsg])
+      setStatus("streaming")
+
+      try {
+        const res = await fetch(`/api/content/${contentId}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text }),
+        })
+
+        const runId = res.headers.get("x-workflow-run-id")
+        if (runId) setWorkflowRunId(runId)
+
+        if (!res.ok) {
+          setStatus("error")
+          return
+        }
+
+        const reader = res.body?.getReader()
+        if (!reader) {
+          setStatus("error")
+          return
+        }
+
+        const decoder = new TextDecoder()
+        let assistantText = ""
+        const assistantMsgId = `assistant-${Date.now()}`
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value, { stream: true })
+          assistantText += chunk
+
+          setMessages((prev) => {
+            const existing = prev.find((m) => m.id === assistantMsgId)
+            if (existing) {
+              return prev.map((m) =>
+                m.id === assistantMsgId ? { ...m, parts: assistantText } : m,
+              )
+            }
+            return [
+              ...prev,
+              {
+                id: assistantMsgId,
+                role: "assistant" as const,
+                parts: assistantText,
+                createdAt: new Date().toISOString(),
+              },
+            ]
+          })
+        }
+
+        setStatus("ready")
+      } catch {
+        setStatus("error")
+      }
     },
-    [isLoading, chat, notify],
+    [contentId, status],
   )
 
-  return { messages, status, isLoading, sendMessage }
+  // Cancel
+  const cancel = useCallback(async () => {
+    if (!workflowRunId) return
+    try {
+      await fetch(`/api/content/${contentId}/chat/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workflowRunId }),
+      })
+      setStatus("ready")
+    } catch {
+      // silently fail
+    }
+  }, [contentId, workflowRunId])
+
+  return { messages, status, hasMore, sendMessage, loadMore, cancel }
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getReasoningText(message: SimpleMessage): string | null {
-  const reasoningPart = message.parts.find((p) => p.type === "reasoning")
-  if (!reasoningPart || !("reasoning" in reasoningPart)) return null
-  return String(reasoningPart.reasoning)
-}
-
-function getTextParts(
-  message: SimpleMessage,
-): Array<{ id: string; text: string }> {
-  return message.parts
-    .filter((p) => p.type === "text" && "text" in p)
-    .map((p, i) => ({
-      id: `${message.id}-text-${i}`,
-      text: String((p as { text: string }).text),
-    }))
-}
-
-// ---------------------------------------------------------------------------
-// Status label for the agent run
-// ---------------------------------------------------------------------------
-
-function statusLabel(status: ChatStatus): string | null {
-  switch (status) {
-    case "submitted":
-      return "Starting agent..."
-    case "streaming":
-      return "Agent is working..."
-    default:
-      return null
+function getMessageText(message: HarnessMessage): string {
+  if (typeof message.parts === "string") return message.parts
+  // Handle AI SDK UIMessage parts array
+  if (Array.isArray(message.parts)) {
+    return message.parts
+      .filter(
+        (p): p is { type: string; text: string } =>
+          typeof p === "object" &&
+          p !== null &&
+          "type" in p &&
+          (p as { type: string }).type === "text" &&
+          "text" in p,
+      )
+      .map((p) => p.text)
+      .join("")
   }
+  return ""
+}
+
+function getReasoningText(message: HarnessMessage): string | null {
+  if (!Array.isArray(message.parts)) return null
+  const reasoningPart = message.parts.find(
+    (p): p is { type: string; reasoning: string } =>
+      typeof p === "object" &&
+      p !== null &&
+      "type" in p &&
+      (p as { type: string }).type === "reasoning" &&
+      "reasoning" in p,
+  )
+  if (!reasoningPart) return null
+  return String(reasoningPart.reasoning)
 }
 
 // ---------------------------------------------------------------------------
@@ -187,27 +232,19 @@ interface ChatPanelProps {
   orgId: string
   projectId: string
   contentId: string
-  onRunId?: (runId: string) => void
+  onArtifactClick?: (artifactId: string) => void
 }
 
 export function ChatPanel({
-  orgId,
-  projectId,
   contentId,
-  onRunId,
+  onArtifactClick: _onArtifactClick,
 }: ChatPanelProps) {
   const router = useRouter()
 
-  const { messages, status, isLoading, sendMessage } = useAgentChat({
-    api: "/api/agents/runs",
-    body: {
-      agentId: "builtin:blog-orchestrator",
-      organizationId: orgId,
-      projectId,
-      contentId,
-    },
-    onRunId,
-  })
+  const { messages, status, sendMessage, cancel } =
+    useHarnessChat(contentId)
+
+  const isStreaming = status === "streaming"
 
   const handlePromptSubmit = useCallback(
     ({ text }: PromptInputMessage) => {
@@ -216,7 +253,9 @@ export function ChatPanel({
     [sendMessage],
   )
 
-  const runStatusText = statusLabel(status)
+  // Map our local status to AI SDK ChatStatus for PromptInputSubmit
+  const promptStatus =
+    status === "streaming" ? ("streaming" as const) : status === "error" ? ("error" as const) : ("ready" as const)
 
   return (
     <div className="flex h-full flex-col">
@@ -232,9 +271,9 @@ export function ChatPanel({
           <HugeiconsIcon icon={ArrowLeft02Icon} size={16} />
         </Button>
         <span className="text-sm font-medium">AI Agent</span>
-        {runStatusText && (
+        {isStreaming && (
           <Badge variant="secondary" className="ml-auto text-xs">
-            {runStatusText}
+            Agent is working...
           </Badge>
         )}
       </div>
@@ -248,32 +287,32 @@ export function ChatPanel({
               description="Ask the AI agent to help you write, edit, or improve your content."
             />
           ) : (
-            messages.map((message) => {
-              const textParts = getTextParts(message)
+            messages
+              .filter(
+                (m): m is HarnessMessage & { role: "user" | "assistant" | "system" } =>
+                  m.role === "user" || m.role === "assistant" || m.role === "system",
+              )
+              .map((message) => {
+              const text = getMessageText(message)
               const reasoningText = getReasoningText(message)
-              const isStreaming =
-                status === "streaming" &&
-                message === messages[messages.length - 1]
+              const isLastMessage = message === messages[messages.length - 1]
+              const isAnimating = isStreaming && isLastMessage
 
               return (
                 <Message key={message.id} from={message.role}>
                   {message.role === "assistant" && reasoningText && (
-                    <Reasoning isStreaming={isStreaming}>
+                    <Reasoning isStreaming={isAnimating}>
                       <ReasoningTrigger />
                       <ReasoningContent>{reasoningText}</ReasoningContent>
                     </Reasoning>
                   )}
                   <MessageContent>
                     {message.role === "assistant" ? (
-                      textParts.map(({ id, text }) => (
-                        <MessageResponse key={id} isAnimating={isStreaming}>
-                          {text}
-                        </MessageResponse>
-                      ))
+                      <MessageResponse isAnimating={isAnimating}>
+                        {text}
+                      </MessageResponse>
                     ) : (
-                      textParts.map(({ id, text }) => (
-                        <span key={id}>{text}</span>
-                      ))
+                      <span>{text}</span>
                     )}
                   </MessageContent>
                 </Message>
@@ -281,7 +320,7 @@ export function ChatPanel({
             })
           )}
 
-          {isLoading && messages.length === 0 && (
+          {isStreaming && messages.length === 0 && (
             <Message from="assistant">
               <MessageContent>
                 <span className="text-muted-foreground animate-pulse text-sm">
@@ -306,9 +345,12 @@ export function ChatPanel({
           <PromptInputTextarea placeholder="Ask the AI agent..." />
           <PromptInputFooter>
             <span className="text-muted-foreground text-xs">
-              Blog Orchestrator
+              Content Assistant
             </span>
-            <PromptInputSubmit status={status} />
+            <PromptInputSubmit
+              status={promptStatus}
+              onStop={isStreaming ? cancel : undefined}
+            />
           </PromptInputFooter>
         </PromptInput>
       </div>
