@@ -15,7 +15,7 @@ import type { IconSvgElement } from "@hugeicons/react"
 import type { ArtifactData } from "./artifact-viewer"
 
 interface ArtifactPickerProps {
-  runId: string
+  contentId: string
   selectedId: string | null
   onSelect: (artifact: ArtifactData | null) => void
 }
@@ -31,7 +31,7 @@ function getArtifactIcon(type: string): IconSvgElement {
 }
 
 export function ArtifactPicker({
-  runId,
+  contentId,
   selectedId,
   onSelect,
 }: ArtifactPickerProps) {
@@ -41,18 +41,21 @@ export function ArtifactPicker({
   const fetchArtifacts = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/agents/runs/${runId}/artifacts`)
+      const res = await fetch(`/api/content/${contentId}/artifacts`)
       if (!res.ok) return
-      const data = (await res.json()) as { artifacts: ArtifactData[] }
+      const data = (await res.json()) as {
+        artifacts: ArtifactData[]
+        grouped: Record<string, ArtifactData[]>
+      }
       setArtifacts(data.artifacts)
     } catch {
       // silently fail — artifacts are supplementary
     } finally {
       setLoading(false)
     }
-  }, [runId])
+  }, [contentId])
 
-  // Fetch artifacts when runId changes, and poll while there are fewer than expected
+  // Fetch artifacts when contentId changes, and poll every 5s
   useEffect(() => {
     fetchArtifacts()
     const interval = setInterval(fetchArtifacts, 5000)
@@ -62,7 +65,10 @@ export function ArtifactPicker({
   if (artifacts.length === 0 && !loading) return null
 
   return (
-    <div className="border-border flex items-center gap-1 border-b px-2 py-1.5">
+    <div
+      data-testid="artifact-picker"
+      className="border-border flex items-center gap-1 border-b px-2 py-1.5"
+    >
       <span className="text-muted-foreground mr-1 text-xs font-medium">
         Artifacts
       </span>
