@@ -72,6 +72,7 @@ export const runStatusEnum = pgEnum("run_status", [
   "paused",
   "completed",
   "failed",
+  "cancelled",
 ])
 export type RunStatus = (typeof runStatusEnum.enumValues)[number]
 
