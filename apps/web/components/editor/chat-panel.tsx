@@ -4,8 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
+import { ChevronDownIcon, LoaderIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { Badge } from "@workspace/ui/components/badge"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@workspace/ui/components/collapsible"
 import {
   Conversation,
   ConversationContent,
@@ -52,6 +58,7 @@ function useHarnessChat(contentId: string) {
   const [status, setStatus] = useState<ChatStatus>("ready")
   const [workflowRunId, setWorkflowRunId] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const cursorRef = useRef<string | undefined>(undefined)
 
   // Load initial messages
@@ -78,7 +85,8 @@ function useHarnessChat(contentId: string) {
 
   // Load more (older) messages
   const loadMore = useCallback(async () => {
-    if (!cursorRef.current || !hasMore) return
+    if (!cursorRef.current || !hasMore || loadingMore) return
+    setLoadingMore(true)
     try {
       const res = await fetch(
         `/api/content/${contentId}/messages?cursor=${cursorRef.current}&limit=20`,
@@ -93,8 +101,10 @@ function useHarnessChat(contentId: string) {
       setHasMore(!!data.nextCursor)
     } catch {
       // silently fail
+    } finally {
+      setLoadingMore(false)
     }
-  }, [contentId, hasMore])
+  }, [contentId, hasMore, loadingMore])
 
   // Send message
   const sendMessage = useCallback(
@@ -184,7 +194,15 @@ function useHarnessChat(contentId: string) {
     }
   }, [contentId, workflowRunId])
 
-  return { messages, status, hasMore, sendMessage, loadMore, cancel }
+  return {
+    messages,
+    status,
+    hasMore,
+    loadingMore,
+    sendMessage,
+    loadMore,
+    cancel,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +242,115 @@ function getReasoningText(message: HarnessMessage): string | null {
   return String(reasoningPart.reasoning)
 }
 
+interface ToolCallResult {
+  type: string
+  toolName: string
+  result: unknown
+}
+
+function getToolCallParts(message: HarnessMessage): ToolCallResult[] {
+  if (!Array.isArray(message.parts)) return []
+  return message.parts
+    .filter(
+      (p): p is { type: string; toolName: string; result: unknown } =>
+        typeof p === "object" &&
+        p !== null &&
+        "type" in p &&
+        (p as { type: string }).type === "tool-invocation" &&
+        "toolName" in p,
+    )
+    .map((p) => ({
+      type: p.type,
+      toolName: p.toolName,
+      result: "result" in p ? p.result : undefined,
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// ToolCallBlock — renders a collapsible tool-call result
+// ---------------------------------------------------------------------------
+
+function ToolCallBlock({
+  toolCall,
+  onArtifactClick,
+}: {
+  toolCall: ToolCallResult
+  onArtifactClick?: (artifactId: string) => void
+}) {
+  const { toolName, result } = toolCall
+
+  const label = formatToolLabel(toolName)
+  const artifacts = extractArtifacts(result)
+
+  return (
+    <Collapsible className="not-prose my-2">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 text-muted-foreground text-xs transition-colors hover:text-foreground">
+        <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
+          Tool
+        </Badge>
+        <span>{label}</span>
+        <ChevronDownIcon className="ml-auto size-3" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
+        {artifacts.length > 0 && onArtifactClick && (
+          <div className="mb-2 flex flex-wrap gap-1">
+            {artifacts.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className="text-primary underline hover:no-underline text-xs"
+                onClick={() => onArtifactClick(a.id)}
+              >
+                {a.title ?? a.type} v{a.version}
+              </button>
+            ))}
+          </div>
+        )}
+        {result != null && (
+          <pre className="bg-muted overflow-x-auto rounded-md p-2 text-[10px] max-h-40">
+            {typeof result === "string"
+              ? result
+              : JSON.stringify(result, null, 2)}
+          </pre>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+function formatToolLabel(toolName: string): string {
+  switch (toolName) {
+    case "run-agent":
+      return "Ran agent"
+    case "get-content-status":
+      return "Checked content status"
+    case "search-artifacts":
+      return "Searched artifacts"
+    default:
+      return toolName.replace(/-/g, " ")
+  }
+}
+
+interface ArtifactRef {
+  id: string
+  type: string
+  title?: string
+  version: number
+}
+
+function extractArtifacts(result: unknown): ArtifactRef[] {
+  if (!result || typeof result !== "object") return []
+  const r = result as Record<string, unknown>
+  // run-agent returns { artifacts: [...] }
+  if (Array.isArray(r.artifacts)) {
+    return r.artifacts.filter(
+      (a): a is ArtifactRef =>
+        typeof a === "object" && a !== null && "id" in a && "type" in a,
+    )
+  }
+  return []
+}
+
 // ---------------------------------------------------------------------------
 // ChatPanel component
 // ---------------------------------------------------------------------------
@@ -233,11 +360,19 @@ interface ChatPanelProps {
   onArtifactClick?: (artifactId: string) => void
 }
 
-export function ChatPanel({ contentId }: ChatPanelProps) {
+export function ChatPanel({ contentId, onArtifactClick }: ChatPanelProps) {
   const router = useRouter()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  const { messages, status, sendMessage, cancel } =
-    useHarnessChat(contentId)
+  const {
+    messages,
+    status,
+    hasMore,
+    loadingMore,
+    sendMessage,
+    loadMore,
+    cancel,
+  } = useHarnessChat(contentId)
 
   const isStreaming = status === "streaming"
 
@@ -248,9 +383,37 @@ export function ChatPanel({ contentId }: ChatPanelProps) {
     [sendMessage],
   )
 
+  // Infinite scroll: load older messages when user scrolls to top
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    // The scrollable element is the first child of StickToBottom (the overflow container)
+    const scrollEl = container.querySelector("[data-stick-to-bottom-scroll]") as HTMLElement | null
+    if (!scrollEl) return
+
+    function onScroll() {
+      if (!hasMore || loadingMore) return
+      if (scrollEl!.scrollTop < 80) {
+        const prevHeight = scrollEl!.scrollHeight
+        loadMore().then(() => {
+          requestAnimationFrame(() => {
+            scrollEl!.scrollTop = scrollEl!.scrollHeight - prevHeight
+          })
+        })
+      }
+    }
+
+    scrollEl.addEventListener("scroll", onScroll)
+    return () => scrollEl.removeEventListener("scroll", onScroll)
+  }, [hasMore, loadingMore, loadMore])
+
   // Map our local status to AI SDK ChatStatus for PromptInputSubmit
   const promptStatus =
-    status === "streaming" ? ("streaming" as const) : status === "error" ? ("error" as const) : ("ready" as const)
+    status === "streaming"
+      ? ("streaming" as const)
+      : status === "error"
+        ? ("error" as const)
+        : ("ready" as const)
 
   return (
     <div className="flex h-full flex-col">
@@ -274,54 +437,74 @@ export function ChatPanel({ contentId }: ChatPanelProps) {
       </div>
 
       {/* Messages area */}
-      <Conversation className="flex-1">
-        <ConversationContent>
-          {messages.length === 0 ? (
-            <ConversationEmptyState
-              title="Ask the AI agent"
-              description="Ask the AI agent to help you write, edit, or improve your content."
-            />
-          ) : (
-            messages.map((message) => {
-              const text = getMessageText(message)
-              const reasoningText = getReasoningText(message)
-              const isLastMessage = message === messages[messages.length - 1]
-              const isAnimating = isStreaming && isLastMessage
+      <div ref={scrollContainerRef} className="flex-1 overflow-hidden">
+        <Conversation className="h-full">
+          <ConversationContent>
+            {loadingMore && (
+              <div className="flex items-center justify-center py-2">
+                <LoaderIcon className="text-muted-foreground size-4 animate-spin" />
+              </div>
+            )}
 
-              return (
-                <Message key={message.id} from={message.role}>
-                  {message.role === "assistant" && reasoningText && (
-                    <Reasoning isStreaming={isAnimating}>
-                      <ReasoningTrigger />
-                      <ReasoningContent>{reasoningText}</ReasoningContent>
-                    </Reasoning>
-                  )}
-                  <MessageContent>
-                    {message.role === "assistant" ? (
-                      <MessageResponse isAnimating={isAnimating}>
-                        {text}
-                      </MessageResponse>
-                    ) : (
-                      <span>{text}</span>
+            {messages.length === 0 && !loadingMore ? (
+              <ConversationEmptyState
+                title="Ask the AI agent"
+                description="Ask the AI agent to help you write, edit, or improve your content."
+              />
+            ) : (
+              messages.map((message) => {
+                const text = getMessageText(message)
+                const reasoningText = getReasoningText(message)
+                const toolCalls = getToolCallParts(message)
+                const isLastMessage =
+                  message === messages[messages.length - 1]
+                const isAnimating = isStreaming && isLastMessage
+
+                return (
+                  <Message key={message.id} from={message.role}>
+                    {message.role === "assistant" && reasoningText && (
+                      <Reasoning isStreaming={isAnimating}>
+                        <ReasoningTrigger />
+                        <ReasoningContent>
+                          {reasoningText}
+                        </ReasoningContent>
+                      </Reasoning>
                     )}
-                  </MessageContent>
-                </Message>
-              )
-            })
-          )}
+                    {message.role === "assistant" &&
+                      toolCalls.map((tc, i) => (
+                        <ToolCallBlock
+                          key={`${message.id}-tool-${i}`}
+                          toolCall={tc}
+                          onArtifactClick={onArtifactClick}
+                        />
+                      ))}
+                    <MessageContent>
+                      {message.role === "assistant" ? (
+                        <MessageResponse isAnimating={isAnimating}>
+                          {text}
+                        </MessageResponse>
+                      ) : (
+                        <span>{text}</span>
+                      )}
+                    </MessageContent>
+                  </Message>
+                )
+              })
+            )}
 
-          {isStreaming && messages.length === 0 && (
-            <Message from="assistant">
-              <MessageContent>
-                <span className="text-muted-foreground animate-pulse text-sm">
-                  Thinking...
-                </span>
-              </MessageContent>
-            </Message>
-          )}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+            {isStreaming && messages.length === 0 && (
+              <Message from="assistant">
+                <MessageContent>
+                  <span className="text-muted-foreground animate-pulse text-sm">
+                    Thinking...
+                  </span>
+                </MessageContent>
+              </Message>
+            )}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+      </div>
 
       {status === "error" && (
         <div className="mx-3 mb-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
