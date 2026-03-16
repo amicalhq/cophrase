@@ -231,47 +231,63 @@ ${agentDescriptions}`
       .filter(Boolean)
       .join("\n\n")
 
-    // Extract tool calls from DurableAgent result (uses input/output, not args/result)
-    // Use result.toolCalls/toolResults (last step) + scan all steps
+    // Serialize result to plain object (workflow bundler uses proxies)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const r = result as any
-    const allToolResults = r.toolResults ?? []
-    const allToolCalls = r.toolCalls ?? []
+    const r: any = JSON.parse(JSON.stringify(result))
 
-    // Also collect from all steps for multi-step conversations
+    // Extract tool calls from all steps
+    const toolCalls: Array<{
+      toolCallId: string
+      toolName: string
+      input?: unknown
+      result?: unknown
+      state: "complete"
+    }> = []
+
     for (const step of r.steps ?? []) {
       for (const tc of step.toolCalls ?? []) {
-        if (!allToolCalls.some((t: { toolCallId: string }) => t.toolCallId === tc.toolCallId)) {
-          allToolCalls.push(tc)
-        }
-      }
-      for (const tr of step.toolResults ?? []) {
-        if (!allToolResults.some((t: { toolCallId: string }) => t.toolCallId === tr.toolCallId)) {
-          allToolResults.push(tr)
-        }
+        const tr = (step.toolResults ?? []).find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (t: any) => t.toolCallId === tc.toolCallId,
+        )
+        toolCalls.push({
+          toolCallId: tc.toolCallId,
+          toolName: tc.toolName,
+          input: tc.input ?? tc.args,
+          result: tr?.output ?? tr?.result,
+          state: "complete",
+        })
       }
     }
 
-    const toolCalls = allToolCalls.map((tc: { toolCallId: string; toolName: string; input?: unknown; args?: unknown }) => {
-      const tr = allToolResults.find((t: { toolCallId: string }) => t.toolCallId === tc.toolCallId)
-      return {
-        toolCallId: tc.toolCallId,
-        toolName: tc.toolName,
-        input: tc.input ?? tc.args,
-        result: tr?.output ?? tr?.result,
-        state: "complete" as const,
+    // Also check top-level toolCalls/toolResults (from last step)
+    for (const tc of r.toolCalls ?? []) {
+      if (!toolCalls.some((t) => t.toolCallId === tc.toolCallId)) {
+        const tr = (r.toolResults ?? []).find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (t: any) => t.toolCallId === tc.toolCallId,
+        )
+        toolCalls.push({
+          toolCallId: tc.toolCallId,
+          toolName: tc.toolName,
+          input: tc.input ?? tc.args,
+          result: tr?.output ?? tr?.result,
+          state: "complete",
+        })
       }
-    })
+    }
 
-    // Extract reasoning — try reasoningText (string), fall back to serializing reasoning array
+    // Extract reasoning text
     let reasoning = ""
     for (const step of r.steps ?? []) {
       if (typeof step.reasoningText === "string" && step.reasoningText) {
         reasoning += (reasoning ? "\n" : "") + step.reasoningText
       } else if (Array.isArray(step.reasoning)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const text = step.reasoning
-          .filter((p: { type?: string; text?: string }) => p.type === "reasoning" || p.text)
-          .map((p: { text?: string }) => p.text ?? "")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((p: any) => (typeof p === "string" ? p : p?.text ?? ""))
+          .filter(Boolean)
           .join("")
         if (text) reasoning += (reasoning ? "\n" : "") + text
       }
