@@ -108,6 +108,162 @@ test.describe.serial("AI Editor page", () => {
     await expect(page.locator(".ProseMirror")).toBeVisible()
   })
 
+  test("shows initial suggestion buttons for empty conversation", async ({
+    page,
+  }) => {
+    await signIn(page, testUser.email, testUser.password)
+
+    // Intercept messages endpoint to return empty conversation
+    await page.route("**/api/content/*/messages*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ messages: [] }),
+      })
+    })
+
+    await page.goto(
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+    )
+
+    // Expect the primary suggestion button to be visible
+    await expect(
+      page.getByRole("button", { name: "Start researching" }),
+    ).toBeVisible({ timeout: 5_000 })
+
+    // Expect the secondary suggestion button to be visible
+    await expect(
+      page.getByRole("button", { name: "Add more context" }),
+    ).toBeVisible()
+  })
+
+  test("clicking a suggestion sends it as a message", async ({ page }) => {
+    await signIn(page, testUser.email, testUser.password)
+
+    // Return empty conversation for initial suggestions
+    await page.route("**/api/content/*/messages*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ messages: [] }),
+      })
+    })
+
+    // Intercept the chat endpoint
+    await page.route("**/api/content/*/chat", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: "data: {}\n\n",
+      })
+    })
+
+    await page.goto(
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+    )
+
+    // Wait for suggestion to appear, then click it
+    const suggestion = page.getByRole("button", { name: "Start researching" })
+    await expect(suggestion).toBeVisible({ timeout: 5_000 })
+    await suggestion.click()
+
+    // The suggestion prompt should appear as a user message in the chat
+    await expect(
+      page.getByText("Research this topic and find relevant sources"),
+    ).toBeVisible({ timeout: 5_000 })
+  })
+
+  test("suggestions hide during streaming", async ({ page }) => {
+    await signIn(page, testUser.email, testUser.password)
+
+    // Return empty conversation for initial suggestions
+    await page.route("**/api/content/*/messages*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ messages: [] }),
+      })
+    })
+
+    // Intercept the chat endpoint with a delayed response to keep streaming state
+    await page.route("**/api/content/*/chat", async (route) => {
+      // Hold the response open to simulate streaming
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      await route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: "data: {}\n\n",
+      })
+    })
+
+    await page.goto(
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+    )
+
+    // Wait for suggestion to appear
+    const suggestion = page.getByRole("button", { name: "Start researching" })
+    await expect(suggestion).toBeVisible({ timeout: 5_000 })
+
+    // Click it to trigger streaming
+    await suggestion.click()
+
+    // Suggestions should disappear during streaming
+    await expect(suggestion).not.toBeVisible({ timeout: 3_000 })
+  })
+
+  test("suggestions appear from suggest-next-actions tool call after turn", async ({
+    page,
+  }) => {
+    await signIn(page, testUser.email, testUser.password)
+
+    // Return empty conversation
+    await page.route("**/api/content/*/messages*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ messages: [] }),
+      })
+    })
+
+    // Mock chat response with a suggest-next-actions tool call in the SSE stream
+    const sseBody = [
+      `data: ${JSON.stringify({ type: "text-delta", delta: "Research complete." })}\n\n`,
+      `data: ${JSON.stringify({ type: "tool-input-start", toolCallId: "tc1", toolName: "suggest-next-actions" })}\n\n`,
+      `data: ${JSON.stringify({ type: "tool-input-available", toolCallId: "tc1", input: { suggestions: [{ label: "Start drafting", prompt: "Write a draft based on the research", primary: true }, { label: "More research", prompt: "Do more research" }] } })}\n\n`,
+      `data: ${JSON.stringify({ type: "tool-result", toolCallId: "tc1", output: { ok: true } })}\n\n`,
+    ].join("")
+
+    await page.route("**/api/content/*/chat", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: sseBody,
+      })
+    })
+
+    await page.goto(
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+    )
+
+    // Click the initial suggestion to trigger a chat turn
+    const initialSuggestion = page.getByRole("button", {
+      name: "Start researching",
+    })
+    await expect(initialSuggestion).toBeVisible({ timeout: 5_000 })
+    await initialSuggestion.click()
+
+    // After the turn completes, the harness-generated suggestions should appear
+    await expect(
+      page.getByRole("button", { name: "Start drafting" }),
+    ).toBeVisible({ timeout: 5_000 })
+    await expect(
+      page.getByRole("button", { name: "More research" }),
+    ).toBeVisible()
+
+    // The suggest-next-actions tool call should NOT be visible as a ToolCallBlock
+    await expect(page.getByText("suggest next actions")).not.toBeVisible()
+  })
+
   test("chat sends message and receives streamed response", async ({
     page,
   }) => {
