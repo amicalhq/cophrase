@@ -41,6 +41,7 @@
     "@tiptap/starter-kit": "^3.20.1",
     "@tiptap/suggestion": "^3.20.1",
     "@workflow/ai": "4.0.1-beta.56",
+    "@workflow/world-postgres": "4.1.0-beta.45",
     "@workspace/auth": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/ui": "workspace:*",
