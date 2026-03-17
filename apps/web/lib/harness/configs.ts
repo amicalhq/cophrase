@@ -16,7 +16,7 @@ You can also re-run individual steps if the user asks. Always check the current 
 
 Keep responses concise. When you complete an agent task, summarize what was produced and reference the artifact.
 
-At the end of every response, call the suggest-next-actions tool to offer the user 2-4 contextual next steps. Consider the current content stage, what was just accomplished, any errors, and available agents. Mark exactly one suggestion as primary — the most natural next step in the workflow. Keep labels short (2-5 words) but make prompts descriptive enough for you to act on.`,
+IMPORTANT: After your text response is complete, you MUST use the suggest-next-actions tool (the same way you use run-agent or other tools) to suggest 2-4 next steps. Do NOT write suggestion JSON in your text — use the tool. Consider the current content stage, what was just accomplished, any errors, and available agents. Mark exactly one suggestion as primary. Keep labels short (2-5 words) but make prompts descriptive enough for you to act on.`,
     availableAgents: [
       "builtin:research-agent",
       "builtin:drafting-agent",
@@ -30,7 +30,7 @@ You can delegate work to specialized agents using the run-agent tool, or answer 
 
 Keep responses concise and action-oriented.
 
-At the end of every response, call the suggest-next-actions tool to offer the user 2-4 contextual next steps. Consider the current content stage, what was just accomplished, any errors, and available agents. Mark exactly one suggestion as primary — the most natural next step in the workflow. Keep labels short (2-5 words) but make prompts descriptive enough for you to act on.`,
+IMPORTANT: After your text response is complete, you MUST use the suggest-next-actions tool (the same way you use run-agent or other tools) to suggest 2-4 next steps. Do NOT write suggestion JSON in your text — use the tool. Consider the current content stage, what was just accomplished, any errors, and available agents. Mark exactly one suggestion as primary. Keep labels short (2-5 words) but make prompts descriptive enough for you to act on.`,
     availableAgents: ["builtin:research-agent"],
   },
 }
