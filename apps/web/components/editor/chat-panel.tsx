@@ -221,12 +221,15 @@ function useHarnessChat(
           // Empty conversation — use rule-based initial suggestions
           setSuggestions(getInitialSuggestions(contentType, contentStage))
         } else {
-          // Existing conversation — extract from last assistant message's tool calls
-          const lastAssistant = [...converted]
+          // Existing conversation — extract from raw metadata (before extractToolCalls filters it)
+          const lastAssistantRaw = [...data.messages]
             .reverse()
             .find((m) => m.role === "assistant")
-          if (lastAssistant?.toolCalls) {
-            const suggestTc = lastAssistant.toolCalls.find(
+          if (lastAssistantRaw?.metadata) {
+            const allToolCalls = (
+              lastAssistantRaw.metadata as { toolCalls?: ToolCallResult[] }
+            ).toolCalls
+            const suggestTc = allToolCalls?.find(
               (tc) => tc.toolName === "suggest-next-actions",
             )
             if (suggestTc?.input) {
