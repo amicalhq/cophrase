@@ -9,7 +9,8 @@
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test:e2e": "turbo test:e2e",
-    "dev:s3": "minio server ./.minio-data --console-address :9001"
+    "dev:s3": "minio server ./.minio-data --console-address :9001",
+    "db:workflow-setup": "pnpm --filter web exec workflow-postgres-setup"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
