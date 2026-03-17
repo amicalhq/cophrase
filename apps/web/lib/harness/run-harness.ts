@@ -145,6 +145,36 @@ ${agentDescriptions}`
           })
         },
       },
+      "suggest-next-actions": {
+        description:
+          "After completing your response, suggest 2-4 next actions the user might want to take. Always call this at the end of every turn.",
+        inputSchema: z.object({
+          suggestions: z
+            .array(
+              z.object({
+                label: z
+                  .string()
+                  .describe("Short button label, 2-5 words"),
+                prompt: z
+                  .string()
+                  .describe(
+                    "The full prompt to send if the user selects this",
+                  ),
+                primary: z
+                  .boolean()
+                  .optional()
+                  .describe(
+                    "True for the single recommended next action",
+                  ),
+              }),
+            )
+            .min(2)
+            .max(4),
+        }),
+        execute: async () => {
+          return { ok: true }
+        },
+      },
     }
 
     // Parse user message (passed as JSON string to avoid devalue serialization issues)
