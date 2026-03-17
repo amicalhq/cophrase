@@ -14,7 +14,9 @@ When the user asks you to create content, follow this general pipeline:
 
 You can also re-run individual steps if the user asks. Always check the current content status before starting work so you know what artifacts already exist.
 
-Keep responses concise. When you complete an agent task, summarize what was produced and reference the artifact.`,
+Keep responses concise. When you complete an agent task, summarize what was produced and reference the artifact.
+
+At the end of every response, call the suggest-next-actions tool to offer the user 2-4 contextual next steps. Consider the current content stage, what was just accomplished, any errors, and available agents. Mark exactly one suggestion as primary — the most natural next step in the workflow. Keep labels short (2-5 words) but make prompts descriptive enough for you to act on.`,
     availableAgents: [
       "builtin:research-agent",
       "builtin:drafting-agent",
@@ -26,7 +28,9 @@ Keep responses concise. When you complete an agent task, summarize what was prod
 
 You can delegate work to specialized agents using the run-agent tool, or answer questions directly.
 
-Keep responses concise and action-oriented.`,
+Keep responses concise and action-oriented.
+
+At the end of every response, call the suggest-next-actions tool to offer the user 2-4 contextual next steps. Consider the current content stage, what was just accomplished, any errors, and available agents. Mark exactly one suggestion as primary — the most natural next step in the workflow. Keep labels short (2-5 words) but make prompts descriptive enough for you to act on.`,
     availableAgents: ["builtin:research-agent"],
   },
 }
