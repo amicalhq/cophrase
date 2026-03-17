@@ -47,6 +47,12 @@ import {
 import type { ContentType, ContentStage } from "@workspace/db"
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const SUGGEST_TOOL_NAME = "suggest-next-actions" as const
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -86,7 +92,7 @@ function extractToolCalls(metadata: unknown): ToolCallResult[] | undefined {
     Array.isArray((metadata as { toolCalls: unknown }).toolCalls)
   ) {
     return (metadata as { toolCalls: ToolCallResult[] }).toolCalls.filter(
-      (tc) => tc.toolName !== "suggest-next-actions",
+      (tc) => tc.toolName !== SUGGEST_TOOL_NAME,
     )
   }
   return undefined
@@ -230,7 +236,7 @@ function useHarnessChat(
               lastAssistantRaw.metadata as { toolCalls?: ToolCallResult[] }
             ).toolCalls
             const suggestTc = allToolCalls?.find(
-              (tc) => tc.toolName === "suggest-next-actions",
+              (tc) => tc.toolName === SUGGEST_TOOL_NAME,
             )
             if (suggestTc?.input) {
               const inp = suggestTc.input as {
@@ -342,7 +348,7 @@ function useHarnessChat(
             parseSSEChunk(line.trim(), state)
             // Extract suggestions from suggest-next-actions tool input
             for (const tc of state.toolCalls) {
-              if (tc.toolName === "suggest-next-actions" && tc.input) {
+              if (tc.toolName === SUGGEST_TOOL_NAME && tc.input) {
                 const inp = tc.input as {
                   suggestions?: PromptSuggestion[]
                 }
@@ -363,7 +369,7 @@ function useHarnessChat(
               toolCalls:
                 state.toolCalls.length > 0
                   ? state.toolCalls.filter(
-                      (tc) => tc.toolName !== "suggest-next-actions",
+                      (tc) => tc.toolName !== SUGGEST_TOOL_NAME,
                     )
                   : undefined,
               createdAt: new Date().toISOString(),
@@ -666,7 +672,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
                     {message.role === "assistant" &&
                       message.toolCalls
                         ?.filter(
-                          (tc) => tc.toolName !== "suggest-next-actions",
+                          (tc) => tc.toolName !== SUGGEST_TOOL_NAME,
                         )
                         .map((tc, i) => (
                           <ToolCallBlock
