@@ -81,7 +81,9 @@ function extractToolCalls(metadata: unknown): ToolCallResult[] | undefined {
     "toolCalls" in metadata &&
     Array.isArray((metadata as { toolCalls: unknown }).toolCalls)
   ) {
-    return (metadata as { toolCalls: ToolCallResult[] }).toolCalls
+    return (metadata as { toolCalls: ToolCallResult[] }).toolCalls.filter(
+      (tc) => tc.toolName !== "suggest-next-actions",
+    )
   }
   return undefined
 }
@@ -654,13 +656,17 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
                         </Reasoning>
                       )}
                     {message.role === "assistant" &&
-                      message.toolCalls?.map((tc, i) => (
-                        <ToolCallBlock
-                          key={`${message.id}-tool-${i}`}
-                          toolCall={tc}
-                          onArtifactClick={onArtifactClick}
-                        />
-                      ))}
+                      message.toolCalls
+                        ?.filter(
+                          (tc) => tc.toolName !== "suggest-next-actions",
+                        )
+                        .map((tc, i) => (
+                          <ToolCallBlock
+                            key={`${message.id}-tool-${i}`}
+                            toolCall={tc}
+                            onArtifactClick={onArtifactClick}
+                          />
+                        ))}
                     <MessageContent>
                       {message.isError ? (
                         <div className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
