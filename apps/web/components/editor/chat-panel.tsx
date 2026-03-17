@@ -36,6 +36,10 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning"
 import { extractTextFromParts as extractPartsText } from "@/lib/harness/utils"
+import {
+  getInitialSuggestions,
+  type PromptSuggestion,
+} from "@/lib/harness/suggestions"
 import type { ContentType, ContentStage } from "@workspace/db"
 
 // ---------------------------------------------------------------------------
@@ -161,13 +165,19 @@ function parseSSEChunk(
 // useHarnessChat hook
 // ---------------------------------------------------------------------------
 
-function useHarnessChat(contentId: string) {
+function useHarnessChat(
+  contentId: string,
+  contentType: ContentType,
+  contentStage: ContentStage,
+) {
   const [messages, setMessages] = useState<HarnessMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>("ready")
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const cursorRef = useRef<string | undefined>(undefined)
   const abortRef = useRef<AbortController | null>(null)
+  const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([])
+  const pendingSuggestionsRef = useRef<PromptSuggestion[] | null>(null)
 
   // Load initial messages
   useEffect(() => {
@@ -199,12 +209,36 @@ function useHarnessChat(contentId: string) {
         setMessages(converted.reverse())
         cursorRef.current = data.nextCursor ?? undefined
         setHasMore(!!data.nextCursor)
+
+        // Populate suggestions
+        if (converted.length === 0) {
+          // Empty conversation — use rule-based initial suggestions
+          setSuggestions(getInitialSuggestions(contentType, contentStage))
+        } else {
+          // Existing conversation — extract from last assistant message's tool calls
+          const lastAssistant = [...converted]
+            .reverse()
+            .find((m) => m.role === "assistant")
+          if (lastAssistant?.toolCalls) {
+            const suggestTc = lastAssistant.toolCalls.find(
+              (tc) => tc.toolName === "suggest-next-actions",
+            )
+            if (suggestTc?.input) {
+              const inp = suggestTc.input as {
+                suggestions?: PromptSuggestion[]
+              }
+              if (Array.isArray(inp.suggestions)) {
+                setSuggestions(inp.suggestions)
+              }
+            }
+          }
+        }
       } catch {
         // silently fail
       }
     }
     loadMessages()
-  }, [contentId])
+  }, [contentId, contentType, contentStage])
 
   // Load more (older) messages
   const loadMore = useCallback(async () => {
@@ -257,6 +291,8 @@ function useHarnessChat(contentId: string) {
       }
       setMessages((prev) => [...prev, userMsg])
       setStatus("streaming")
+      setSuggestions([])
+      pendingSuggestionsRef.current = null
 
       const controller = new AbortController()
       abortRef.current = controller
@@ -295,6 +331,17 @@ function useHarnessChat(contentId: string) {
           buffer = lines.pop() ?? "" // keep incomplete line in buffer
           for (const line of lines) {
             parseSSEChunk(line.trim(), state)
+            // Extract suggestions from suggest-next-actions tool input
+            for (const tc of state.toolCalls) {
+              if (tc.toolName === "suggest-next-actions" && tc.input) {
+                const inp = tc.input as {
+                  suggestions?: PromptSuggestion[]
+                }
+                if (Array.isArray(inp.suggestions)) {
+                  pendingSuggestionsRef.current = inp.suggestions
+                }
+              }
+            }
           }
 
           // Update the assistant message
@@ -304,7 +351,12 @@ function useHarnessChat(contentId: string) {
               role: "assistant",
               content: state.text,
               reasoningText: state.reasoning || undefined,
-              toolCalls: state.toolCalls.length > 0 ? [...state.toolCalls] : undefined,
+              toolCalls:
+                state.toolCalls.length > 0
+                  ? state.toolCalls.filter(
+                      (tc) => tc.toolName !== "suggest-next-actions",
+                    )
+                  : undefined,
               createdAt: new Date().toISOString(),
             }
             const existing = prev.find((m) => m.id === assistantMsgId)
@@ -321,9 +373,21 @@ function useHarnessChat(contentId: string) {
         }
 
         abortRef.current = null
+
+        // Flush pending suggestions
+        if (pendingSuggestionsRef.current) {
+          setSuggestions(pendingSuggestionsRef.current)
+          pendingSuggestionsRef.current = null
+        }
+
         setStatus("ready")
       } catch (err) {
         abortRef.current = null
+        // Flush any pending suggestions even on error
+        if (pendingSuggestionsRef.current) {
+          setSuggestions(pendingSuggestionsRef.current)
+          pendingSuggestionsRef.current = null
+        }
         // Don't treat abort as an error
         if (err instanceof DOMException && err.name === "AbortError") {
           setStatus("ready")
@@ -362,6 +426,7 @@ function useHarnessChat(contentId: string) {
   return {
     messages,
     status,
+    suggestions,
     hasMore,
     loadingMore,
     sendMessage,
@@ -493,7 +558,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
     sendMessage,
     loadMore,
     cancel,
-  } = useHarnessChat(contentId)
+  } = useHarnessChat(contentId, contentType, contentStage)
 
   const isStreaming = status === "streaming"
 
