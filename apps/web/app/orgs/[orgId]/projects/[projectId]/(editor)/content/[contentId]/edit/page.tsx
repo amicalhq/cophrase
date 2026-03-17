@@ -21,6 +21,8 @@ export default async function EditContentPage({
       orgId={orgId}
       projectId={projectId}
       contentId={contentId}
+      contentType={content.type}
+      contentStage={content.stage}
     />
   )
 }

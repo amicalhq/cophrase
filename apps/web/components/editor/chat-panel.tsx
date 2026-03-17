@@ -36,6 +36,7 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning"
 import { extractTextFromParts as extractPartsText } from "@/lib/harness/utils"
+import type { ContentType, ContentStage } from "@workspace/db"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -475,10 +476,12 @@ function extractArtifacts(result: unknown): ArtifactRef[] {
 
 interface ChatPanelProps {
   contentId: string
+  contentType: ContentType
+  contentStage: ContentStage
   onArtifactClick?: (artifactId: string) => void
 }
 
-export function ChatPanel({ contentId, onArtifactClick }: ChatPanelProps) {
+export function ChatPanel({ contentId, contentType, contentStage, onArtifactClick }: ChatPanelProps) {
   const router = useRouter()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
