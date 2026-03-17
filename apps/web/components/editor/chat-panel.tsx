@@ -35,6 +35,10 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning"
+import {
+  Suggestions,
+  Suggestion,
+} from "@/components/ai-elements/suggestion"
 import { extractTextFromParts as extractPartsText } from "@/lib/harness/utils"
 import {
   getInitialSuggestions,
@@ -555,6 +559,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
   const {
     messages,
     status,
+    suggestions,
     hasMore,
     loadingMore,
     sendMessage,
@@ -702,6 +707,24 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
       {status === "error" && (
         <div className="mx-3 mb-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           Failed to get a response. Please try again.
+        </div>
+      )}
+
+      {/* Suggestions */}
+      {status !== "streaming" && suggestions.length > 0 && (
+        <div className="border-t px-3 pt-2">
+          <Suggestions>
+            {suggestions.map((s) => (
+              <Suggestion
+                key={s.label}
+                suggestion={s.prompt}
+                variant={s.primary ? "default" : "outline"}
+                onClick={(prompt) => sendMessage(prompt)}
+              >
+                {s.label}
+              </Suggestion>
+            ))}
+          </Suggestions>
         </div>
       )}
 
