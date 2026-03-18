@@ -16,6 +16,7 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@ai-sdk/devtools": "^0.0.15",
     "@ai-sdk/groq": "^3.0.30",
     "@ai-sdk/openai": "^3.0.45",
     "@aws-sdk/client-s3": "^3.1009.0",
@@ -64,7 +65,6 @@
     "zod": "4"
   },
   "devDependencies": {
-    "@ai-sdk/devtools": "^0.0.15",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.1.0",

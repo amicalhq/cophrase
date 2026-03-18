@@ -8,8 +8,13 @@ import { wrapLanguageModel } from "ai"
  */
 export async function withDevTools(model: LanguageModel): Promise<LanguageModel> {
   if (process.env.NODE_ENV !== "development") return model
-  if (typeof model === "string" || model.specificationVersion !== "v3")
+  if (typeof model === "string" || model.specificationVersion !== "v3") {
+    console.debug(
+      "[devtools] skipping wrap: model is not LanguageModelV3",
+      typeof model === "string" ? model : model.specificationVersion,
+    )
     return model
+  }
 
   const { devToolsMiddleware } = await import("@ai-sdk/devtools")
   return wrapLanguageModel({ model, middleware: devToolsMiddleware() })
