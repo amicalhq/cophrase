@@ -10,6 +10,7 @@
     "typecheck": "turbo typecheck",
     "test:e2e": "turbo test:e2e",
     "dev:s3": "minio server ./.minio-data --console-address :9001",
+    "dev:debug": "turbo dev & pnpm --filter web exec npx workflow web --backend @workflow/world-postgres",
     "db:workflow-setup": "pnpm --filter web exec workflow-postgres-setup"
   },
   "devDependencies": {

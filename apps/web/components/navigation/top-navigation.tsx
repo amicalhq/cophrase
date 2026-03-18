@@ -11,10 +11,30 @@ import {
   SheetTrigger,
 } from "@workspace/ui/components/sheet"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Menu01Icon } from "@hugeicons/core-free-icons"
+import {
+  Menu01Icon,
+  HelpCircleIcon,
+  Activity01Icon,
+  AiSearchIcon,
+  BookOpen01Icon,
+} from "@hugeicons/core-free-icons"
 import { Logo } from "@/components/logo"
 import { OrgProjectPicker } from "./org-project-picker"
 import { UserDropdown } from "@/components/user-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip"
 
 interface TopNavigationProps {
   organization?: { id: string; name: string; logo?: string | null }
@@ -107,6 +127,7 @@ export function TopNavigation({
         <div className="flex items-center gap-2">
           {/* Desktop actions */}
           <div className="hidden items-center gap-1.5 md:flex lg:gap-2">
+            <HelpMenu />
             <UserDropdown size="icon" />
           </div>
 
@@ -153,5 +174,84 @@ export function TopNavigation({
         </div>
       </div>
     </div>
+  )
+}
+
+const isDev = process.env.NODE_ENV === "development"
+
+function HelpMenu() {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <HugeiconsIcon icon={HelpCircleIcon} size={16} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Help</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <a
+            href="https://cophrase.ai/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex cursor-pointer items-center gap-2"
+          >
+            <HugeiconsIcon icon={BookOpen01Icon} size={14} />
+            Documentation
+          </a>
+        </DropdownMenuItem>
+        {isDev && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-muted-foreground text-[10px] uppercase tracking-wider">
+              Dev Tools
+            </DropdownMenuLabel>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuItem asChild>
+                    <a
+                      href="http://localhost:3456?resource=run"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex cursor-pointer items-center gap-2"
+                    >
+                      <HugeiconsIcon icon={Activity01Icon} size={14} />
+                      Workflow Dashboard
+                    </a>
+                  </DropdownMenuItem>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <code className="text-[10px]">
+                    npx workflow web --backend @workflow/world-postgres
+                  </code>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuItem asChild>
+                    <a
+                      href="http://localhost:4983"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex cursor-pointer items-center gap-2"
+                    >
+                      <HugeiconsIcon icon={AiSearchIcon} size={14} />
+                      AI SDK DevTools
+                    </a>
+                  </DropdownMenuItem>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <code className="text-[10px]">
+                    npx @ai-sdk/devtools
+                  </code>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
