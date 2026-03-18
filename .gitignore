@@ -31,6 +31,9 @@ dist
 # Debug
 npm-debug.log*
 
+# AI SDK DevTools
+.devtools/
+
 # Misc
 .DS_Store
 *.pem

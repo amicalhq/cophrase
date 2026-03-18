@@ -9,6 +9,7 @@ import {
   SUPPORTED_PROVIDERS,
   isSupportedProvider,
 } from "@/lib/ai/registry"
+import { withDevTools } from "@/lib/ai/devtools"
 import type { ProviderType } from "@workspace/db"
 
 /**
@@ -62,5 +63,6 @@ export async function resolveModel(
     ...(provider.baseUrl ? { baseURL: provider.baseUrl } : {}),
   })
 
-  return client(model.modelId) as LanguageModel
+  const languageModel = client(model.modelId) as LanguageModel
+  return withDevTools(languageModel)
 }
