@@ -24,7 +24,6 @@ import {
   persistRunCompletion,
   persistRunFailure,
 } from "./steps"
-import { getBuiltInAgent } from "./built-in/registry"
 import type { AgentToolRecord } from "./types"
 
 // ---------------------------------------------------------------------------
@@ -66,7 +65,7 @@ function buildTools(args: WorkflowRunArgs) {
           .record(z.string(), z.unknown())
           .describe(
             "The artifact payload as a JSON object. For research-notes: { keywords, sources, insights }. " +
-              "For blog-draft: { markdown, title, metadata: { wordCount, readingTime } }.",
+              "For blog-draft: { markdown, title, metadata: { wordCount, readingTime } }."
           ),
         parentIds: z
           .array(z.string())
@@ -110,9 +109,7 @@ function buildTools(args: WorkflowRunArgs) {
         contentId: z.string().optional(),
         runId: z.string().optional(),
         type: z.string().optional(),
-        status: z
-          .enum(["pending", "ready", "approved", "rejected"])
-          .optional(),
+        status: z.enum(["pending", "ready", "approved", "rejected"]).optional(),
       }),
       execute: async (input: {
         contentId?: string
@@ -141,10 +138,7 @@ function buildTools(args: WorkflowRunArgs) {
               query: z.string().describe("The search query"),
               numResults: z.number().min(1).max(10).optional(),
             }),
-            execute: async (input: {
-              query: string
-              numResults?: number
-            }) => {
+            execute: async (input: { query: string; numResults?: number }) => {
               return webSearchStep(input)
             },
           }
@@ -153,39 +147,37 @@ function buildTools(args: WorkflowRunArgs) {
       }
 
       case "agent": {
-        const subAgent = getBuiltInAgent(record.referenceId)
-        if (subAgent) {
-          tools[subAgent.name] = {
-            description: subAgent.description,
-            inputSchema: z.object({
-              instructions: z
-                .string()
-                .describe(
-                  "Detailed instructions for what the sub-agent should do",
-                ),
-              artifactIds: z
-                .array(z.string())
-                .optional()
-                .describe(
-                  "IDs of artifacts the sub-agent should load and use as input",
-                ),
-            }),
-            execute: async (input: {
-              instructions: string
-              artifactIds?: string[]
-            }) => {
-              return runSubAgentStep({
-                subAgentId: record.referenceId,
-                instructions: input.instructions,
-                artifactIds: input.artifactIds,
-                organizationId: args.organizationId,
-                projectId: args.projectId,
-                contentId: args.contentId,
-                agentId: args.agentId,
-                runId: args.runId,
-              })
-            },
-          }
+        // Sub-agent details are resolved inside the step function (DB access)
+        tools[`sub-agent-${record.referenceId}`] = {
+          description: `Delegate work to sub-agent ${record.referenceId}`,
+          inputSchema: z.object({
+            instructions: z
+              .string()
+              .describe(
+                "Detailed instructions for what the sub-agent should do"
+              ),
+            artifactIds: z
+              .array(z.string())
+              .optional()
+              .describe(
+                "IDs of artifacts the sub-agent should load and use as input"
+              ),
+          }),
+          execute: async (input: {
+            instructions: string
+            artifactIds?: string[]
+          }) => {
+            return runSubAgentStep({
+              subAgentId: record.referenceId,
+              instructions: input.instructions,
+              artifactIds: input.artifactIds,
+              organizationId: args.organizationId,
+              projectId: args.projectId,
+              contentId: args.contentId,
+              agentId: args.agentId,
+              runId: args.runId,
+            })
+          },
         }
         break
       }
@@ -210,7 +202,7 @@ function buildTools(args: WorkflowRunArgs) {
  */
 export async function runAgentWorkflow(
   args: WorkflowRunArgs,
-  messagesJson: string,
+  messagesJson: string
 ) {
   "use workflow"
 
@@ -245,7 +237,11 @@ export async function runAgentWorkflow(
     return { messageCount: result.messages.length, steps: result.steps.length }
   } catch (err) {
     await persistRunFailure(args.runId, String(err)).catch((statusErr) => {
-      console.error("Failed to persist run failure for run:", args.runId, statusErr)
+      console.error(
+        "Failed to persist run failure for run:",
+        args.runId,
+        statusErr
+      )
     })
     throw err
   }

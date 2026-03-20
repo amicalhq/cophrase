@@ -22,9 +22,8 @@ import {
   updateAgentRunStatus,
   saveMessages,
 } from "@workspace/db/queries/agent-runs"
-import { updateContentStage } from "@workspace/db/queries/content"
 import { resolveModel } from "./resolve-model"
-import { getBuiltInAgent, getBuiltInAgentTools } from "./built-in/registry"
+import { getAgentById, getAgentTools } from "@workspace/db/queries/agents"
 import type { ArtifactStatus } from "@workspace/db"
 import type { CompatibleLanguageModel } from "@workflow/ai/agent"
 
@@ -44,7 +43,7 @@ import type { CompatibleLanguageModel } from "@workflow/ai/agent"
  */
 export function createModelStepFn(
   modelId: string | null,
-  organizationId: string,
+  organizationId: string
 ): () => Promise<CompatibleLanguageModel> {
   return async () => {
     "use step"
@@ -87,10 +86,6 @@ export async function saveArtifactStep(input: {
     version,
     parentIds: input.parentIds,
   })
-
-  if (input.type === "blog-draft" && input.contentId) {
-    await updateContentStage(input.contentId, "draft", input.organizationId)
-  }
 
   return {
     artifactId: artifact.id,
@@ -175,9 +170,7 @@ export async function webSearchStep(input: {
   })
 
   if (!response.ok) {
-    throw new Error(
-      `Exa API error: ${response.status} ${response.statusText}`,
-    )
+    throw new Error(`Exa API error: ${response.status} ${response.statusText}`)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -212,16 +205,16 @@ export async function runSubAgentStep(input: {
 }): Promise<string> {
   "use step"
 
-  const subAgent = getBuiltInAgent(input.subAgentId)
+  const subAgent = await getAgentById(input.subAgentId)
   if (!subAgent) throw new Error(`Sub-agent not found: ${input.subAgentId}`)
 
   const model = await resolveModel(
     subAgent.modelId ?? null,
-    input.organizationId,
+    input.organizationId
   )
 
   // Build sub-agent tools (regular tool(), not step-based — we're already in a step)
-  const subToolRecords = getBuiltInAgentTools(subAgent.id)
+  const subToolRecords = await getAgentTools(subAgent.id)
   const subTools = buildSubAgentTools(subToolRecords, {
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -261,7 +254,7 @@ function buildSubAgentTools(
     contentId?: string
     agentId: string
     runId: string
-  },
+  }
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tools: Record<string, any> = {}
@@ -279,7 +272,7 @@ function buildSubAgentTools(
         .record(z.string(), z.unknown())
         .describe(
           "The artifact payload as a JSON object. For research-notes: { keywords, sources, insights }. " +
-            "For blog-draft: { markdown, title, metadata: { wordCount, readingTime } }.",
+            "For blog-draft: { markdown, title, metadata: { wordCount, readingTime } }."
         ),
       parentIds: z
         .array(z.string())
@@ -312,9 +305,6 @@ function buildSubAgentTools(
         version,
         parentIds,
       })
-      if (type === "blog-draft" && ctx.contentId) {
-        await updateContentStage(ctx.contentId, "draft", ctx.organizationId)
-      }
       return {
         artifactId: artifact.id,
         type: artifact.type,
@@ -351,9 +341,7 @@ function buildSubAgentTools(
       contentId: z.string().optional(),
       runId: z.string().optional(),
       type: z.string().optional(),
-      status: z
-        .enum(["pending", "ready", "approved", "rejected"])
-        .optional(),
+      status: z.enum(["pending", "ready", "approved", "rejected"]).optional(),
     }),
     execute: async ({
       contentId,
@@ -412,7 +400,7 @@ function buildSubAgentTools(
 
           if (!response.ok) {
             throw new Error(
-              `Exa API error: ${response.status} ${response.statusText}`,
+              `Exa API error: ${response.status} ${response.statusText}`
             )
           }
 
@@ -440,7 +428,7 @@ function buildSubAgentTools(
 
 export async function persistRunCompletion(
   runId: string,
-  resultMessages: Array<{ role: string; content?: unknown }>,
+  resultMessages: Array<{ role: string; content?: unknown }>
 ) {
   "use step"
 
@@ -460,10 +448,7 @@ export async function persistRunCompletion(
   })
 }
 
-export async function persistRunFailure(
-  runId: string,
-  errorMessage: string,
-) {
+export async function persistRunFailure(runId: string, errorMessage: string) {
   "use step"
 
   await updateAgentRunStatus(runId, "failed", {
