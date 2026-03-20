@@ -15,6 +15,7 @@ import {
 } from "./enums"
 import { organization } from "./auth"
 import { aiModel } from "./models"
+import { project } from "./projects"
 
 export const agent = pgTable(
   "agent",
@@ -25,6 +26,10 @@ export const agent = pgTable(
       () => organization.id,
       { onDelete: "cascade" },
     ),
+    projectId: text("project_id").references(() => project.id, {
+      onDelete: "cascade",
+    }),
+    sourceId: text("source_id"),
     name: text("name").notNull(),
     description: text("description").notNull(),
     modelId: text("model_id").references(() => aiModel.id, {
@@ -43,13 +48,20 @@ export const agent = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("agent_organization_id_idx").on(table.organizationId)],
+  (table) => [
+    index("agent_organization_id_idx").on(table.organizationId),
+    index("agent_project_id_idx").on(table.projectId),
+  ],
 )
 
 export const agentRelations = relations(agent, ({ one, many }) => ({
   organization: one(organization, {
     fields: [agent.organizationId],
     references: [organization.id],
+  }),
+  project: one(project, {
+    fields: [agent.projectId],
+    references: [project.id],
   }),
   model: one(aiModel, {
     fields: [agent.modelId],

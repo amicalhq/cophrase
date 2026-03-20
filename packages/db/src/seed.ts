@@ -1,6 +1,5 @@
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
-import { content } from "./schema/index"
 import { user, organization, member, account } from "./schema/auth"
 import { project } from "./schema/projects"
 import { sql } from "drizzle-orm"
@@ -62,53 +61,8 @@ const SEED_PROJECT = {
   updatedAt: new Date("2026-01-01"),
 }
 
-const SEED_CONTENT = [
-  {
-    id: "ct_seed00001",
-    organizationId: SEED_ORG.id,
-    projectId: SEED_PROJECT.id,
-    createdBy: SEED_USER.id,
-    title: "How to Scale Your Startup in 2026",
-    type: "blog" as const,
-    stage: "ready" as const,
-  },
-  {
-    id: "ct_seed00002",
-    organizationId: SEED_ORG.id,
-    projectId: SEED_PROJECT.id,
-    createdBy: SEED_USER.id,
-    title: "Product Hunt Launch Announcement",
-    type: "social" as const,
-    stage: "review" as const,
-  },
-  {
-    id: "ct_seed00003",
-    organizationId: SEED_ORG.id,
-    projectId: SEED_PROJECT.id,
-    createdBy: SEED_USER.id,
-    title: "AI in Content Marketing — Deep Dive",
-    type: "blog" as const,
-    stage: "draft" as const,
-  },
-  {
-    id: "ct_seed00004",
-    organizationId: SEED_ORG.id,
-    projectId: SEED_PROJECT.id,
-    createdBy: SEED_USER.id,
-    title: "Weekly Tips Thread",
-    type: "social" as const,
-    stage: "idea" as const,
-  },
-  {
-    id: "ct_seed00005",
-    organizationId: SEED_ORG.id,
-    projectId: SEED_PROJECT.id,
-    createdBy: SEED_USER.id,
-    title: "SEO Best Practices Guide",
-    type: "blog" as const,
-    stage: "published" as const,
-  },
-]
+// Content seed data is managed in Task 6 (seed built-in content type templates)
+// after content_type rows exist to satisfy the FK constraint.
 
 async function seed() {
   // 1. Seed user
@@ -161,23 +115,7 @@ async function seed() {
       set: { name: sql`excluded.name` },
     })
 
-  // 6. Seed content
-  console.log("Seeding content pieces...")
-  for (const item of SEED_CONTENT) {
-    await db
-      .insert(content)
-      .values(item)
-      .onConflictDoUpdate({
-        target: content.id,
-        set: {
-          title: sql`excluded.title`,
-          type: sql`excluded.type`,
-          stage: sql`excluded.stage`,
-          updatedAt: sql`now()`,
-        },
-      })
-  }
-  console.log(`Seeded ${SEED_CONTENT.length} content pieces.`)
+  // 6. Content seeding is deferred to Task 6 (requires content_type rows first)
 
   await client.end()
 }

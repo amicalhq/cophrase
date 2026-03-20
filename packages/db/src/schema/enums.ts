@@ -15,17 +15,20 @@ export const modelTypeEnum = pgEnum("model_type", [
 ])
 export type ModelType = (typeof modelTypeEnum.enumValues)[number]
 
-export const contentTypeEnum = pgEnum("content_type", ["blog", "social"])
-export type ContentType = (typeof contentTypeEnum.enumValues)[number]
-
-export const contentStageEnum = pgEnum("content_stage", [
-  "idea",
-  "draft",
-  "review",
-  "ready",
-  "published",
+export const contentFormatEnum = pgEnum("content_format", [
+  "rich_text",
+  "plain_text",
+  "image",
+  "video",
+  "deck",
 ])
-export type ContentStage = (typeof contentStageEnum.enumValues)[number]
+export type ContentFormat = (typeof contentFormatEnum.enumValues)[number]
+
+export const contentTypeScopeEnum = pgEnum("content_type_scope", [
+  "app",
+  "project",
+])
+export type ContentTypeScope = (typeof contentTypeScopeEnum.enumValues)[number]
 
 export const resourceTypeEnum = pgEnum("resource_type", ["text", "link", "file"])
 export type ResourceType = (typeof resourceTypeEnum.enumValues)[number]
@@ -42,7 +45,7 @@ export const resourceCategoryEnum = pgEnum("resource_category", [
 ])
 export type ResourceCategory = (typeof resourceCategoryEnum.enumValues)[number]
 
-export const agentScopeEnum = pgEnum("agent_scope", ["app", "org"])
+export const agentScopeEnum = pgEnum("agent_scope", ["app", "org", "project"])
 export type AgentScope = (typeof agentScopeEnum.enumValues)[number]
 
 export const executionModeEnum = pgEnum("execution_mode", [

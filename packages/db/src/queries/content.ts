@@ -2,15 +2,14 @@ import { eq, and, desc } from "drizzle-orm"
 import { db } from "../index"
 import { content } from "../schema/content"
 import { user } from "../schema/auth"
-import type { ContentType, ContentStage } from "../schema/enums"
 
 export async function getContentByProject(projectId: string) {
   return await db
     .select({
       id: content.id,
       title: content.title,
-      type: content.type,
-      stage: content.stage,
+      contentTypeId: content.contentTypeId,
+      currentStageId: content.currentStageId,
       createdAt: content.createdAt,
       updatedAt: content.updatedAt,
       creatorName: user.name,
@@ -26,8 +25,8 @@ export async function getContentById(id: string, projectId: string) {
     .select({
       id: content.id,
       title: content.title,
-      type: content.type,
-      stage: content.stage,
+      contentTypeId: content.contentTypeId,
+      currentStageId: content.currentStageId,
       organizationId: content.organizationId,
       projectId: content.projectId,
       createdBy: content.createdBy,
@@ -44,7 +43,7 @@ export async function createContent(input: {
   organizationId: string
   createdBy: string
   title: string
-  type: ContentType
+  contentTypeId: string
 }) {
   const [created] = await db
     .insert(content)
@@ -53,13 +52,13 @@ export async function createContent(input: {
       organizationId: input.organizationId,
       createdBy: input.createdBy,
       title: input.title,
-      type: input.type,
+      contentTypeId: input.contentTypeId,
     })
     .returning({
       id: content.id,
       title: content.title,
-      type: content.type,
-      stage: content.stage,
+      contentTypeId: content.contentTypeId,
+      currentStageId: content.currentStageId,
     })
   if (!created) {
     throw new Error("Failed to insert content row")
@@ -67,10 +66,14 @@ export async function createContent(input: {
   return created
 }
 
-export async function updateContentStage(id: string, stage: ContentStage, organizationId: string) {
+export async function updateContentStage(
+  id: string,
+  currentStageId: string | null,
+  organizationId: string,
+) {
   const [result] = await db
     .update(content)
-    .set({ stage })
+    .set({ currentStageId })
     .where(and(eq(content.id, id), eq(content.organizationId, organizationId)))
     .returning()
   return result ?? null
@@ -81,8 +84,8 @@ export async function getContentByIdOnly(id: string) {
     .select({
       id: content.id,
       title: content.title,
-      type: content.type,
-      stage: content.stage,
+      contentTypeId: content.contentTypeId,
+      currentStageId: content.currentStageId,
       organizationId: content.organizationId,
       projectId: content.projectId,
       createdBy: content.createdBy,

@@ -2,7 +2,7 @@ import { relations } from "drizzle-orm"
 import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core"
 import { organization, user } from "./auth"
 import { project } from "./projects"
-import { contentTypeEnum, contentStageEnum } from "./enums"
+import { contentType, contentTypeStage } from "./content-types"
 import { createContentId } from "@workspace/id"
 
 export const content = pgTable(
@@ -19,8 +19,13 @@ export const content = pgTable(
       onDelete: "set null",
     }),
     title: text("title").notNull().default("Untitled"),
-    type: contentTypeEnum("type").notNull(),
-    stage: contentStageEnum("stage").notNull().default("idea"),
+    contentTypeId: text("content_type_id")
+      .notNull()
+      .references(() => contentType.id),
+    currentStageId: text("current_stage_id").references(
+      () => contentTypeStage.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -30,7 +35,8 @@ export const content = pgTable(
   (table) => [
     index("content_organizationId_idx").on(table.organizationId),
     index("content_projectId_idx").on(table.projectId),
-    index("content_stage_idx").on(table.stage),
+    index("content_content_type_id_idx").on(table.contentTypeId),
+    index("content_current_stage_id_idx").on(table.currentStageId),
   ],
 )
 
@@ -46,5 +52,13 @@ export const contentRelations = relations(content, ({ one }) => ({
   creator: one(user, {
     fields: [content.createdBy],
     references: [user.id],
+  }),
+  contentType: one(contentType, {
+    fields: [content.contentTypeId],
+    references: [contentType.id],
+  }),
+  currentStage: one(contentTypeStage, {
+    fields: [content.currentStageId],
+    references: [contentTypeStage.id],
   }),
 }))
