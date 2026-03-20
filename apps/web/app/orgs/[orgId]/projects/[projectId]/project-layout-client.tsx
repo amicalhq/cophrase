@@ -27,6 +27,10 @@ export function ProjectLayoutClient({
       href: `/orgs/${orgId}/projects/${project.id}/content`,
     },
     {
+      label: "Agents",
+      href: `/orgs/${orgId}/projects/${project.id}/agents`,
+    },
+    {
       label: "Resources",
       href: `/orgs/${orgId}/projects/${project.id}/resources`,
     },
@@ -37,7 +41,7 @@ export function ProjectLayoutClient({
   ]
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen bg-background">
       <TopNavigation organization={organization} project={project} />
       <TabNavigation tabs={projectTabs} />
       {children}
