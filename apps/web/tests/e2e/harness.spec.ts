@@ -78,6 +78,33 @@ test.describe.serial("Dynamic harness", () => {
     expect(blogTypeId).toBeTruthy()
   })
 
+  test("setup: configure AI provider", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    const apiKey = process.env.OPENAI_API_KEY_DEV
+    expect(apiKey).toBeTruthy()
+
+    const providerRes = await page.request.post("/api/providers", {
+      data: {
+        orgId,
+        name: "OpenAI Test",
+        providerType: "openai",
+        apiKey,
+        models: [
+          { modelId: "gpt-4.1-nano", modelType: "language" },
+        ],
+      },
+    })
+    expect(providerRes.ok()).toBeTruthy()
+    const providerData = await providerRes.json()
+    expect(providerData.provider.id).toBeTruthy()
+    expect(providerData.models.length).toBe(1)
+  })
+
   test("setup: create content piece", async ({ page }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
@@ -135,6 +162,36 @@ test.describe.serial("Dynamic harness", () => {
     await expect(page.getByText(/Start Research/i)).toBeVisible({
       timeout: 5000,
     })
+  })
+
+  test("chat: send message and get Content Agent response", async ({ page }) => {
+    test.setTimeout(120_000)
+
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    await page.goto(
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+    )
+
+    await expect(page.getByPlaceholder(/ask the ai agent/i)).toBeVisible({
+      timeout: 10_000,
+    })
+
+    // Send a message
+    await page.getByPlaceholder(/ask the ai agent/i).fill(
+      "What stages are available for this blog post?",
+    )
+    await page.getByPlaceholder(/ask the ai agent/i).press("Enter")
+
+    // Wait for assistant response containing stage names (LLM call — may take a while)
+    // The Content Agent should mention the pipeline stages in its response
+    await expect(
+      page.getByText(/Research.*Draft.*Refine/i),
+    ).toBeVisible({ timeout: 90_000 })
   })
 
   test("content type has DB-driven stages", async ({ page }) => {
