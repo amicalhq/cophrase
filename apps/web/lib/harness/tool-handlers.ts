@@ -1,14 +1,23 @@
 import { searchArtifacts } from "@workspace/db/queries/artifacts"
-import { getContentByIdOnly } from "@workspace/db/queries/content"
-import { getBuiltInAgent, getBuiltInAgentTools } from "../agents/built-in/registry"
-import { getAgentById, getAgentTools } from "@workspace/db/queries/agents"
+import { getContentByIdOnly, updateContentStage } from "@workspace/db/queries/content"
+import { getAgentTools } from "@workspace/db/queries/agents"
 import { createAgentRun } from "@workspace/db/queries/agent-runs"
 import { runSubAgentInline } from "./steps"
-import type { ContentContext, ArtifactSummary } from "./types"
+import type {
+  ContentContext,
+  ArtifactSummary,
+  DynamicHarnessConfig,
+} from "./types"
 import type { ArtifactStatus } from "@workspace/db"
 
-export async function handleGetContentStatus(ctx: ContentContext): Promise<{
-  stage: string
+export async function handleGetContentStatus(
+  ctx: ContentContext,
+  config: DynamicHarnessConfig,
+): Promise<{
+  currentStageId: string | null
+  currentStageName: string | null
+  stagePosition: number | null
+  totalStages: number
   title: string
   artifacts: ArtifactSummary[]
 }> {
@@ -18,8 +27,15 @@ export async function handleGetContentStatus(ctx: ContentContext): Promise<{
     contentId: ctx.contentId,
   })
 
+  const currentStage = config.stages.find(
+    (s) => s.id === contentRow?.currentStageId,
+  )
+
   return {
-    stage: contentRow?.currentStageId ?? ctx.contentStage,
+    currentStageId: contentRow?.currentStageId ?? null,
+    currentStageName: currentStage?.name ?? null,
+    stagePosition: currentStage?.position ?? null,
+    totalStages: config.stages.length,
     title: contentRow?.title ?? ctx.contentTitle,
     artifacts: artifacts.map((a) => ({
       id: a.id,
@@ -56,87 +72,134 @@ export async function handleSearchArtifacts(input: {
   }
 }
 
-export async function handleRunAgent(input: {
-  agentId: string
-  instructions: string
+export async function handleRunStage(input: {
+  stageId: string
+  config: DynamicHarnessConfig
   organizationId: string
   projectId: string
   contentId: string
   createdBy: string
 }): Promise<{
   success: boolean
-  agentName: string
+  stageName: string
   artifacts: ArtifactSummary[]
+  subAgentResults: Array<{
+    agentName: string
+    success: boolean
+    artifacts: ArtifactSummary[]
+    error?: string
+  }>
   error?: string
 }> {
-  // Resolve agent config: built-in first, then DB
-  const builtIn = getBuiltInAgent(input.agentId)
-  let agentName: string
-  let agentPrompt: string
-  let agentModelId: string | null = null
-
-  if (builtIn) {
-    agentName = builtIn.name
-    agentPrompt = builtIn.prompt
-    agentModelId = builtIn.modelId ?? null
-  } else {
-    const dbAgent = await getAgentById(input.agentId)
-    if (!dbAgent) {
-      return { success: false, agentName: input.agentId, artifacts: [], error: "Agent not found" }
+  const stage = input.config.stages.find((s) => s.id === input.stageId)
+  if (!stage) {
+    return {
+      success: false,
+      stageName: "unknown",
+      artifacts: [],
+      subAgentResults: [],
+      error: `Stage ${input.stageId} not found in content type`,
     }
-    agentName = dbAgent.name
-    agentPrompt = dbAgent.prompt
-    agentModelId = dbAgent.modelId
   }
 
-  // Resolve tool records
-  let toolRecords = getBuiltInAgentTools(input.agentId)
-  if (toolRecords.length === 0) {
-    const dbTools = await getAgentTools(input.agentId)
-    toolRecords = dbTools as typeof toolRecords
+  if (stage.subAgents.length === 0) {
+    return {
+      success: false,
+      stageName: stage.name,
+      artifacts: [],
+      subAgentResults: [],
+      error: `Stage "${stage.name}" has no sub-agents configured`,
+    }
   }
 
-  // Create an agent run record
-  const run = await createAgentRun({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    contentId: input.contentId,
-    agentId: input.agentId,
-    createdBy: input.createdBy,
-    executionMode: "auto",
-  })
+  const allArtifacts: ArtifactSummary[] = []
+  const subAgentResults: Array<{
+    agentName: string
+    success: boolean
+    artifacts: ArtifactSummary[]
+    error?: string
+  }> = []
 
-  try {
-    const result = await runSubAgentInline({
-      agentPrompt: `${agentPrompt}\n\nAdditional instructions from the user:\n${input.instructions}`,
-      agentModelId,
+  // Run each sub-agent in executionOrder
+  for (const sa of stage.subAgents) {
+    // Resolve tools from DB (in case any were added after config was loaded)
+    const toolRecords = await getAgentTools(sa.agentId)
+
+    // Create an agent run record
+    const run = await createAgentRun({
       organizationId: input.organizationId,
       projectId: input.projectId,
       contentId: input.contentId,
-      agentId: input.agentId,
-      runId: run.id,
-      toolRecords,
+      agentId: sa.agentId,
+      createdBy: input.createdBy,
+      executionMode: "auto",
     })
 
-    return {
-      success: true,
-      agentName,
-      artifacts: result.artifacts,
-    }
-  } catch (err) {
-    // Mark the agent run as failed so it doesn't stay stuck in "running"
-    const { updateAgentRunStatus } = await import("@workspace/db/queries/agent-runs")
-    await updateAgentRunStatus(run.id, "failed", {
-      error: { code: "AGENT_ERROR", message: err instanceof Error ? err.message : String(err) },
-    }).catch((statusErr) => {
-      console.error("Failed to update agent run status:", statusErr)
-    })
+    try {
+      const result = await runSubAgentInline({
+        agentPrompt: sa.prompt,
+        agentModelId: sa.modelId,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        contentId: input.contentId,
+        agentId: sa.agentId,
+        runId: run.id,
+        toolRecords: toolRecords.map((t) => ({
+          type: t.type,
+          referenceId: t.referenceId,
+        })),
+      })
 
-    return {
-      success: false,
-      agentName,
-      artifacts: [],
-      error: err instanceof Error ? err.message : String(err),
+      allArtifacts.push(...result.artifacts)
+      subAgentResults.push({
+        agentName: sa.name,
+        success: true,
+        artifacts: result.artifacts,
+      })
+    } catch (err) {
+      const { updateAgentRunStatus } = await import(
+        "@workspace/db/queries/agent-runs"
+      )
+      await updateAgentRunStatus(run.id, "failed", {
+        error: {
+          code: "AGENT_ERROR",
+          message: err instanceof Error ? err.message : String(err),
+        },
+      }).catch(console.error)
+
+      subAgentResults.push({
+        agentName: sa.name,
+        success: false,
+        artifacts: [],
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
+  }
+
+  const allSucceeded = subAgentResults.every((r) => r.success)
+
+  // Only advance currentStageId if all sub-agents succeeded
+  if (allSucceeded) {
+    const currentPos = stage.position
+    const nextStage = input.config.stages.find(
+      (s) => s.position === currentPos + 1,
+    )
+    const nextStageId = nextStage?.id ?? null // null = pipeline complete
+
+    await updateContentStage(
+      input.contentId,
+      nextStageId,
+      input.organizationId,
+    )
+  }
+
+  return {
+    success: allSucceeded,
+    stageName: stage.name,
+    artifacts: allArtifacts,
+    subAgentResults,
+    error: allSucceeded
+      ? undefined
+      : "Some sub-agents failed — stage was not advanced. See subAgentResults for details.",
   }
 }
