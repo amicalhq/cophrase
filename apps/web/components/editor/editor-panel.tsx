@@ -22,6 +22,10 @@ import { UnderlineButton } from "./toolbars/formatting-buttons"
 import { LinkButton } from "./toolbars/insert-buttons"
 import { SlashCommand } from "./extensions/slash-command"
 import { FrontmatterForm } from "./frontmatter-form"
+import { PlainTextEditor } from "./plain-text-editor"
+import { ImageViewer } from "./image-viewer"
+import { VideoViewer } from "./video-viewer"
+import { DeckViewer } from "./deck-viewer"
 
 interface EditorPanelProps {
   isChatOpen: boolean
@@ -118,6 +122,32 @@ export function EditorPanel({
             }
           />
         </div>
+      </div>
+    )
+  }
+
+  // Format-specific rendering for non-rich-text formats
+  if (contentFormat !== "rich_text") {
+    return (
+      <div className="flex h-full flex-col">
+        <EditorToolbar
+          isChatOpen={isChatOpen}
+          onChatToggle={onChatToggle}
+          trailing={artifactSelect}
+        />
+        <FrontmatterForm contentId={contentId} />
+        {contentFormat === "plain_text" && (
+          <PlainTextEditor artifact={artifact} />
+        )}
+        {contentFormat === "image" && (
+          <ImageViewer artifact={artifact} />
+        )}
+        {contentFormat === "video" && (
+          <VideoViewer artifact={artifact} />
+        )}
+        {contentFormat === "deck" && (
+          <DeckViewer artifact={artifact} />
+        )}
       </div>
     )
   }
