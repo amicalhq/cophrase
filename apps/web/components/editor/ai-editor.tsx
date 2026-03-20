@@ -101,6 +101,9 @@ export function AIEditor({
             <ChatPanel
               contentId={contentId}
               onArtifactClick={handleArtifactClick}
+              artifacts={artifacts}
+              groupedArtifacts={grouped}
+              selectedArtifactId={selectedArtifact?.id ?? null}
             />
           </ResizablePanel>
 
@@ -114,7 +117,6 @@ export function AIEditor({
               artifacts={artifacts}
               groupedArtifacts={grouped}
               onArtifactSelect={handleArtifactSelect}
-              contentId={contentId}
               contentFormat={contentFormat}
             />
           </ResizablePanel>

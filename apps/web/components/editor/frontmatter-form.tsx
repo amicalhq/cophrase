@@ -4,11 +4,6 @@ import { useEffect, useState } from "react"
 import { Input } from "@workspace/ui/components/input"
 import { Checkbox } from "@workspace/ui/components/checkbox"
 import { Label } from "@workspace/ui/components/label"
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@workspace/ui/components/collapsible"
 
 interface JsonSchemaProperty {
   type: string
@@ -81,105 +76,34 @@ export function FrontmatterForm({ contentId }: FrontmatterFormProps) {
   const properties = schema.properties
 
   return (
-    <Collapsible defaultOpen className="border-b px-4 py-3">
-      <CollapsibleTrigger className="flex w-full items-center justify-between text-sm font-medium">
-        Details
-        <span className="text-muted-foreground text-xs">▾</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-3 flex flex-col gap-3">
-        {Object.entries(properties).map(([fieldName, fieldDef]) => {
-          const currentValue = values[fieldName]
+    <div className="flex flex-col gap-3 px-4 py-3">
+      {Object.entries(properties).map(([fieldName, fieldDef]) => {
+        const currentValue = values[fieldName]
 
-          if (fieldDef.type === "boolean") {
-            const checked =
-              typeof currentValue === "boolean" ? currentValue : false
-            return (
-              <div key={fieldName} className="flex items-center gap-2">
-                <Checkbox
-                  id={`fm-${fieldName}`}
-                  checked={checked}
-                  onCheckedChange={(value) => {
-                    const next = { ...values, [fieldName]: value === true }
-                    setValues(next)
-                    void handleBlurSave(next)
-                  }}
-                />
-                <Label htmlFor={`fm-${fieldName}`} className="text-sm">
-                  {fieldName}
-                </Label>
-              </div>
-            )
-          }
+        if (fieldDef.type === "boolean") {
+          const checked =
+            typeof currentValue === "boolean" ? currentValue : false
+          return (
+            <div key={fieldName} className="flex items-center gap-2">
+              <Checkbox
+                id={`fm-${fieldName}`}
+                checked={checked}
+                onCheckedChange={(value) => {
+                  const next = { ...values, [fieldName]: value === true }
+                  setValues(next)
+                  void handleBlurSave(next)
+                }}
+              />
+              <Label htmlFor={`fm-${fieldName}`} className="text-sm">
+                {fieldName}
+              </Label>
+            </div>
+          )
+        }
 
-          if (fieldDef.type === "number") {
-            const numVal =
-              typeof currentValue === "number" ? String(currentValue) : ""
-            return (
-              <div key={fieldName} className="flex flex-col gap-1">
-                <Label htmlFor={`fm-${fieldName}`} className="text-xs">
-                  {fieldName}
-                </Label>
-                <Input
-                  id={`fm-${fieldName}`}
-                  type="number"
-                  value={numVal}
-                  onChange={(e) => {
-                    setValues((prev) => ({
-                      ...prev,
-                      [fieldName]: e.target.valueAsNumber,
-                    }))
-                  }}
-                  onBlur={(e) => {
-                    const next = {
-                      ...values,
-                      [fieldName]: e.target.valueAsNumber,
-                    }
-                    setValues(next)
-                    void handleBlurSave(next)
-                  }}
-                />
-              </div>
-            )
-          }
-
-          if (fieldDef.type === "array" && fieldDef.items?.type === "string") {
-            const arrVal = Array.isArray(currentValue)
-              ? (currentValue as string[]).join(", ")
-              : typeof currentValue === "string"
-                ? currentValue
-                : ""
-            return (
-              <div key={fieldName} className="flex flex-col gap-1">
-                <Label htmlFor={`fm-${fieldName}`} className="text-xs">
-                  {fieldName}{" "}
-                  <span className="text-muted-foreground">(comma-separated)</span>
-                </Label>
-                <Input
-                  id={`fm-${fieldName}`}
-                  value={arrVal}
-                  onChange={(e) => {
-                    setValues((prev) => ({
-                      ...prev,
-                      [fieldName]: e.target.value,
-                    }))
-                  }}
-                  onBlur={(e) => {
-                    const parsed = e.target.value
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                    const next = { ...values, [fieldName]: parsed }
-                    setValues(next)
-                    void handleBlurSave(next)
-                  }}
-                />
-              </div>
-            )
-          }
-
-          // Default: string
-          const strVal =
-            typeof currentValue === "string" ? currentValue : ""
+        if (fieldDef.type === "number") {
+          const numVal =
+            typeof currentValue === "number" ? String(currentValue) : ""
           return (
             <div key={fieldName} className="flex flex-col gap-1">
               <Label htmlFor={`fm-${fieldName}`} className="text-xs">
@@ -187,7 +111,42 @@ export function FrontmatterForm({ contentId }: FrontmatterFormProps) {
               </Label>
               <Input
                 id={`fm-${fieldName}`}
-                value={strVal}
+                type="number"
+                value={numVal}
+                onChange={(e) => {
+                  setValues((prev) => ({
+                    ...prev,
+                    [fieldName]: e.target.valueAsNumber,
+                  }))
+                }}
+                onBlur={(e) => {
+                  const next = {
+                    ...values,
+                    [fieldName]: e.target.valueAsNumber,
+                  }
+                  setValues(next)
+                  void handleBlurSave(next)
+                }}
+              />
+            </div>
+          )
+        }
+
+        if (fieldDef.type === "array" && fieldDef.items?.type === "string") {
+          const arrVal = Array.isArray(currentValue)
+            ? (currentValue as string[]).join(", ")
+            : typeof currentValue === "string"
+              ? currentValue
+              : ""
+          return (
+            <div key={fieldName} className="flex flex-col gap-1">
+              <Label htmlFor={`fm-${fieldName}`} className="text-xs">
+                {fieldName}{" "}
+                <span className="text-muted-foreground">(comma-separated)</span>
+              </Label>
+              <Input
+                id={`fm-${fieldName}`}
+                value={arrVal}
                 onChange={(e) => {
                   setValues((prev) => ({
                     ...prev,
@@ -195,15 +154,44 @@ export function FrontmatterForm({ contentId }: FrontmatterFormProps) {
                   }))
                 }}
                 onBlur={(e) => {
-                  const next = { ...values, [fieldName]: e.target.value }
+                  const parsed = e.target.value
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                  const next = { ...values, [fieldName]: parsed }
                   setValues(next)
                   void handleBlurSave(next)
                 }}
               />
             </div>
           )
-        })}
-      </CollapsibleContent>
-    </Collapsible>
+        }
+
+        // Default: string
+        const strVal = typeof currentValue === "string" ? currentValue : ""
+        return (
+          <div key={fieldName} className="flex flex-col gap-1">
+            <Label htmlFor={`fm-${fieldName}`} className="text-xs">
+              {fieldName}
+            </Label>
+            <Input
+              id={`fm-${fieldName}`}
+              value={strVal}
+              onChange={(e) => {
+                setValues((prev) => ({
+                  ...prev,
+                  [fieldName]: e.target.value,
+                }))
+              }}
+              onBlur={(e) => {
+                const next = { ...values, [fieldName]: e.target.value }
+                setValues(next)
+                void handleBlurSave(next)
+              }}
+            />
+          </div>
+        )
+      })}
+    </div>
   )
 }

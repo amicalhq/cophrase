@@ -4,7 +4,7 @@ import { db, eq, user, organization } from "@workspace/db"
 async function signIn(
   page: import("@playwright/test").Page,
   email: string,
-  password: string,
+  password: string
 ) {
   await page.goto("/sign-in")
   await page.getByLabel("Email").fill(email)
@@ -67,7 +67,8 @@ test.describe.serial("AI Editor page", () => {
 
     // Intercept the API response to capture the new contentId
     const contentResponsePromise = page.waitForResponse(
-      (res) => res.url().includes("/api/content") && res.request().method() === "POST",
+      (res) =>
+        res.url().includes("/api/content") && res.request().method() === "POST"
     )
 
     // Create a content piece
@@ -77,7 +78,7 @@ test.describe.serial("AI Editor page", () => {
 
     // Extract contentId from the API response
     const contentResponse = await contentResponsePromise
-    const contentData = await contentResponse.json() as { id: string }
+    const contentData = (await contentResponse.json()) as { id: string }
     contentId = contentData.id
 
     // Wait for content to appear in the table
@@ -90,19 +91,17 @@ test.describe.serial("AI Editor page", () => {
     await signIn(page, testUser.email, testUser.password)
 
     await page.goto(
-      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
     )
 
     // Breadcrumb shows the content title
     await expect(page.getByText("Test Blog Post")).toBeVisible()
 
     // Chat panel visible with "AI Agent" header
-    await expect(page.getByText("AI Agent")).toBeVisible()
+    await expect(page.getByRole("tab", { name: "AI Agent" })).toBeVisible()
 
     // Prompt input placeholder visible
-    await expect(
-      page.getByPlaceholder("Ask the AI agent..."),
-    ).toBeVisible()
+    await expect(page.getByPlaceholder("Ask the AI agent...")).toBeVisible()
 
     // Tiptap editor renders
     await expect(page.locator(".ProseMirror")).toBeVisible()
@@ -123,17 +122,17 @@ test.describe.serial("AI Editor page", () => {
     })
 
     await page.goto(
-      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
     )
 
     // Expect the primary suggestion button to be visible
     await expect(
-      page.getByRole("button", { name: "Start researching" }),
+      page.getByRole("button", { name: "Start researching" })
     ).toBeVisible({ timeout: 5_000 })
 
     // Expect the secondary suggestion button to be visible
     await expect(
-      page.getByRole("button", { name: "Add more context" }),
+      page.getByRole("button", { name: "Add more context" })
     ).toBeVisible()
   })
 
@@ -159,7 +158,7 @@ test.describe.serial("AI Editor page", () => {
     })
 
     await page.goto(
-      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
     )
 
     // Wait for suggestion to appear, then click it
@@ -169,7 +168,7 @@ test.describe.serial("AI Editor page", () => {
 
     // The suggestion prompt should appear as a user message in the chat
     await expect(
-      page.getByText("Research this topic and find relevant sources"),
+      page.getByText("Research this topic and find relevant sources")
     ).toBeVisible({ timeout: 5_000 })
   })
 
@@ -197,7 +196,7 @@ test.describe.serial("AI Editor page", () => {
     })
 
     await page.goto(
-      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
     )
 
     // Wait for suggestion to appear
@@ -229,7 +228,20 @@ test.describe.serial("AI Editor page", () => {
     const sseBody = [
       `data: ${JSON.stringify({ type: "text-delta", delta: "Research complete." })}\n\n`,
       `data: ${JSON.stringify({ type: "tool-input-start", toolCallId: "tc1", toolName: "suggest-next-actions" })}\n\n`,
-      `data: ${JSON.stringify({ type: "tool-input-available", toolCallId: "tc1", input: { suggestions: [{ label: "Start drafting", prompt: "Write a draft based on the research", primary: true }, { label: "More research", prompt: "Do more research" }] } })}\n\n`,
+      `data: ${JSON.stringify({
+        type: "tool-input-available",
+        toolCallId: "tc1",
+        input: {
+          suggestions: [
+            {
+              label: "Start drafting",
+              prompt: "Write a draft based on the research",
+              primary: true,
+            },
+            { label: "More research", prompt: "Do more research" },
+          ],
+        },
+      })}\n\n`,
       `data: ${JSON.stringify({ type: "tool-result", toolCallId: "tc1", output: { ok: true } })}\n\n`,
     ].join("")
 
@@ -242,7 +254,7 @@ test.describe.serial("AI Editor page", () => {
     })
 
     await page.goto(
-      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
     )
 
     // Click the initial suggestion to trigger a chat turn
@@ -254,10 +266,10 @@ test.describe.serial("AI Editor page", () => {
 
     // After the turn completes, the harness-generated suggestions should appear
     await expect(
-      page.getByRole("button", { name: "Start drafting" }),
+      page.getByRole("button", { name: "Start drafting" })
     ).toBeVisible({ timeout: 5_000 })
     await expect(
-      page.getByRole("button", { name: "More research" }),
+      page.getByRole("button", { name: "More research" })
     ).toBeVisible()
 
     // The suggest-next-actions tool call should NOT be visible as a ToolCallBlock
@@ -279,7 +291,7 @@ test.describe.serial("AI Editor page", () => {
     })
 
     await page.goto(
-      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
     )
 
     // Type a message and send it
@@ -294,30 +306,30 @@ test.describe.serial("AI Editor page", () => {
     await signIn(page, testUser.email, testUser.password)
 
     await page.goto(
-      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
     )
 
     // Verify AI Agent header is visible before collapse
-    await expect(page.getByText("AI Agent")).toBeVisible()
+    await expect(page.getByRole("tab", { name: "AI Agent" })).toBeVisible()
 
     // Collapse the chat panel
     await page.getByRole("button", { name: "Toggle sidebar" }).click()
 
     // AI Agent header should be hidden
-    await expect(page.getByText("AI Agent")).not.toBeVisible()
+    await expect(page.getByRole("tab", { name: "AI Agent" })).not.toBeVisible()
 
     // Re-open chat via the Toggle sidebar button
     await page.getByRole("button", { name: "Toggle sidebar" }).click()
 
     // AI Agent header should be visible again
-    await expect(page.getByText("AI Agent")).toBeVisible()
+    await expect(page.getByRole("tab", { name: "AI Agent" })).toBeVisible()
   })
 
   test("toolbar toggles bold formatting", async ({ page }) => {
     await signIn(page, testUser.email, testUser.password)
 
     await page.goto(
-      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
     )
 
     // Wait for the Tiptap editor to load
@@ -354,7 +366,7 @@ test.describe.serial("AI Editor page", () => {
     })
 
     await page.goto(
-      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
     )
 
     // Verify chat input is visible
@@ -370,7 +382,7 @@ test.describe.serial("AI Editor page", () => {
 
     // Verify the user message appears in chat
     await expect(
-      page.getByText("Hello, can you help me write a blog post?"),
+      page.getByText("Hello, can you help me write a blog post?")
     ).toBeVisible()
   })
 
@@ -378,8 +390,6 @@ test.describe.serial("AI Editor page", () => {
     // Delete test user (cascades to content via createdBy FK)
     await db.delete(user).where(eq(user.email, testUser.email))
     // Delete test org (cascades to remaining members, invitations)
-    await db
-      .delete(organization)
-      .where(eq(organization.name, testUser.orgName))
+    await db.delete(organization).where(eq(organization.name, testUser.orgName))
   })
 })

@@ -12,6 +12,13 @@ import {
 } from "@workspace/ui/components/select"
 import type { ArtifactData } from "./artifact-viewer"
 
+const ARTIFACT_TYPE_ORDER: string[] = [
+  "research-notes",
+  "blog-draft",
+  "humanized-draft",
+  "final-blog",
+]
+
 const ARTIFACT_TYPE_LABELS: Record<string, string> = {
   "research-notes": "Research",
   "blog-draft": "Drafts",
@@ -19,8 +26,17 @@ const ARTIFACT_TYPE_LABELS: Record<string, string> = {
   "final-blog": "Final",
 }
 
-function typeLabel(type: string): string {
+export function typeLabel(type: string): string {
   return ARTIFACT_TYPE_LABELS[type] ?? type.replace(/-/g, " ")
+}
+
+/** Sort type keys by stage order (unknown types go last). */
+export function sortedTypeKeys(types: string[]): string[] {
+  return [...types].sort((a, b) => {
+    const ai = ARTIFACT_TYPE_ORDER.indexOf(a)
+    const bi = ARTIFACT_TYPE_ORDER.indexOf(b)
+    return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi)
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -78,7 +94,7 @@ export function ArtifactSelect({
 }: ArtifactSelectProps) {
   if (artifacts.length === 0) return null
 
-  const types = Object.keys(grouped)
+  const types = sortedTypeKeys(Object.keys(grouped))
 
   const handleChange = (value: string) => {
     if (value === "__none__") {
@@ -90,12 +106,9 @@ export function ArtifactSelect({
   }
 
   return (
-    <Select
-      value={selectedId ?? "__none__"}
-      onValueChange={handleChange}
-    >
+    <Select value={selectedId ?? "__none__"} onValueChange={handleChange}>
       <SelectTrigger
-        className="w-[12rem] text-xs h-7"
+        className="h-7 w-[12rem] text-xs"
         size="sm"
         aria-label="Artifact"
         data-testid="artifact-picker"
@@ -108,7 +121,7 @@ export function ArtifactSelect({
         </SelectItem>
         {types.map((type) => (
           <SelectGroup key={type}>
-            <SelectLabel className="text-[10px] uppercase tracking-wider">
+            <SelectLabel className="text-[10px] tracking-wider uppercase">
               {typeLabel(type)}
             </SelectLabel>
             {grouped[type]!.map((a) => (

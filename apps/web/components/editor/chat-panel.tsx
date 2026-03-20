@@ -36,6 +36,11 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
+import { Tabs, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
+import { cn } from "@workspace/ui/lib/utils"
+import type { ArtifactData } from "./artifact-viewer"
+import { typeLabel, sortedTypeKeys } from "./artifact-picker"
+import { FrontmatterForm } from "./frontmatter-form"
 import { extractTextFromParts as extractPartsText } from "@/lib/harness/utils"
 import type { PromptSuggestion } from "@/lib/harness/suggestions"
 // ---------------------------------------------------------------------------
@@ -510,9 +515,9 @@ function ToolCallBlock({
 function formatToolLabel(toolName: string, input?: unknown): string {
   const inp = input as Record<string, unknown> | undefined
   switch (toolName) {
-    case "run-agent": {
-      const agentId = inp?.agentId as string | undefined
-      const name = agentId?.replace("builtin:", "") ?? "agent"
+    case "run-stage": {
+      const stageId = inp?.stageId as string | undefined
+      const name = stageId ?? "stage"
       return `Running ${name.replace(/-/g, " ")}`
     }
     case "get-content-status":
@@ -544,20 +549,88 @@ function extractArtifacts(result: unknown): ArtifactRef[] {
 }
 
 // ---------------------------------------------------------------------------
+// ArtifactsList component
+// ---------------------------------------------------------------------------
+
+function ArtifactsList({
+  artifacts,
+  grouped,
+  selectedId,
+  onArtifactClick,
+}: {
+  artifacts: ArtifactData[]
+  grouped: Record<string, ArtifactData[]>
+  selectedId: string | null
+  onArtifactClick?: (artifactId: string) => void
+}) {
+  if (artifacts.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <p className="text-sm text-muted-foreground">
+          No artifacts yet. Ask the AI agent to generate content.
+        </p>
+      </div>
+    )
+  }
+
+  const types = sortedTypeKeys(Object.keys(grouped))
+
+  return (
+    <div className="space-y-4 p-3">
+      {types.map((type) => (
+        <div key={type}>
+          <h3 className="mb-1.5 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
+            {typeLabel(type)}
+          </h3>
+          <div className="space-y-0.5">
+            {grouped[type]!.map((artifact) => (
+              <button
+                key={artifact.id}
+                type="button"
+                onClick={() => onArtifactClick?.(artifact.id)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted",
+                  selectedId === artifact.id && "bg-muted"
+                )}
+              >
+                <span className="flex-1 truncate">{artifact.title}</span>
+                <Badge
+                  variant="secondary"
+                  className="h-4 shrink-0 px-1 text-[10px]"
+                >
+                  v{artifact.version}
+                </Badge>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // ChatPanel component
 // ---------------------------------------------------------------------------
 
 interface ChatPanelProps {
   contentId: string
   onArtifactClick?: (artifactId: string) => void
+  artifacts: ArtifactData[]
+  groupedArtifacts: Record<string, ArtifactData[]>
+  selectedArtifactId: string | null
 }
 
 export function ChatPanel({
   contentId,
   onArtifactClick,
+  artifacts,
+  groupedArtifacts,
+  selectedArtifactId,
 }: ChatPanelProps) {
   const router = useRouter()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [activeTab, setActiveTab] = useState("agent")
 
   const {
     messages,
@@ -612,135 +685,183 @@ export function ChatPanel({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
+      {/* Header with tabs */}
       <div className="flex h-11 items-center gap-1 border-b border-border px-2">
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-7 w-7 shrink-0"
           onClick={() => router.back()}
           aria-label="Go back"
         >
           <HugeiconsIcon icon={ArrowLeft02Icon} size={16} />
         </Button>
-        <span className="text-sm font-medium">AI Agent</span>
-        {isStreaming && (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="agent">AI Agent</TabsTrigger>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="artifacts">
+              Artifacts
+              {artifacts.length > 0 && (
+                <span className="ml-1 text-[10px] text-muted-foreground">
+                  {artifacts.length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {isStreaming && activeTab === "agent" && (
           <Badge variant="secondary" className="ml-auto text-xs">
             Agent is working...
           </Badge>
         )}
       </div>
 
-      {/* Messages area */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-hidden">
-        <Conversation className="h-full">
-          <ConversationContent>
-            {loadingMore && (
-              <div className="flex items-center justify-center py-2">
-                <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
-              </div>
-            )}
+      {/* AI Agent tab */}
+      <div
+        className={
+          activeTab === "agent" ? "flex min-h-0 flex-1 flex-col" : "hidden"
+        }
+      >
+        {/* Messages area */}
+        <div ref={scrollContainerRef} className="flex-1 overflow-hidden">
+          <Conversation className="h-full">
+            <ConversationContent>
+              {loadingMore && (
+                <div className="flex items-center justify-center py-2">
+                  <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
 
-            {messages.length === 0 && !loadingMore ? (
-              <ConversationEmptyState
-                title="Ask the AI agent"
-                description="Ask the AI agent to help you write, edit, or improve your content."
+              {messages.length === 0 && !loadingMore ? (
+                <ConversationEmptyState
+                  title="Ask the AI agent"
+                  description="Ask the AI agent to help you write, edit, or improve your content."
+                />
+              ) : (
+                messages.map((message) => {
+                  const isLastMessage =
+                    message === messages[messages.length - 1]
+                  const isAnimating = isStreaming && isLastMessage
+
+                  return (
+                    <Message key={message.id} from={message.role}>
+                      {message.role === "assistant" &&
+                        message.reasoningText && (
+                          <Reasoning
+                            isStreaming={isAnimating}
+                            defaultOpen={false}
+                          >
+                            <ReasoningTrigger />
+                            <ReasoningContent>
+                              {message.reasoningText}
+                            </ReasoningContent>
+                          </Reasoning>
+                        )}
+                      {message.role === "assistant" &&
+                        message.toolCalls
+                          ?.filter((tc) => tc.toolName !== SUGGEST_TOOL_NAME)
+                          .map((tc, i) => (
+                            <ToolCallBlock
+                              key={`${message.id}-tool-${i}`}
+                              toolCall={tc}
+                              onArtifactClick={onArtifactClick}
+                            />
+                          ))}
+                      <MessageContent>
+                        {message.isError ? (
+                          <div className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+                            {message.content}
+                          </div>
+                        ) : message.role === "assistant" ? (
+                          <MessageResponse isAnimating={isAnimating}>
+                            {message.content}
+                          </MessageResponse>
+                        ) : (
+                          <span>{message.content}</span>
+                        )}
+                      </MessageContent>
+                    </Message>
+                  )
+                })
+              )}
+
+              {isStreaming && messages.length === 0 && (
+                <Message from="assistant">
+                  <MessageContent>
+                    <span className="animate-pulse text-sm text-muted-foreground">
+                      Thinking...
+                    </span>
+                  </MessageContent>
+                </Message>
+              )}
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
+        </div>
+
+        {status === "error" && (
+          <div className="mx-3 mb-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            Failed to get a response. Please try again.
+          </div>
+        )}
+
+        {/* Suggestions */}
+        {status !== "streaming" && suggestions.length > 0 && (
+          <div className="border-t px-3 pt-2">
+            <Suggestions>
+              {suggestions.map((s) => (
+                <Suggestion
+                  key={s.label}
+                  suggestion={s.prompt}
+                  variant={s.primary ? "default" : "outline"}
+                  onClick={(prompt) => sendMessage(prompt)}
+                >
+                  {s.label}
+                </Suggestion>
+              ))}
+            </Suggestions>
+          </div>
+        )}
+
+        {/* Prompt input */}
+        <div className="border-t p-3">
+          <PromptInput onSubmit={handlePromptSubmit}>
+            <PromptInputTextarea placeholder="Ask the AI agent..." />
+            <PromptInputFooter>
+              <span className="text-xs text-muted-foreground">
+                Content Assistant
+              </span>
+              <PromptInputSubmit
+                status={promptStatus}
+                onStop={isStreaming ? cancel : undefined}
               />
-            ) : (
-              messages.map((message) => {
-                const isLastMessage = message === messages[messages.length - 1]
-                const isAnimating = isStreaming && isLastMessage
-
-                return (
-                  <Message key={message.id} from={message.role}>
-                    {message.role === "assistant" && message.reasoningText && (
-                      <Reasoning isStreaming={isAnimating} defaultOpen={false}>
-                        <ReasoningTrigger />
-                        <ReasoningContent>
-                          {message.reasoningText}
-                        </ReasoningContent>
-                      </Reasoning>
-                    )}
-                    {message.role === "assistant" &&
-                      message.toolCalls
-                        ?.filter((tc) => tc.toolName !== SUGGEST_TOOL_NAME)
-                        .map((tc, i) => (
-                          <ToolCallBlock
-                            key={`${message.id}-tool-${i}`}
-                            toolCall={tc}
-                            onArtifactClick={onArtifactClick}
-                          />
-                        ))}
-                    <MessageContent>
-                      {message.isError ? (
-                        <div className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-                          {message.content}
-                        </div>
-                      ) : message.role === "assistant" ? (
-                        <MessageResponse isAnimating={isAnimating}>
-                          {message.content}
-                        </MessageResponse>
-                      ) : (
-                        <span>{message.content}</span>
-                      )}
-                    </MessageContent>
-                  </Message>
-                )
-              })
-            )}
-
-            {isStreaming && messages.length === 0 && (
-              <Message from="assistant">
-                <MessageContent>
-                  <span className="animate-pulse text-sm text-muted-foreground">
-                    Thinking...
-                  </span>
-                </MessageContent>
-              </Message>
-            )}
-          </ConversationContent>
-          <ConversationScrollButton />
-        </Conversation>
+            </PromptInputFooter>
+          </PromptInput>
+        </div>
       </div>
 
-      {status === "error" && (
-        <div className="mx-3 mb-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          Failed to get a response. Please try again.
-        </div>
-      )}
+      {/* Details tab */}
+      <div
+        className={
+          activeTab === "details" ? "flex-1 overflow-y-auto" : "hidden"
+        }
+      >
+        <FrontmatterForm contentId={contentId} />
+      </div>
 
-      {/* Suggestions */}
-      {status !== "streaming" && suggestions.length > 0 && (
-        <div className="border-t px-3 pt-2">
-          <Suggestions>
-            {suggestions.map((s) => (
-              <Suggestion
-                key={s.label}
-                suggestion={s.prompt}
-                variant={s.primary ? "default" : "outline"}
-                onClick={(prompt) => sendMessage(prompt)}
-              >
-                {s.label}
-              </Suggestion>
-            ))}
-          </Suggestions>
-        </div>
-      )}
-
-      {/* Prompt input */}
-      <div className="border-t p-3">
-        <PromptInput onSubmit={handlePromptSubmit}>
-          <PromptInputTextarea placeholder="Ask the AI agent..." />
-          <PromptInputFooter>
-            <span className="text-xs text-muted-foreground">
-              Content Assistant
-            </span>
-            <PromptInputSubmit
-              status={promptStatus}
-              onStop={isStreaming ? cancel : undefined}
-            />
-          </PromptInputFooter>
-        </PromptInput>
+      {/* Artifacts tab */}
+      <div
+        className={
+          activeTab === "artifacts" ? "flex-1 overflow-y-auto" : "hidden"
+        }
+      >
+        <ArtifactsList
+          artifacts={artifacts}
+          grouped={groupedArtifacts}
+          selectedId={selectedArtifactId}
+          onArtifactClick={onArtifactClick}
+        />
       </div>
     </div>
   )

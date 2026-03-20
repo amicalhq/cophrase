@@ -21,7 +21,6 @@ import { ItalicButton } from "./toolbars/formatting-buttons"
 import { UnderlineButton } from "./toolbars/formatting-buttons"
 import { LinkButton } from "./toolbars/insert-buttons"
 import { SlashCommand } from "./extensions/slash-command"
-import { FrontmatterForm } from "./frontmatter-form"
 import { PlainTextEditor } from "./plain-text-editor"
 import { ImageViewer } from "./image-viewer"
 import { VideoViewer } from "./video-viewer"
@@ -34,7 +33,6 @@ interface EditorPanelProps {
   artifacts: ArtifactData[]
   groupedArtifacts: Record<string, ArtifactData[]>
   onArtifactSelect: (artifact: ArtifactData | null) => void
-  contentId: string
   contentFormat: string
 }
 
@@ -51,7 +49,6 @@ export function EditorPanel({
   artifacts,
   groupedArtifacts,
   onArtifactSelect,
-  contentId,
   contentFormat,
 }: EditorPanelProps) {
   const editor = useEditor({
@@ -114,7 +111,6 @@ export function EditorPanel({
           onChatToggle={onChatToggle}
           trailing={artifactSelect}
         />
-        <FrontmatterForm contentId={contentId} />
         <div className="flex-1 overflow-y-auto p-6">
           <ResearchNotesView
             data={
@@ -135,19 +131,12 @@ export function EditorPanel({
           onChatToggle={onChatToggle}
           trailing={artifactSelect}
         />
-        <FrontmatterForm contentId={contentId} />
         {contentFormat === "plain_text" && (
           <PlainTextEditor artifact={artifact} />
         )}
-        {contentFormat === "image" && (
-          <ImageViewer artifact={artifact} />
-        )}
-        {contentFormat === "video" && (
-          <VideoViewer artifact={artifact} />
-        )}
-        {contentFormat === "deck" && (
-          <DeckViewer artifact={artifact} />
-        )}
+        {contentFormat === "image" && <ImageViewer artifact={artifact} />}
+        {contentFormat === "video" && <VideoViewer artifact={artifact} />}
+        {contentFormat === "deck" && <DeckViewer artifact={artifact} />}
       </div>
     )
   }
@@ -160,7 +149,6 @@ export function EditorPanel({
           onChatToggle={onChatToggle}
           trailing={artifactSelect}
         />
-        <FrontmatterForm contentId={contentId} />
         <div className="flex-1 overflow-y-auto">
           {editor && (
             <BubbleMenu
