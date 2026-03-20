@@ -5,7 +5,6 @@ import { z } from "zod"
 import { createUIMessageStreamResponse, convertToModelMessages } from "ai"
 import type { ModelMessage, UIMessage } from "ai"
 import { start } from "workflow/api"
-import { getBuiltInAgent, getBuiltInAgentTools } from "@/lib/agents/built-in/registry"
 import { getAgentById, getAgentTools } from "@workspace/db/queries/agents"
 import { createAgentRun } from "@workspace/db/queries/agent-runs"
 import { runAgentWorkflow } from "@/lib/agents/run-agent"
@@ -20,7 +19,9 @@ const startRunSchema = z.object({
   organizationId: z.string().min(1),
   projectId: z.string().min(1),
   contentId: z.string().optional(),
-  executionMode: z.enum(["auto", "approve-each", "approve-selective"]).optional(),
+  executionMode: z
+    .enum(["auto", "approve-each", "approve-selective"])
+    .optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -40,19 +41,27 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request body", details: parsed.error.flatten() },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
-  const { agentId, messages: rawMessages, organizationId, projectId, contentId, executionMode } =
-    parsed.data
+  const {
+    agentId,
+    messages: rawMessages,
+    organizationId,
+    projectId,
+    contentId,
+    executionMode,
+  } = parsed.data
 
   // Convert UIMessages (from WorkflowChatTransport) to ModelMessages (for AI SDK)
   let messages: ModelMessage[]
   const firstMsg = rawMessages[0]!
   if ("parts" in firstMsg) {
     // UIMessage format (has 'parts') — convert
-    messages = await convertToModelMessages(rawMessages as unknown as UIMessage[])
+    messages = await convertToModelMessages(
+      rawMessages as unknown as UIMessage[]
+    )
   } else {
     // Already ModelMessage format
     messages = rawMessages as unknown as ModelMessage[]
@@ -66,33 +75,33 @@ export async function POST(request: NextRequest) {
   if (contentId) {
     const contentItem = await getContentById(contentId, projectId)
     if (!contentItem) {
-      return NextResponse.json({ error: "Content not found in this project" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Content not found in this project" },
+        { status: 404 }
+      )
     }
   }
 
-  // Resolve agent: built-in first, then DB
-  let agentConfig: AgentConfig | null = getBuiltInAgent(agentId)
-  if (!agentConfig) {
-    const dbAgent = await getAgentById(agentId)
-    if (!dbAgent) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 })
-    }
-    if (dbAgent.scope === "org" && dbAgent.organizationId !== organizationId) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 })
-    }
-    agentConfig = {
-      id: dbAgent.id,
-      scope: dbAgent.scope,
-      organizationId: dbAgent.organizationId,
-      name: dbAgent.name,
-      description: dbAgent.description,
-      modelId: dbAgent.modelId,
-      prompt: dbAgent.prompt,
-      inputSchema: dbAgent.inputSchema,
-      outputSchema: dbAgent.outputSchema,
-      executionMode: dbAgent.executionMode,
-      approvalSteps: dbAgent.approvalSteps as string[] | null,
-    }
+  // Resolve agent from DB
+  const dbAgent = await getAgentById(agentId)
+  if (!dbAgent) {
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 })
+  }
+  if (dbAgent.scope === "org" && dbAgent.organizationId !== organizationId) {
+    return NextResponse.json({ error: "Agent not found" }, { status: 404 })
+  }
+  const agentConfig: AgentConfig = {
+    id: dbAgent.id,
+    scope: dbAgent.scope,
+    organizationId: dbAgent.organizationId,
+    name: dbAgent.name,
+    description: dbAgent.description,
+    modelId: dbAgent.modelId,
+    prompt: dbAgent.prompt,
+    inputSchema: dbAgent.inputSchema,
+    outputSchema: dbAgent.outputSchema,
+    executionMode: dbAgent.executionMode,
+    approvalSteps: dbAgent.approvalSteps as string[] | null,
   }
 
   try {
@@ -105,20 +114,17 @@ export async function POST(request: NextRequest) {
       executionMode: executionMode ?? agentConfig.executionMode,
     })
 
-    // Resolve tool records (built-in first, then DB)
-    let toolRecords = getBuiltInAgentTools(agentId)
-    if (toolRecords.length === 0) {
-      const dbTools = await getAgentTools(agentId)
-      toolRecords = dbTools as AgentToolRecord[]
-    }
-    const hasSubAgentTools = toolRecords.some((r) => r.type === "agent")
+    // Resolve tool records from DB
+    const dbTools = await getAgentTools(agentId)
+    const toolRecords = dbTools as AgentToolRecord[]
+    const hasSubAgentTools = toolRecords.some((r: AgentToolRecord) => r.type === "agent")
 
     // Build serializable workflow args
     const workflowArgs: WorkflowRunArgs = {
       agentId,
       agentPrompt: agentConfig.prompt,
       agentModelId: agentConfig.modelId ?? null,
-      toolRecords: toolRecords.map((r) => ({
+      toolRecords: toolRecords.map((r: AgentToolRecord) => ({
         id: r.id,
         agentId: r.agentId,
         type: r.type,
@@ -135,7 +141,10 @@ export async function POST(request: NextRequest) {
 
     // Pass messages as JSON string to avoid workflow devalue serialization issues
     const messagesJson = JSON.stringify(messages)
-    const workflowRun = await start(runAgentWorkflow, [workflowArgs, messagesJson])
+    const workflowRun = await start(runAgentWorkflow, [
+      workflowArgs,
+      messagesJson,
+    ])
 
     return createUIMessageStreamResponse({
       stream: workflowRun.readable,
@@ -145,11 +154,9 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to start agent run"
+    const message =
+      error instanceof Error ? error.message : "Failed to start agent run"
     console.error("Failed to start agent run:", error)
-    return NextResponse.json(
-      { error: message },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
