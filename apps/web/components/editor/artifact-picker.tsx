@@ -113,11 +113,11 @@ export function ArtifactSelect({
         aria-label="Artifact"
         data-testid="artifact-picker"
       >
-        <SelectValue placeholder="Select artifact..." />
+        <SelectValue placeholder="Pick artifact to display" />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="__none__" className="text-xs">
-          No artifact
+          Pick artifact to display
         </SelectItem>
         {types.map((type) => (
           <SelectGroup key={type}>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -12,7 +12,7 @@ import { useProject } from "@/app/orgs/[orgId]/projects/[projectId]/project-cont
 import { TopNavigation } from "@/components/navigation/top-navigation"
 import { ChatPanel } from "./chat-panel"
 import { EditorPanel } from "./editor-panel"
-import { useArtifacts } from "./artifact-picker"
+import { useArtifacts, sortedTypeKeys } from "./artifact-picker"
 import type { ArtifactData } from "./artifact-viewer"
 interface AIEditorProps {
   contentTitle: string
@@ -41,6 +41,31 @@ export function AIEditor({
   )
 
   const { artifacts, grouped } = useArtifacts(contentId)
+
+  // Auto-select the latest artifact (furthest stage) on initial load
+  const hasAutoSelected = useRef(false)
+  useEffect(() => {
+    if (hasAutoSelected.current || artifacts.length === 0) return
+    hasAutoSelected.current = true
+    const types = sortedTypeKeys(Object.keys(grouped))
+    const lastType = types[types.length - 1]
+    if (!lastType || !grouped[lastType]) return
+    const latest = grouped[lastType]![grouped[lastType]!.length - 1]
+    if (latest) {
+      void (async () => {
+        try {
+          const res = await fetch(
+            `/api/content/${contentId}/artifacts/${latest.id}`
+          )
+          if (!res.ok) return
+          const { artifact } = (await res.json()) as { artifact: ArtifactData }
+          setSelectedArtifact(artifact)
+        } catch {
+          // Silently fail
+        }
+      })()
+    }
+  }, [artifacts, grouped, contentId])
 
   const handleChatToggle = () => {
     if (isChatOpen) {
