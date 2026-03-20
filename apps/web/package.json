@@ -4,8 +4,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "dev:portless": "portless cophrase next dev --turbopack",
+    "dev": "npx @ai-sdk/devtools & npx wdk dev & next dev --turbopack",
+    "dev:portless": "npx @ai-sdk/devtools & npx wdk dev & portless cophrase next dev --turbopack",
+    "dev:ai-devtools": "npx @ai-sdk/devtools",
+    "dev:wdk": "npx wdk dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
