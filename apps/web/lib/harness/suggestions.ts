@@ -4,64 +4,40 @@ export type PromptSuggestion = {
   primary?: boolean
 }
 
-const INITIAL_SUGGESTIONS: Record<
-  string,
-  Partial<Record<string, PromptSuggestion[]>>
-> = {
-  blog: {
-    idea: [
-      {
-        label: "Start researching",
-        prompt: "Research this topic and find relevant sources",
-        primary: true,
-      },
-      {
-        label: "Add more context",
-        prompt:
-          "Before we start, let me give you more context about what I want",
-      },
-    ],
-    draft: [
-      {
-        label: "Start drafting",
-        prompt: "Write a draft based on the research notes",
-        primary: true,
-      },
-      {
-        label: "Review research first",
-        prompt: "Show me a summary of the research so far",
-      },
-    ],
-    review: [
-      {
-        label: "Humanize the draft",
-        prompt: "Refine the draft to sound more natural and human",
-        primary: true,
-      },
-      {
-        label: "View current draft",
-        prompt: "Show me the current draft",
-      },
-    ],
-  },
-  social: {
-    idea: [
-      {
-        label: "Start researching",
-        prompt: "Research this topic for a social post",
-        primary: true,
-      },
-      {
-        label: "Add more context",
-        prompt: "Before we start, let me give you more context",
-      },
-    ],
-  },
+export interface StageInfo {
+  id: string
+  name: string
+  position: number
 }
 
-export function getInitialSuggestions(
-  contentType: string,
-  stage: string,
+/**
+ * Generate initial suggestions from stage data.
+ * Called when a conversation has no messages yet.
+ */
+export function generateInitialSuggestions(
+  stages: StageInfo[],
+  currentStageId: string | null,
 ): PromptSuggestion[] {
-  return INITIAL_SUGGESTIONS[contentType]?.[stage] ?? []
+  if (stages.length === 0) return []
+
+  // Find the current or first stage
+  const currentStage = currentStageId
+    ? stages.find((s) => s.id === currentStageId)
+    : stages[0]
+
+  if (!currentStage) return []
+
+  const suggestions: PromptSuggestion[] = [
+    {
+      label: `Start ${currentStage.name}`,
+      prompt: `Run the ${currentStage.name} stage to begin working on this content`,
+      primary: true,
+    },
+    {
+      label: "Add more context",
+      prompt: "Before we start, let me give you more context about what I want",
+    },
+  ]
+
+  return suggestions
 }
