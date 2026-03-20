@@ -91,7 +91,7 @@ export async function buildContextStep(
   const artifactSummary =
     artifacts.length > 0
       ? artifacts
-          .map((a) => `- ${a.type} v${a.version}: "${a.title}" (${a.status})`)
+          .map((a) => `- "${a.title}" [${a.type} v${a.version}, ${a.status}] (id: ${a.id})`)
           .join("\n")
       : "No artifacts yet."
 
@@ -111,7 +111,7 @@ Available stages you can run:
 ${config.stages
   .map(
     (s) =>
-      `- run-stage(stageId: "${s.id}") → ${s.name} (${s.subAgents.map((sa) => sa.name).join(", ") || "no sub-agents"})`,
+      `- run-stage(stageId: "${s.id}", stageName: "${s.name}", agentNames: [${s.subAgents.map((sa) => `"${sa.name}"`).join(", ")}]) → ${s.name} (${s.subAgents.map((sa) => sa.name).join(", ") || "no sub-agents"})`,
   )
   .join("\n")}`
 }
@@ -123,11 +123,14 @@ ${config.stages
 function buildSubAgentUserMessage(
   contentTypeName: string,
   contentTitle: string,
-  artifactIds?: string[]
+  artifactRefs?: Array<{ id: string; title: string; type: string; version: number }>
 ): string {
   let msg = `Execute your task for a ${contentTypeName} about: "${contentTitle}".`
-  if (artifactIds && artifactIds.length > 0) {
-    msg += `\n\nUse load-artifact to load these artifacts from previous stages as input: ${artifactIds.join(", ")}`
+  if (artifactRefs && artifactRefs.length > 0) {
+    const list = artifactRefs
+      .map((a) => `"${a.title}" (${a.type} v${a.version}, id: ${a.id})`)
+      .join(", ")
+    msg += `\n\nUse load-artifact to load these artifacts from previous stages as input: ${list}`
   }
   msg +=
     "\n\nUse your tools to complete the work and save the results as an artifact."
@@ -448,6 +451,15 @@ export async function runStageStep(input: {
     }
   }
 
+  // Resolve artifact IDs to descriptive refs for sub-agent context
+  const artifactRefs: Array<{ id: string; title: string; type: string; version: number }> = []
+  if (input.artifactIds && input.artifactIds.length > 0) {
+    for (const id of input.artifactIds) {
+      const a = await getArtifactById(id)
+      if (a) artifactRefs.push({ id: a.id, title: a.title, type: a.type, version: a.version })
+    }
+  }
+
   const allArtifacts: ArtifactSummary[] = []
   const subAgentResults: Array<{
     agentName: string
@@ -562,7 +574,7 @@ export async function runStageStep(input: {
       const result = await generateText({
         model,
         system: sa.prompt,
-        messages: [{ role: "user" as const, content: buildSubAgentUserMessage(input.config.contentTypeName, contentTitle, input.artifactIds) }],
+        messages: [{ role: "user" as const, content: buildSubAgentUserMessage(input.config.contentTypeName, contentTitle, artifactRefs.length > 0 ? artifactRefs : undefined) }],
         tools: subTools,
         stopWhen: stepCountIs(15),
       })

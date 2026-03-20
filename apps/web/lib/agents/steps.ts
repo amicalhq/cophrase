@@ -225,7 +225,13 @@ export async function runSubAgentStep(input: {
 
   let prompt = input.instructions
   if (input.artifactIds && input.artifactIds.length > 0) {
-    prompt += `\n\nUse load-artifact to load these artifacts as input: ${input.artifactIds.join(", ")}`
+    // Resolve artifact IDs to descriptive refs
+    const refs: string[] = []
+    for (const id of input.artifactIds) {
+      const a = await getArtifactById(id)
+      refs.push(a ? `"${a.title}" (${a.type} v${a.version}, id: ${id})` : id)
+    }
+    prompt += `\n\nUse load-artifact to load these artifacts as input: ${refs.join(", ")}`
   }
 
   const result = await generateText({

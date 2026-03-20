@@ -84,9 +84,11 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
     const tools = {
       "run-stage": {
         description:
-          "Execute all sub-agents at a pipeline stage. Pass the stageId and artifact IDs from previous stages so sub-agents can load prior work.",
+          "Execute all sub-agents at a pipeline stage. Pass the stageId, stageName, and artifact IDs from previous stages so sub-agents can load prior work.",
         inputSchema: z.object({
           stageId: z.string().describe("The contentTypeStage.id to execute"),
+          stageName: z.string().optional().describe("Human-readable name of the stage"),
+          agentNames: z.array(z.string()).optional().describe("Names of the sub-agents in this stage"),
           artifactIds: z
             .array(z.string())
             .optional()
@@ -100,6 +102,7 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
           artifactIds,
         }: {
           stageId: string
+          stageName?: string
           artifactIds?: string[]
         }) => {
           return runStageStep({

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ChevronDownIcon, LoaderIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, LoaderIcon, XIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { Badge } from "@workspace/ui/components/badge"
 import {
@@ -496,69 +496,321 @@ function ToolCallBlock({
   onArtifactClick?: (artifactId: string) => void
 }) {
   const { toolName, state, input, result } = toolCall
-  const label = formatToolLabel(toolName, input)
-  const artifacts = extractArtifacts(result)
+  const label = formatToolLabel(toolName, input, result)
   const isCalling = state === "calling"
   const isStopped = state === "stopped"
 
   return (
     <Collapsible className="not-prose my-2">
       <CollapsibleTrigger className="flex w-full items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
-        <Badge
-          variant={isCalling ? "secondary" : isStopped ? "destructive" : "outline"}
-          className="h-5 px-1.5 text-[10px]"
-        >
-          {isCalling ? "Running" : isStopped ? "Stopped" : "Tool"}
-        </Badge>
-        <span>
-          {label}
-          {isCalling && (
-            <LoaderIcon className="ml-1 inline size-3 animate-spin" />
-          )}
-        </span>
+        {isCalling ? (
+          <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
+            <LoaderIcon className="size-3 animate-spin" />
+            Running
+          </Badge>
+        ) : isStopped ? (
+          <Badge variant="destructive" className="h-5 gap-1 px-1.5 text-[10px]">
+            <XIcon className="size-3" />
+            Stopped
+          </Badge>
+        ) : (
+          <Badge className="h-5 gap-1 border-green-600/30 bg-green-500/10 px-1.5 text-[10px] text-green-600">
+            <CheckIcon className="size-3" />
+            Done
+          </Badge>
+        )}
+        <span>{label}</span>
         {!isCalling && !isStopped && <ChevronDownIcon className="ml-auto size-3" />}
       </CollapsibleTrigger>
       {!isCalling && !isStopped && (
         <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
-          {artifacts.length > 0 && onArtifactClick && (
-            <div className="mb-2 flex flex-wrap gap-1">
-              {artifacts.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  className="text-xs text-primary underline hover:no-underline"
-                  onClick={() => onArtifactClick(a.id)}
-                >
-                  {a.title ?? a.type} v{a.version}
-                </button>
-              ))}
-            </div>
-          )}
-          {result != null && (
-            <pre className="max-h-40 overflow-x-auto rounded-md bg-muted p-2 text-[10px]">
-              {typeof result === "string"
-                ? result
-                : JSON.stringify(result, null, 2)}
-            </pre>
-          )}
+          <ToolResultDisplay
+            toolName={toolName}
+            result={result}
+            onArtifactClick={onArtifactClick}
+          />
         </CollapsibleContent>
       )}
     </Collapsible>
   )
 }
 
-function formatToolLabel(toolName: string, input?: unknown): string {
+// ---------------------------------------------------------------------------
+// ToolResultDisplay — human-readable result for known tools, raw JSON fallback
+// ---------------------------------------------------------------------------
+
+function ToolResultDisplay({
+  toolName,
+  result,
+  onArtifactClick,
+}: {
+  toolName: string
+  result: unknown
+  onArtifactClick?: (artifactId: string) => void
+}) {
+  if (result == null) return null
+
+  const res = typeof result === "object" ? (result as Record<string, unknown>) : null
+
+  // run-stage: show stage name, sub-agent results, and artifacts
+  if (toolName === "run-stage" && res) {
+    const success = res.success as boolean | undefined
+    const stageName = res.stageName as string | undefined
+    const subAgentResults = res.subAgentResults as
+      | Array<{
+          agentName: string
+          success: boolean
+          artifacts: ArtifactRef[]
+          error?: string
+        }>
+      | undefined
+    return (
+      <div className="space-y-1.5">
+        {stageName && (
+          <p>
+            <span className="font-medium">{stageName}</span>
+            {success != null && (
+              <span className={success ? " text-green-600" : " text-destructive"}>
+                {success ? " — completed" : " — failed"}
+              </span>
+            )}
+          </p>
+        )}
+        {subAgentResults && subAgentResults.length > 0 && (
+          <ul className="list-inside list-disc space-y-0.5">
+            {subAgentResults.map((sr, i) => (
+              <li key={i}>
+                <span className="font-medium">{sr.agentName}</span>
+                {sr.success ? (
+                  sr.artifacts.length > 0 ? (
+                    <>
+                      {" — "}
+                      {sr.artifacts.map((a, j) => (
+                        <span key={a.id}>
+                          {j > 0 && ", "}
+                          {onArtifactClick ? (
+                            <button
+                              type="button"
+                              className="text-primary underline hover:no-underline"
+                              onClick={() => onArtifactClick(a.id)}
+                            >
+                              {a.title ?? a.type} v{a.version}
+                            </button>
+                          ) : (
+                            <span>
+                              {a.title ?? a.type} v{a.version}
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </>
+                  ) : (
+                    " — done"
+                  )
+                ) : (
+                  <span className="text-destructive">
+                    {" — failed"}
+                    {sr.error && `: ${sr.error}`}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {typeof res.error === "string" && (
+          <p className="text-destructive">{res.error}</p>
+        )}
+      </div>
+    )
+  }
+
+  // get-content-status: show stage position, title, and artifacts
+  if (toolName === "get-content-status" && res) {
+    const title = res.title as string | undefined
+    const currentStageName = res.currentStageName as string | undefined
+    const stagePosition = res.stagePosition as number | null | undefined
+    const totalStages = res.totalStages as number | undefined
+    const statusArtifacts = (res.artifacts ?? []) as Array<{
+      id: string
+      type: string
+      title: string
+      version: number
+      status: string
+    }>
+    return (
+      <div className="space-y-1.5">
+        {title && <p className="font-medium">{title}</p>}
+        {currentStageName ? (
+          <p>
+            Stage: {currentStageName}
+            {stagePosition != null && totalStages
+              ? ` (${stagePosition}/${totalStages})`
+              : ""}
+          </p>
+        ) : (
+          <p>Stage: Not started</p>
+        )}
+        {statusArtifacts.length > 0 && (
+          <ul className="list-inside list-disc space-y-0.5">
+            {statusArtifacts.map((a) => (
+              <li key={a.id}>
+                {onArtifactClick ? (
+                  <button
+                    type="button"
+                    className="text-primary underline hover:no-underline"
+                    onClick={() => onArtifactClick(a.id)}
+                  >
+                    {a.title}
+                  </button>
+                ) : (
+                  a.title
+                )}{" "}
+                <span className="text-muted-foreground">
+                  v{a.version} · {a.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
+  }
+
+  // search-artifacts: show count and list
+  if (toolName === "search-artifacts" && res) {
+    const count = res.count as number | undefined
+    const searchArtifacts = (res.artifacts ?? []) as Array<{
+      id: string
+      type: string
+      title: string
+      version: number
+      status: string
+    }>
+    return (
+      <div className="space-y-1.5">
+        <p>Found {count ?? searchArtifacts.length} artifact(s)</p>
+        {searchArtifacts.length > 0 && (
+          <ul className="list-inside list-disc space-y-0.5">
+            {searchArtifacts.map((a) => (
+              <li key={a.id}>
+                {onArtifactClick ? (
+                  <button
+                    type="button"
+                    className="text-primary underline hover:no-underline"
+                    onClick={() => onArtifactClick(a.id)}
+                  >
+                    {a.title}
+                  </button>
+                ) : (
+                  a.title
+                )}{" "}
+                <span className="text-muted-foreground">
+                  {a.type} v{a.version} · {a.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
+  }
+
+  // save-artifact: show what was saved
+  if (toolName === "save-artifact" && res) {
+    const type = res.type as string | undefined
+    const version = res.version as number | undefined
+    return (
+      <p>
+        Saved {type ?? "artifact"}
+        {version != null && ` v${version}`}
+      </p>
+    )
+  }
+
+  // load-artifact: show loaded artifact summary
+  if (toolName === "load-artifact" && res && !res.error) {
+    const loadedTitle = res.title as string | undefined
+    const type = res.type as string | undefined
+    const version = res.version as number | undefined
+    return (
+      <p>
+        Loaded{" "}
+        <span className="font-medium">{loadedTitle ?? type ?? "artifact"}</span>
+        {version != null && ` v${version}`}
+      </p>
+    )
+  }
+
+  // web-search: show result links
+  if (toolName === "web-search" && res) {
+    const results = res.results as
+      | Array<{ title: string; url: string; snippet?: string }>
+      | undefined
+    if (results && results.length > 0) {
+      return (
+        <ul className="list-inside list-disc space-y-0.5">
+          {results.map((r, i) => (
+            <li key={i}>
+              <span className="font-medium">{r.title}</span>
+              {r.snippet && (
+                <span className="text-muted-foreground">
+                  {" — "}
+                  {r.snippet.slice(0, 120)}
+                  {r.snippet.length > 120 && "…"}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  }
+
+  // Fallback: raw JSON
+  return (
+    <pre className="max-h-40 overflow-x-auto rounded-md bg-muted p-2 text-[10px]">
+      {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
+    </pre>
+  )
+}
+
+function formatToolLabel(
+  toolName: string,
+  input?: unknown,
+  result?: unknown
+): string {
   const inp = input as Record<string, unknown> | undefined
+  const res = result as Record<string, unknown> | undefined
   switch (toolName) {
     case "run-stage": {
-      const stageId = inp?.stageId as string | undefined
-      const name = stageId ?? "stage"
-      return `Running ${name.replace(/-/g, " ")}`
+      // Show agent names, fall back to stage name
+      const agentNames = (inp?.agentNames ?? res?.agentNames) as
+        | string[]
+        | undefined
+      if (agentNames && agentNames.length > 0) {
+        return agentNames.join(", ")
+      }
+      const stageName =
+        (res?.stageName as string | undefined) ??
+        (inp?.stageName as string | undefined)
+      return stageName ?? "Stage"
     }
     case "get-content-status":
-      return "Checking content status"
+      return "Content status"
     case "search-artifacts":
-      return "Searching artifacts"
+      return "Artifact search"
+    case "save-artifact": {
+      const title = inp?.title as string | undefined
+      return title ? `Save "${title}"` : "Save artifact"
+    }
+    case "load-artifact": {
+      const loadedTitle = (res?.title as string | undefined) ?? undefined
+      return loadedTitle ? `Load "${loadedTitle}"` : "Load artifact"
+    }
+    case "web-search": {
+      const query = inp?.query as string | undefined
+      return query ? `Search "${query}"` : "Web search"
+    }
     default:
       return toolName.replace(/-/g, " ")
   }
@@ -569,18 +821,6 @@ interface ArtifactRef {
   type: string
   title?: string
   version: number
-}
-
-function extractArtifacts(result: unknown): ArtifactRef[] {
-  if (!result || typeof result !== "object") return []
-  const r = result as Record<string, unknown>
-  if (Array.isArray(r.artifacts)) {
-    return r.artifacts.filter(
-      (a): a is ArtifactRef =>
-        typeof a === "object" && a !== null && "id" in a && "type" in a
-    )
-  }
-  return []
 }
 
 // ---------------------------------------------------------------------------
