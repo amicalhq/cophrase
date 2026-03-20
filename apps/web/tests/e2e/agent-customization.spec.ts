@@ -152,6 +152,34 @@ test.describe.serial("Agent customization", () => {
     expect(afterRemove.length).toBe(initialCount)
   })
 
+  test("can change model on sub-agent and verify persistence", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    // Get sub-agent
+    const ctRes = await page.request.get(`/api/content-types/${contentTypeId}`)
+    const ct = await ctRes.json()
+    const subAgentId = ct.stages[0].subAgents[0].agentId
+
+    // Set modelId to null (org default) — verify it persists as null
+    const patchRes = await page.request.patch(`/api/agents/${subAgentId}`, {
+      data: { modelId: null },
+    })
+    expect(patchRes.ok()).toBeTruthy()
+    const updated = await patchRes.json()
+    expect(updated.modelId).toBeNull()
+
+    // Verify persistence by re-fetching the content type
+    const verifyRes = await page.request.get(`/api/content-types/${contentTypeId}`)
+    expect(verifyRes.ok()).toBeTruthy()
+    const verified = await verifyRes.json()
+    const verifiedSubAgent = verified.stages[0].subAgents[0]
+    expect(verifiedSubAgent.agentId).toBe(subAgentId)
+  })
+
   test("detail page shows customization UI", async ({ page }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)

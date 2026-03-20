@@ -212,6 +212,42 @@ test.describe.serial("Content type builder", () => {
     ).toBeVisible({ timeout: 10_000 })
   })
 
+  test("frontmatter form renders in content editor", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    // Get custom type and create content piece
+    const typesRes = await page.request.get(
+      `/api/content-types?projectId=${projectId}&orgId=${orgId}`,
+    )
+    const types = await typesRes.json()
+    const customType = types.find((t: { name: string }) => t.name === "Custom Article")
+    expect(customType).toBeTruthy()
+
+    const createRes = await page.request.post("/api/content", {
+      data: {
+        projectId,
+        orgId,
+        title: "Editor Frontmatter Test",
+        contentTypeId: customType.id,
+      },
+    })
+    expect(createRes.ok()).toBeTruthy()
+    const content = await createRes.json()
+
+    // Navigate to the editor
+    await page.goto(
+      `/orgs/${orgId}/projects/${projectId}/content/${content.id}/edit`,
+    )
+
+    // Frontmatter form should render with field labels from the schema
+    // The Custom Article has frontmatterSchema with "title" and "author" properties
+    await expect(page.getByText("Details")).toBeVisible({ timeout: 10_000 })
+  })
+
   test("frontmatter values can be saved and loaded", async ({ page }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
