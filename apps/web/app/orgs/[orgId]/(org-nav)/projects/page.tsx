@@ -1,8 +1,5 @@
 import Link from "next/link"
-import {
-  Avatar,
-  AvatarFallback,
-} from "@workspace/ui/components/avatar"
+import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 import { getProjectsByOrg } from "@/lib/data/projects"
 import { CreateProjectDialog } from "@/components/create-project-dialog"
 
@@ -25,7 +22,7 @@ export default async function ProjectsPage({
           <Link
             key={project.id}
             href={`/orgs/${orgId}/projects/${project.id}/content`}
-            className="border-border hover:bg-accent flex items-center gap-3 rounded-md border p-3 transition-colors"
+            className="flex items-center gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent"
           >
             <Avatar className="h-8 w-8 rounded-md">
               <AvatarFallback className="rounded-md text-xs">
@@ -35,7 +32,7 @@ export default async function ProjectsPage({
             <div>
               <p className="text-sm font-medium">{project.name}</p>
               {project.description && (
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs text-muted-foreground">
                   {project.description}
                 </p>
               )}
@@ -43,7 +40,7 @@ export default async function ProjectsPage({
           </Link>
         ))}
         {projects.length === 0 && (
-          <p className="text-muted-foreground py-8 text-center text-sm">
+          <p className="py-8 text-center text-sm text-muted-foreground">
             No projects yet.
           </p>
         )}

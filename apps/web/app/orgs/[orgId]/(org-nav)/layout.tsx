@@ -19,7 +19,5 @@ export default async function OrgNavLayout({
   const isMember = await isOrgMember(session.user.id, orgId)
   if (!isMember) redirect("/orgs")
 
-  return (
-    <OrgNavLayoutClient orgId={orgId}>{children}</OrgNavLayoutClient>
-  )
+  return <OrgNavLayoutClient orgId={orgId}>{children}</OrgNavLayoutClient>
 }

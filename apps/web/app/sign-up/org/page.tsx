@@ -38,11 +38,10 @@ export default function OrgSetupPage() {
 
     const slug = slugify(orgName)
 
-    const { data, error: createError } =
-      await authClient.organization.create({
-        name: orgName,
-        slug,
-      })
+    const { data, error: createError } = await authClient.organization.create({
+      name: orgName,
+      slug,
+    })
 
     if (createError || !data) {
       setError(createError?.message ?? "Failed to create organization")
@@ -68,9 +67,7 @@ export default function OrgSetupPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="flex flex-col gap-4">
-            {error && (
-              <p className="text-destructive text-sm">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex flex-col gap-2">
               <Label htmlFor="orgName">Organization name</Label>
               <Input

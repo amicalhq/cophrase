@@ -3,10 +3,7 @@
 import Link from "next/link"
 import { authClient } from "@workspace/auth/client"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Avatar,
-  AvatarFallback,
-} from "@workspace/ui/components/avatar"
+import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 
 export default function OrgsPage() {
   const { data: orgs, isPending, error } = authClient.useListOrganizations()
@@ -14,7 +11,7 @@ export default function OrgsPage() {
   if (isPending) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           Loading organizations...
         </p>
       </main>
@@ -24,7 +21,7 @@ export default function OrgsPage() {
   if (error || !orgs) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           Failed to load organizations. Please try refreshing the page.
         </p>
       </main>
@@ -44,7 +41,7 @@ export default function OrgsPage() {
           <Link
             key={org.id}
             href={`/orgs/${org.id}/projects`}
-            className="border-border hover:bg-accent flex items-center gap-3 rounded-md border p-3 transition-colors"
+            className="flex items-center gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent"
           >
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs">
@@ -53,12 +50,12 @@ export default function OrgsPage() {
             </Avatar>
             <div>
               <p className="text-sm font-medium">{org.name}</p>
-              <p className="text-muted-foreground text-xs">{org.slug}</p>
+              <p className="text-xs text-muted-foreground">{org.slug}</p>
             </div>
           </Link>
         ))}
         {orgs.length === 0 && (
-          <p className="text-muted-foreground py-8 text-center text-sm">
+          <p className="py-8 text-center text-sm text-muted-foreground">
             No organizations yet.{" "}
             <Link href="/sign-up/org" className="text-primary underline">
               Create one

@@ -26,7 +26,7 @@ export function OrgNavLayoutClient({
   ]
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen bg-background">
       <TopNavigation organization={organization} />
       <TabNavigation tabs={orgTabs} />
       {children}

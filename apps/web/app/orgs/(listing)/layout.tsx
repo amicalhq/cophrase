@@ -6,7 +6,7 @@ export default function OrgsListingLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen bg-background">
       <SimpleHeader />
       {children}
     </div>

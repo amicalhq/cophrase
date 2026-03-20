@@ -62,9 +62,7 @@ export default function SignInPage() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="flex flex-col gap-4">
-            {error && (
-              <p className="text-destructive text-sm">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -97,7 +95,7 @@ export default function SignInPage() {
             >
               {loading ? "Signing in..." : "Sign in"}
             </Button>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link href="/sign-up" className="text-primary hover:underline">
                 Sign up

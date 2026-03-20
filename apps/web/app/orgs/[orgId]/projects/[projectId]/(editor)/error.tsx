@@ -12,7 +12,7 @@ export default function EditorError({
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
       <h2 className="text-lg font-semibold">Something went wrong</h2>
-      <p className="text-muted-foreground text-sm">
+      <p className="text-sm text-muted-foreground">
         The editor encountered an error. Your content is safe.
       </p>
       <Button onClick={reset} variant="outline" size="sm">

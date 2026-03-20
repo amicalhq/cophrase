@@ -4,11 +4,7 @@ import { useEffect } from "react"
 import { useParams } from "next/navigation"
 import { authClient } from "@workspace/auth/client"
 
-export default function OrgLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function OrgLayout({ children }: { children: React.ReactNode }) {
   const params = useParams<{ orgId: string }>()
   const orgId = params.orgId
 
