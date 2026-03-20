@@ -15,12 +15,11 @@ import {
   buildContextStep,
   createHarnessModelStepFn,
   persistHarnessMessages,
-  runAgentStep,
+  runStageStep,
   getContentStatusStep,
   searchArtifactsStep,
-  getAgentDescriptionsStep,
+  loadHarnessConfigStep,
 } from "./steps"
-import { HARNESS_CONFIGS } from "./configs"
 import { extractTextFromParts } from "./utils"
 import type { ContentContext } from "./types"
 
@@ -30,8 +29,7 @@ import type { ContentContext } from "./types"
 
 export interface HarnessWorkflowArgs {
   contentId: string
-  contentType: string
-  contentStage: string
+  contentTypeId: string
   contentTitle: string
   organizationId: string
   projectId: string
@@ -39,27 +37,33 @@ export interface HarnessWorkflowArgs {
 }
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const SUGGEST_ACTIONS_INSTRUCTION = `
+IMPORTANT: After your text response is complete, you MUST use the suggest-next-actions tool to suggest 2-4 next steps. Do NOT write suggestion JSON in your text — use the tool. Consider the current pipeline stage, what was just accomplished, any errors, and available stages. Mark exactly one suggestion as primary. Keep labels short (2-5 words) but make prompts descriptive enough for you to act on.`
+
+// ---------------------------------------------------------------------------
 // Harness workflow
 // ---------------------------------------------------------------------------
 
 export async function runHarnessWorkflow(
   args: HarnessWorkflowArgs,
-  userMessageJson: string,
+  userMessageJson: string
 ) {
   "use workflow"
 
   const ctx: ContentContext = {
     contentId: args.contentId,
-    contentType: args.contentType,
-    contentStage: args.contentStage,
+    contentTypeId: args.contentTypeId,
     contentTitle: args.contentTitle,
     organizationId: args.organizationId,
     projectId: args.projectId,
   }
 
-  const config = HARNESS_CONFIGS[args.contentType]
+  const config = await loadHarnessConfigStep(args.contentTypeId)
   if (!config) {
-    throw new Error(`No harness config for content type: ${args.contentType}`)
+    throw new Error(`No harness config for content type: ${args.contentTypeId}`)
   }
 
   try {
@@ -67,41 +71,25 @@ export async function runHarnessWorkflow(
     const history = await loadConversationStep(args.contentId, 50)
 
     // Step 2: Build dynamic context
-    const dynamicContext = await buildContextStep(ctx)
+    const dynamicContext = await buildContextStep(ctx, config)
 
-    // Step 3: Resolve agent descriptions (DB access via step)
-    const agentDescriptions = await getAgentDescriptionsStep(
-      config.availableAgents,
-    )
-
-    const systemPrompt = `${config.systemPrompt}
+    const systemPrompt = `${config.contentAgent.prompt}
 
 ${dynamicContext}
-
-Available agents you can delegate to:
-${agentDescriptions}`
+${SUGGEST_ACTIONS_INSTRUCTION}`
 
     // Build harness tools — delegates to step-wrapped tool handlers
     const tools = {
-      "run-agent": {
+      "run-stage": {
         description:
-          "Delegate work to a specialized agent. The agent will execute and save artifacts.",
+          "Execute all sub-agents at a pipeline stage. Pass the stageId.",
         inputSchema: z.object({
-          agentId: z.string().describe("The agent ID to run"),
-          instructions: z
-            .string()
-            .describe("Detailed instructions for the agent"),
+          stageId: z.string().describe("The contentTypeStage.id to execute"),
         }),
-        execute: async ({
-          agentId,
-          instructions,
-        }: {
-          agentId: string
-          instructions: string
-        }) => {
-          return runAgentStep({
-            agentId,
-            instructions,
+        execute: async ({ stageId }: { stageId: string }) => {
+          return runStageStep({
+            stageId,
+            config,
             organizationId: args.organizationId,
             projectId: args.projectId,
             contentId: args.contentId,
@@ -114,17 +102,13 @@ ${agentDescriptions}`
           "Get the current status of this content piece including stage and artifacts.",
         inputSchema: z.object({}),
         execute: async () => {
-          return getContentStatusStep(ctx)
+          return getContentStatusStep(ctx, config)
         },
       },
       "search-artifacts": {
-        description:
-          "Search for existing artifacts. Filter by type or status.",
+        description: "Search for existing artifacts. Filter by type or status.",
         inputSchema: z.object({
-          type: z
-            .string()
-            .optional()
-            .describe("Artifact type to filter by"),
+          type: z.string().optional().describe("Artifact type to filter by"),
           status: z
             .enum(["pending", "ready", "approved", "rejected"])
             .optional(),
@@ -151,21 +135,15 @@ ${agentDescriptions}`
           suggestions: z
             .array(
               z.object({
-                label: z
-                  .string()
-                  .describe("Short button label, 2-5 words"),
+                label: z.string().describe("Short button label, 2-5 words"),
                 prompt: z
                   .string()
-                  .describe(
-                    "The full prompt to send if the user selects this",
-                  ),
+                  .describe("The full prompt to send if the user selects this"),
                 primary: z
                   .boolean()
                   .optional()
-                  .describe(
-                    "True for the single recommended next action",
-                  ),
-              }),
+                  .describe("True for the single recommended next action"),
+              })
             )
             .min(2)
             .max(4),
@@ -225,9 +203,14 @@ ${agentDescriptions}`
         if (typeof content === "string") return content
         if (Array.isArray(content)) {
           return content
-            .filter((p) =>
-              typeof p === "object" && p !== null && "type" in p &&
-              (p as { type: string }).type === "text" && "text" in p)
+            .filter(
+              (p) =>
+                typeof p === "object" &&
+                p !== null &&
+                "type" in p &&
+                (p as { type: string }).type === "text" &&
+                "text" in p
+            )
             .map((p) => (p as { text: string }).text)
             .join("")
         }
@@ -253,7 +236,7 @@ ${agentDescriptions}`
       for (const tc of step.toolCalls ?? []) {
         const tr = (step.toolResults ?? []).find(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (t: any) => t.toolCallId === tc.toolCallId,
+          (t: any) => t.toolCallId === tc.toolCallId
         )
         toolCalls.push({
           toolCallId: tc.toolCallId,
@@ -270,7 +253,7 @@ ${agentDescriptions}`
       if (!toolCalls.some((t) => t.toolCallId === tc.toolCallId)) {
         const tr = (r.toolResults ?? []).find(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (t: any) => t.toolCallId === tc.toolCallId,
+          (t: any) => t.toolCallId === tc.toolCallId
         )
         toolCalls.push({
           toolCallId: tc.toolCallId,
@@ -291,7 +274,7 @@ ${agentDescriptions}`
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const text = step.reasoning
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((p: any) => (typeof p === "string" ? p : p?.text ?? ""))
+          .map((p: any) => (typeof p === "string" ? p : (p?.text ?? "")))
           .filter(Boolean)
           .join("")
         if (text) reasoning += (reasoning ? "\n" : "") + text
