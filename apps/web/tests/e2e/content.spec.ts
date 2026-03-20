@@ -22,7 +22,7 @@ test.describe.serial("Content pieces", () => {
     await expect(page).toHaveURL(/\/sign-up\/org/, { timeout: 10_000 })
     await page.getByLabel("Organization name").fill(testUser.orgName)
     await page.getByRole("button", { name: "Continue" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
   })
 
   test("setup: create a project", async ({ page }) => {
@@ -31,7 +31,7 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     // Navigate to orgs page and find org
     await page.goto("/orgs")
@@ -63,10 +63,10 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
-    await expect(page.getByText("Content")).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Content" })).toBeVisible()
     await expect(
       page.getByText("No content yet")
     ).toBeVisible()
@@ -77,7 +77,7 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
@@ -93,7 +93,9 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByText("My First Blog Post")).toBeVisible({
       timeout: 5_000,
     })
-    await expect(page.getByText("Blog Post")).toBeVisible()
+    await expect(
+      page.getByRole("table").getByText("Blog Post", { exact: true }),
+    ).toBeVisible()
     // New content is created without a stage (currentStageId is null)
   })
 
@@ -102,19 +104,21 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
     await page.getByRole("button", { name: "New content" }).click()
     await page.getByLabel("Title").fill("Launch Announcement")
-    await page.getByText("X Post").click()
+    await page.getByRole("dialog").getByText("X Post").click()
     await page.getByRole("button", { name: "Create" }).click()
 
     await expect(page.getByText("Launch Announcement")).toBeVisible({
       timeout: 5_000,
     })
-    await expect(page.getByText("X Post")).toBeVisible()
+    await expect(
+      page.getByRole("table").getByText("X Post", { exact: true }),
+    ).toBeVisible()
   })
 
   test("can filter by type", async ({ page }) => {
@@ -122,7 +126,7 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
@@ -147,7 +151,7 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
@@ -162,7 +166,7 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
@@ -179,7 +183,7 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
@@ -196,12 +200,12 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
     // Verify Content tab exists in navigation
-    const contentTab = page.getByRole("link", { name: "Content" })
+    const contentTab = page.getByRole("link", { name: "Content", exact: true })
     await expect(contentTab).toBeVisible()
 
     // Click it and verify navigation
