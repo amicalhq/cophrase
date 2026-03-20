@@ -7,6 +7,7 @@ import { Button } from "@workspace/ui/components/button"
 import { StageList } from "./stage-list"
 import { AgentPromptEditor } from "./agent-prompt-editor"
 import { AgentModelPicker } from "./agent-model-picker"
+import { ForkButton } from "./fork-button"
 
 interface ModelOption {
   id: string
@@ -109,15 +110,24 @@ export function ContentTypeDetail({
       </div>
 
       <div className="mb-8">
-        <h1 className="text-xl font-semibold">{contentType.name}</h1>
-        {contentType.description && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            {contentType.description}
-          </p>
-        )}
-        <span className="mt-2 inline-flex rounded bg-muted px-2 py-0.5 text-xs">
-          {contentType.format.replace("_", " ")}
-        </span>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">{contentType.name}</h1>
+            {contentType.description && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {contentType.description}
+              </p>
+            )}
+            <span className="mt-2 inline-flex rounded bg-muted px-2 py-0.5 text-xs">
+              {contentType.format.replace("_", " ")}
+            </span>
+          </div>
+          <ForkButton
+            contentTypeId={contentType.id}
+            orgId={orgId}
+            projectId={projectId}
+          />
+        </div>
       </div>
 
       {contentType.contentAgent && (
