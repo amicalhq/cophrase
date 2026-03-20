@@ -7,7 +7,7 @@ import { isOrgMember } from "@/lib/data/projects"
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ contentId: string }> },
+  { params }: { params: Promise<{ contentId: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {

@@ -6,7 +6,7 @@ import { isOrgMember } from "@/lib/data/projects"
 
 export async function POST(
   _request: NextRequest,
-  { params }: { params: Promise<{ runId: string }> },
+  { params }: { params: Promise<{ runId: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -20,7 +20,7 @@ export async function POST(
     if (!agentRun) {
       return NextResponse.json(
         { error: "Agent run not found" },
-        { status: 404 },
+        { status: 404 }
       )
     }
 
@@ -31,13 +31,13 @@ export async function POST(
 
     return NextResponse.json(
       { error: "Multi-turn messaging is deferred to post-v1" },
-      { status: 501 },
+      { status: 501 }
     )
   } catch (error) {
     console.error("Failed to send message to agent run:", error)
     return NextResponse.json(
       { error: "Failed to send message" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

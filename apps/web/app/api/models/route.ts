@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
 import { isOrgMember } from "@/lib/data/projects"
-import { createModels, deleteModels, promoteNextDefault } from "@/lib/data/models"
+import {
+  createModels,
+  deleteModels,
+  promoteNextDefault,
+} from "@/lib/data/models"
 import { modelTypeEnum, type ModelType } from "@workspace/db"
 
 const validModelTypes = modelTypeEnum.enumValues as readonly string[]
@@ -36,7 +40,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    let added: { id: string; modelId: string; modelType: string; isDefault: boolean }[] = []
+    let added: {
+      id: string
+      modelId: string
+      modelType: string
+      isDefault: boolean
+    }[] = []
     let removed: { id: string; modelType: string; isDefault: boolean }[] = []
 
     if (remove && remove.length > 0) {
@@ -51,11 +60,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (add && add.length > 0) {
-      const invalidType = add.find((m) => !validModelTypes.includes(m.modelType))
+      const invalidType = add.find(
+        (m) => !validModelTypes.includes(m.modelType)
+      )
       if (invalidType) {
         return NextResponse.json(
           { error: `Invalid model type: ${invalidType.modelType}` },
-          { status: 400 },
+          { status: 400 }
         )
       }
 
@@ -65,7 +76,7 @@ export async function POST(request: NextRequest) {
           providerId: m.providerId,
           modelId: m.modelId,
           modelType: m.modelType as ModelType,
-        })),
+        }))
       )
     }
 
@@ -74,7 +85,7 @@ export async function POST(request: NextRequest) {
     console.error("Failed to update models:", error)
     return NextResponse.json(
       { error: "Failed to update models" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

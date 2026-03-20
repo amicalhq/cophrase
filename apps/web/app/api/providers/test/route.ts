@@ -49,7 +49,10 @@ export async function POST(request: NextRequest) {
       // Edit dialog: resolve from stored provider
       const provider = await getProviderById(providerId, orgId)
       if (!provider) {
-        return NextResponse.json({ error: "Provider not found" }, { status: 404 })
+        return NextResponse.json(
+          { error: "Provider not found" },
+          { status: 404 }
+        )
       }
       resolvedType = provider.providerType
       resolvedKey = apiKey?.trim() || decrypt(provider.apiKeyEnc)
@@ -59,13 +62,13 @@ export async function POST(request: NextRequest) {
       if (!providerType || !isSupportedProvider(providerType)) {
         return NextResponse.json(
           { error: "Invalid provider type" },
-          { status: 400 },
+          { status: 400 }
         )
       }
       if (!apiKey?.trim()) {
         return NextResponse.json(
           { error: "apiKey is required" },
-          { status: 400 },
+          { status: 400 }
         )
       }
       resolvedType = providerType as ProviderType
@@ -83,7 +86,7 @@ export async function POST(request: NextRequest) {
     console.error("Provider test connection error:", err)
     return NextResponse.json(
       { success: false, error: "Internal server error" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

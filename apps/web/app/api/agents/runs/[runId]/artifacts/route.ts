@@ -7,7 +7,7 @@ import { isOrgMember } from "@/lib/data/projects"
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ runId: string }> },
+  { params }: { params: Promise<{ runId: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -21,7 +21,7 @@ export async function GET(
     if (!agentRun) {
       return NextResponse.json(
         { error: "Agent run not found" },
-        { status: 404 },
+        { status: 404 }
       )
     }
 
@@ -37,7 +37,7 @@ export async function GET(
     console.error("Failed to fetch artifacts:", error)
     return NextResponse.json(
       { error: "Failed to fetch artifacts" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

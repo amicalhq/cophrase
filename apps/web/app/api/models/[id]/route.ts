@@ -6,7 +6,7 @@ import { deleteModelById, promoteNextDefault } from "@/lib/data/models"
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -40,7 +40,7 @@ export async function DELETE(
     console.error("Failed to delete model:", error)
     return NextResponse.json(
       { error: "Failed to delete model" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

@@ -6,7 +6,7 @@ import { setDefaultModel } from "@/lib/data/models"
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -42,7 +42,7 @@ export async function PATCH(
     console.error("Failed to set default model:", error)
     return NextResponse.json(
       { error: "Failed to set default model" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

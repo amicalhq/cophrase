@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
-import { providerTypeEnum, modelTypeEnum, type ProviderType, type ModelType } from "@workspace/db"
-import { encrypt } from "@workspace/db/crypto"
 import {
-  getProvidersByOrg,
-  createProvider,
-} from "@/lib/data/providers"
+  providerTypeEnum,
+  modelTypeEnum,
+  type ProviderType,
+  type ModelType,
+} from "@workspace/db"
+import { encrypt } from "@workspace/db/crypto"
+import { getProvidersByOrg, createProvider } from "@/lib/data/providers"
 import { createModels, getDefaultsForOrg } from "@workspace/db/queries/models"
 import { isOrgMember } from "@/lib/data/projects"
 import { isSupportedProvider } from "@/lib/ai/registry"
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
     console.error("Failed to fetch providers:", error)
     return NextResponse.json(
       { error: "Failed to fetch providers" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
@@ -73,19 +75,16 @@ export async function POST(request: NextRequest) {
   if (!providerType || !validProviderTypes.includes(providerType)) {
     return NextResponse.json(
       { error: "Invalid provider type" },
-      { status: 400 },
+      { status: 400 }
     )
   }
   if (!apiKey) {
-    return NextResponse.json(
-      { error: "apiKey is required" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "apiKey is required" }, { status: 400 })
   }
   if (!isSupportedProvider(providerType)) {
     return NextResponse.json(
       { error: "Unsupported provider type" },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -105,20 +104,27 @@ export async function POST(request: NextRequest) {
     })
 
     // Create enabled models if provided
-    let createdModels: { id: string; modelId: string; modelType: string; isDefault: boolean }[] = []
+    let createdModels: {
+      id: string
+      modelId: string
+      modelType: string
+      isDefault: boolean
+    }[] = []
     if (models && models.length > 0) {
-      const invalidType = models.find((m) => !validModelTypes.includes(m.modelType))
+      const invalidType = models.find(
+        (m) => !validModelTypes.includes(m.modelType)
+      )
       if (invalidType) {
         return NextResponse.json(
           { error: `Invalid model type: ${invalidType.modelType}` },
-          { status: 400 },
+          { status: 400 }
         )
       }
 
       // Check which model types already have defaults
       const existingDefaults = await getDefaultsForOrg(orgId)
       const typesWithDefaults = new Set(
-        existingDefaults.map((d) => d.modelType),
+        existingDefaults.map((d) => d.modelType)
       )
 
       // Group models by type to determine which gets default
@@ -147,19 +153,22 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { provider, models: createdModels },
-      { status: 201 },
+      { status: 201 }
     )
   } catch (error: any) {
     if (error?.code === "23505") {
       return NextResponse.json(
-        { error: "A provider with this name already exists in this organization" },
-        { status: 409 },
+        {
+          error:
+            "A provider with this name already exists in this organization",
+        },
+        { status: 409 }
       )
     }
     console.error("Failed to create provider:", error)
     return NextResponse.json(
       { error: "Failed to create provider" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

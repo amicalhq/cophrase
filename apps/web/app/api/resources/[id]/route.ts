@@ -24,7 +24,7 @@ const validCategories = resourceCategoryEnum.enumValues as readonly string[]
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -39,7 +39,7 @@ export async function GET(
   if (!projectId || !orgId) {
     return NextResponse.json(
       { error: "projectId and orgId are required" },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -51,10 +51,7 @@ export async function GET(
   try {
     const resourceData = await getResourceById(id, projectId, orgId)
     if (!resourceData) {
-      return NextResponse.json(
-        { error: "Resource not found" },
-        { status: 404 },
-      )
+      return NextResponse.json({ error: "Resource not found" }, { status: 404 })
     }
 
     const response: Record<string, unknown> = { ...resourceData }
@@ -66,7 +63,7 @@ export async function GET(
 
     if (resourceData.type === "file" && resourceData.fileUrl) {
       response.presignedUrl = await generatePresignedGetUrl(
-        resourceData.fileUrl,
+        resourceData.fileUrl
       )
     }
 
@@ -75,14 +72,14 @@ export async function GET(
     console.error("Failed to fetch resource:", error)
     return NextResponse.json(
       { error: "Failed to fetch resource" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -95,10 +92,7 @@ export async function PATCH(
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
   const {
@@ -126,22 +120,19 @@ export async function PATCH(
   if (!projectId || !orgId) {
     return NextResponse.json(
       { error: "projectId and orgId are required" },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
   if (title !== undefined && title.trim().length > MAX_TITLE_LENGTH) {
     return NextResponse.json(
       { error: `Title must be ${MAX_TITLE_LENGTH} characters or less` },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
   if (category && !validCategories.includes(category)) {
-    return NextResponse.json(
-      { error: "Invalid category" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "Invalid category" }, { status: 400 })
   }
 
   const isMember = await isOrgMember(session.user.id, orgId)
@@ -151,10 +142,7 @@ export async function PATCH(
 
   const existing = await getResourceById(id, projectId, orgId)
   if (!existing) {
-    return NextResponse.json(
-      { error: "Resource not found" },
-      { status: 404 },
-    )
+    return NextResponse.json({ error: "Resource not found" }, { status: 404 })
   }
 
   try {
@@ -168,14 +156,11 @@ export async function PATCH(
         if (!["http:", "https:"].includes(url.protocol)) {
           return NextResponse.json(
             { error: "URL must be http or https" },
-            { status: 400 },
+            { status: 400 }
           )
         }
       } catch {
-        return NextResponse.json(
-          { error: "Invalid URL" },
-          { status: 400 },
-        )
+        return NextResponse.json({ error: "Invalid URL" }, { status: 400 })
       }
       updateData.linkUrl = linkUrl
     }
@@ -185,18 +170,16 @@ export async function PATCH(
 
     // Handle file replacement — generate new URL but keep old file until upload confirms
     if (existing.type === "file" && fileName && fileMimeType && fileSize) {
-      if (
-        !(ALLOWED_MIME_TYPES as readonly string[]).includes(fileMimeType)
-      ) {
+      if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(fileMimeType)) {
         return NextResponse.json(
           { error: "File type not allowed" },
-          { status: 400 },
+          { status: 400 }
         )
       }
       if (fileSize > MAX_FILE_SIZE) {
         return NextResponse.json(
           { error: "File size must be 10MB or less" },
-          { status: 400 },
+          { status: 400 }
         )
       }
 
@@ -208,7 +191,7 @@ export async function PATCH(
         projectId,
         id,
         fileName,
-        fileMimeType,
+        fileMimeType
       )
       updateData.fileUrl = key
       updateData.fileName = fileName
@@ -234,14 +217,14 @@ export async function PATCH(
     console.error("Failed to update resource:", error)
     return NextResponse.json(
       { error: "Failed to update resource" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -256,7 +239,7 @@ export async function DELETE(
   if (!projectId || !orgId) {
     return NextResponse.json(
       { error: "projectId and orgId are required" },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -268,10 +251,7 @@ export async function DELETE(
   try {
     const deleted = await deleteResource(id, projectId, orgId)
     if (!deleted) {
-      return NextResponse.json(
-        { error: "Resource not found" },
-        { status: 404 },
-      )
+      return NextResponse.json({ error: "Resource not found" }, { status: 404 })
     }
 
     // Delete S3 object for file resources
@@ -288,7 +268,7 @@ export async function DELETE(
     console.error("Failed to delete resource:", error)
     return NextResponse.json(
       { error: "Failed to delete resource" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

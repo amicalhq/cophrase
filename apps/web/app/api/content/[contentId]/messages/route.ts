@@ -7,7 +7,7 @@ import { isOrgMember } from "@/lib/data/projects"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ contentId: string }> },
+  { params }: { params: Promise<{ contentId: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -30,7 +30,10 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const { messages, nextCursor } = await getHarnessMessages(contentId, { cursor, limit })
+  const { messages, nextCursor } = await getHarnessMessages(contentId, {
+    cursor,
+    limit,
+  })
 
   return NextResponse.json({ messages, nextCursor })
 }

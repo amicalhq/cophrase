@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   if (!projectId) {
     return NextResponse.json(
       { error: "projectId is required" },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     console.error("Failed to fetch content:", error)
     return NextResponse.json(
       { error: "Failed to fetch content" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
@@ -57,10 +57,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
   const { projectId, orgId, title, contentTypeId } = body as {
@@ -73,19 +70,16 @@ export async function POST(request: NextRequest) {
   if (!projectId) {
     return NextResponse.json(
       { error: "projectId is required" },
-      { status: 400 },
+      { status: 400 }
     )
   }
   if (!orgId) {
-    return NextResponse.json(
-      { error: "orgId is required" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "orgId is required" }, { status: 400 })
   }
   if (!contentTypeId) {
     return NextResponse.json(
       { error: "contentTypeId is required" },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -93,7 +87,7 @@ export async function POST(request: NextRequest) {
   if (trimmedTitle.length > MAX_TITLE_LENGTH) {
     return NextResponse.json(
       { error: `Title must be ${MAX_TITLE_LENGTH} characters or less` },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -121,7 +115,7 @@ export async function POST(request: NextRequest) {
     console.error("Failed to create content:", error)
     return NextResponse.json(
       { error: "Failed to create content" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }

@@ -46,13 +46,13 @@ export async function POST(request: NextRequest) {
   if (name.trim().length > 255) {
     return NextResponse.json(
       { error: "name must be 255 characters or less" },
-      { status: 400 },
+      { status: 400 }
     )
   }
   if (description && description.length > 2000) {
     return NextResponse.json(
       { error: "description must be 2000 characters or less" },
-      { status: 400 },
+      { status: 400 }
     )
   }
   if (!orgId) {

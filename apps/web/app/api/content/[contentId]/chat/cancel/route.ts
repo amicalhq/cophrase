@@ -8,7 +8,7 @@ import { agentRun } from "@workspace/db/schema"
 
 export async function POST(
   _request: NextRequest,
-  { params }: { params: Promise<{ contentId: string }> },
+  { params }: { params: Promise<{ contentId: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -35,10 +35,7 @@ export async function POST(
     .update(agentRun)
     .set({ status: "cancelled" })
     .where(
-      and(
-        eq(agentRun.contentId, contentId),
-        eq(agentRun.status, "running"),
-      ),
+      and(eq(agentRun.contentId, contentId), eq(agentRun.status, "running"))
     )
     .returning({ id: agentRun.id })
 

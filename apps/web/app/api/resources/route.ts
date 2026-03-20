@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   if (!projectId || !orgId) {
     return NextResponse.json(
       { error: "projectId and orgId are required" },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
           return { ...r, presignedUrl }
         }
         return r
-      }),
+      })
     )
 
     return NextResponse.json(resourcesWithUrls)
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     console.error("Failed to fetch resources:", error)
     return NextResponse.json(
       { error: "Failed to fetch resources" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
@@ -94,10 +94,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
   const {
@@ -127,32 +124,26 @@ export async function POST(request: NextRequest) {
   if (!projectId || !orgId) {
     return NextResponse.json(
       { error: "projectId and orgId are required" },
-      { status: 400 },
+      { status: 400 }
     )
   }
   if (!title?.trim()) {
-    return NextResponse.json(
-      { error: "Title is required" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "Title is required" }, { status: 400 })
   }
   if (title.trim().length > MAX_TITLE_LENGTH) {
     return NextResponse.json(
       { error: `Title must be ${MAX_TITLE_LENGTH} characters or less` },
-      { status: 400 },
+      { status: 400 }
     )
   }
   if (!type || !validTypes.includes(type)) {
     return NextResponse.json(
       { error: "type must be 'text', 'link', or 'file'" },
-      { status: 400 },
+      { status: 400 }
     )
   }
   if (!category || !validCategories.includes(category)) {
-    return NextResponse.json(
-      { error: "Invalid category" },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: "Invalid category" }, { status: 400 })
   }
 
   // Type-specific validation
@@ -160,7 +151,7 @@ export async function POST(request: NextRequest) {
     if (!linkUrl) {
       return NextResponse.json(
         { error: "URL is required for link resources" },
-        { status: 400 },
+        { status: 400 }
       )
     }
     try {
@@ -168,41 +159,44 @@ export async function POST(request: NextRequest) {
       if (!["http:", "https:"].includes(url.protocol)) {
         return NextResponse.json(
           { error: "URL must be http or https" },
-          { status: 400 },
+          { status: 400 }
         )
       }
     } catch {
-      return NextResponse.json(
-        { error: "Invalid URL" },
-        { status: 400 },
-      )
+      return NextResponse.json({ error: "Invalid URL" }, { status: 400 })
     }
   }
 
   if (type === "text" && !content) {
     return NextResponse.json(
       { error: "Content is required for text resources" },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
   if (type === "file") {
     if (!fileName || !fileMimeType || !fileSize) {
       return NextResponse.json(
-        { error: "fileName, fileMimeType, and fileSize are required for file resources" },
-        { status: 400 },
+        {
+          error:
+            "fileName, fileMimeType, and fileSize are required for file resources",
+        },
+        { status: 400 }
       )
     }
     if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(fileMimeType)) {
       return NextResponse.json(
-        { error: "File type not allowed. Accepted: PNG, JPEG, SVG, WebP, GIF, PDF" },
-        { status: 400 },
+        {
+          error:
+            "File type not allowed. Accepted: PNG, JPEG, SVG, WebP, GIF, PDF",
+        },
+        { status: 400 }
       )
     }
     if (fileSize > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: "File size must be 10MB or less" },
-        { status: 400 },
+        { status: 400 }
       )
     }
   }
@@ -223,7 +217,7 @@ export async function POST(request: NextRequest) {
     if (currentUsage + fileSize > MAX_PROJECT_STORAGE) {
       return NextResponse.json(
         { error: "Project storage limit exceeded (500MB max)" },
-        { status: 400 },
+        { status: 400 }
       )
     }
   }
@@ -249,7 +243,7 @@ export async function POST(request: NextRequest) {
         projectId,
         created.id,
         fileName,
-        fileMimeType,
+        fileMimeType
       )
       // Update the resource with file metadata
       await updateResource(created.id, projectId, project.organizationId, {
@@ -270,7 +264,7 @@ export async function POST(request: NextRequest) {
     console.error("Failed to create resource:", error)
     return NextResponse.json(
       { error: "Failed to create resource" },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
