@@ -86,21 +86,53 @@ export function ResearchNotesView({ data }: { data: ResearchNotesData }) {
 interface BlogDraftData {
   content?: string
   markdown?: string
+  headline?: string
+  intro?: string
+  body?: Array<string | { heading?: string; content?: string }>
+  conclusion?: string
+  cta?: string
+  metaDescription?: string
   [key: string]: unknown
 }
 
 function BlogDraftView({ data }: { data: BlogDraftData }) {
-  const text = data.content ?? data.markdown ?? ""
-  if (!text) {
+  // Handle flat markdown/content string
+  const flat = data.markdown ?? data.content
+  if (flat) {
+    return (
+      <pre className="prose prose-sm max-w-none font-sans text-sm leading-relaxed whitespace-pre-wrap dark:prose-invert">
+        {flat}
+      </pre>
+    )
+  }
+
+  // Handle structured format (headline, intro, body sections, conclusion)
+  const hasSections = data.headline || data.intro || data.body || data.conclusion
+  if (!hasSections) {
     return (
       <p className="text-sm text-muted-foreground">No draft content found.</p>
     )
   }
 
   return (
-    <pre className="prose prose-sm max-w-none font-sans text-sm leading-relaxed whitespace-pre-wrap dark:prose-invert">
-      {text}
-    </pre>
+    <div className="prose prose-sm max-w-none dark:prose-invert">
+      {data.headline && <h1>{data.headline}</h1>}
+      {data.metaDescription && (
+        <p className="text-muted-foreground italic">{data.metaDescription}</p>
+      )}
+      {data.intro && <p>{data.intro}</p>}
+      {data.body?.map((section, i) => {
+        if (typeof section === "string") return <p key={i}>{section}</p>
+        return (
+          <div key={i}>
+            {section.heading && <h2>{section.heading}</h2>}
+            {section.content && <p>{section.content}</p>}
+          </div>
+        )
+      })}
+      {data.conclusion && <p>{data.conclusion}</p>}
+      {data.cta && <p className="font-medium">{data.cta}</p>}
+    </div>
   )
 }
 

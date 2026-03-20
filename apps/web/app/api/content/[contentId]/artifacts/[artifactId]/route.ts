@@ -27,7 +27,11 @@ export async function GET(
   }
 
   const artifact = await getArtifactById(artifactId)
-  if (!artifact || artifact.contentId !== contentId) {
+  if (
+    !artifact ||
+    artifact.contentId !== contentId ||
+    artifact.organizationId !== contentRow.organizationId
+  ) {
     return NextResponse.json({ error: "Artifact not found" }, { status: 404 })
   }
 

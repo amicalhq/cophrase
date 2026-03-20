@@ -57,7 +57,7 @@ export async function updateAgentRunStatus(
 export async function saveMessages(
   runId: string,
   messages: Array<{
-    id: string
+    id?: string
     role: MessageRole
     parts: unknown
     metadata?: unknown
@@ -66,7 +66,7 @@ export async function saveMessages(
   if (messages.length === 0) return
   await db.insert(agentMessage).values(
     messages.map((m) => ({
-      id: m.id,
+      ...(m.id ? { id: m.id } : {}),
       runId,
       role: m.role,
       parts: m.parts,

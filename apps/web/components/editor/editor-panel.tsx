@@ -11,6 +11,7 @@ import Link from "@tiptap/extension-link"
 import Highlight from "@tiptap/extension-highlight"
 import Typography from "@tiptap/extension-typography"
 import Image from "@tiptap/extension-image"
+import { Markdown } from "tiptap-markdown"
 import { ToolbarProvider } from "./toolbar-provider"
 import { EditorToolbar } from "./toolbars/editor-toolbar"
 import type { ArtifactData } from "./artifact-viewer"
@@ -42,6 +43,41 @@ const TEXT_ARTIFACT_TYPES = new Set([
   "final-blog",
 ])
 
+/**
+ * Extract displayable markdown from artifact data.
+ * Handles both flat { markdown } and structured { headline, intro, body, conclusion } formats.
+ */
+function extractMarkdown(data: unknown): string {
+  if (!data || typeof data !== "object") return ""
+  const d = data as Record<string, unknown>
+
+  // Flat format: single markdown or content string
+  if (typeof d.markdown === "string") return d.markdown
+  if (typeof d.content === "string") return d.content
+
+  // Structured format: assemble fields into markdown
+  const parts: string[] = []
+  if (typeof d.headline === "string") parts.push(`# ${d.headline}`)
+  if (typeof d.metaDescription === "string")
+    parts.push(`*${d.metaDescription}*`)
+  if (typeof d.intro === "string") parts.push(d.intro)
+  if (Array.isArray(d.body)) {
+    for (const section of d.body) {
+      if (typeof section === "string") {
+        parts.push(section)
+      } else if (section && typeof section === "object") {
+        const s = section as Record<string, unknown>
+        if (typeof s.heading === "string") parts.push(`## ${s.heading}`)
+        if (typeof s.content === "string") parts.push(s.content)
+      }
+    }
+  }
+  if (typeof d.conclusion === "string") parts.push(d.conclusion)
+  if (typeof d.cta === "string") parts.push(d.cta)
+
+  return parts.length > 0 ? parts.join("\n\n") : ""
+}
+
 export function EditorPanel({
   isChatOpen,
   onChatToggle,
@@ -70,6 +106,7 @@ export function EditorPanel({
       }),
       Typography,
       Image,
+      Markdown,
       SlashCommand,
     ],
     content: "",
@@ -85,8 +122,7 @@ export function EditorPanel({
   useEffect(() => {
     if (!editor) return
     if (artifact && TEXT_ARTIFACT_TYPES.has(artifact.type)) {
-      const data = artifact.data as { markdown?: string; content?: string }
-      const content = data.markdown ?? data.content ?? ""
+      const content = extractMarkdown(artifact.data)
       editor.commands.setContent(content)
     } else if (!artifact) {
       editor.commands.setContent("")

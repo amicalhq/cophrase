@@ -219,7 +219,7 @@ export async function runSubAgentStep(input: {
     organizationId: input.organizationId,
     projectId: input.projectId,
     contentId: input.contentId,
-    agentId: input.agentId,
+    agentId: subAgent.id,
     runId: input.runId,
   })
 
@@ -320,7 +320,11 @@ function buildSubAgentTools(
     }),
     execute: async ({ artifactId }: { artifactId: string }) => {
       const artifact = await getArtifactById(artifactId)
-      if (!artifact || artifact.organizationId !== ctx.organizationId) {
+      if (
+        !artifact ||
+        artifact.organizationId !== ctx.organizationId ||
+        (ctx.contentId && artifact.contentId !== ctx.contentId)
+      ) {
         return { error: "Artifact not found" }
       }
       return {
@@ -432,8 +436,7 @@ export async function persistRunCompletion(
 ) {
   "use step"
 
-  const newMsgs = resultMessages.map((m, i) => ({
-    id: `${runId}-msg-${i}`,
+  const newMsgs = resultMessages.map((m) => ({
     role: m.role as "user" | "assistant" | "system" | "tool",
     parts: JSON.stringify(m.content ?? null),
     metadata: undefined,
