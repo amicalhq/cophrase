@@ -86,18 +86,18 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByText("New content").first()).toBeVisible()
 
     await page.getByLabel("Title").fill("My First Blog Post")
-    // Blog is selected by default
+    // "Blog Post" is selected by default (first content type)
     await page.getByRole("button", { name: "Create" }).click()
 
     // Should see the new content in the table
     await expect(page.getByText("My First Blog Post")).toBeVisible({
       timeout: 5_000,
     })
-    await expect(page.getByText("Blog")).toBeVisible()
-    await expect(page.getByText("Idea")).toBeVisible()
+    await expect(page.getByText("Blog Post")).toBeVisible()
+    // New content is created without a stage (currentStageId is null)
   })
 
-  test("can create social post", async ({ page }) => {
+  test("can create X post", async ({ page }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
@@ -108,13 +108,13 @@ test.describe.serial("Content pieces", () => {
 
     await page.getByRole("button", { name: "New content" }).click()
     await page.getByLabel("Title").fill("Launch Announcement")
-    await page.getByText("Social Post").click()
+    await page.getByText("X Post").click()
     await page.getByRole("button", { name: "Create" }).click()
 
     await expect(page.getByText("Launch Announcement")).toBeVisible({
       timeout: 5_000,
     })
-    await expect(page.getByText("Social")).toBeVisible()
+    await expect(page.getByText("X Post")).toBeVisible()
   })
 
   test("can filter by type", async ({ page }) => {
@@ -130,15 +130,15 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByText("My First Blog Post")).toBeVisible()
     await expect(page.getByText("Launch Announcement")).toBeVisible()
 
-    // Filter by Blog type using ToggleGroup button
+    // Filter by Blog Post type using ToggleGroup button
     const toggleGroup = page.getByRole("group")
-    await toggleGroup.getByRole("button", { name: "Blog" }).click()
+    await toggleGroup.getByRole("button", { name: "Blog Post" }).click()
 
     await expect(page.getByText("My First Blog Post")).toBeVisible()
     await expect(page.getByText("Launch Announcement")).not.toBeVisible()
 
-    // Deselect Blog to show all again
-    await toggleGroup.getByRole("button", { name: "Blog" }).click()
+    // Deselect Blog Post to show all again
+    await toggleGroup.getByRole("button", { name: "Blog Post" }).click()
     await expect(page.getByText("Launch Announcement")).toBeVisible()
   })
 
@@ -157,7 +157,7 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByText("My First Blog Post")).not.toBeVisible()
   })
 
-  test("can filter by stage", async ({ page }) => {
+  test("stage filter shows only All stages when content has no stages", async ({ page }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
@@ -170,25 +170,8 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByText("My First Blog Post")).toBeVisible()
     await expect(page.getByText("Launch Announcement")).toBeVisible()
 
-    // Filter by Idea stage (both items are in "idea" stage)
-    await page.getByRole("combobox").click()
-    await page.getByRole("option", { name: "Idea" }).click()
-
-    await expect(page.getByText("My First Blog Post")).toBeVisible()
-    await expect(page.getByText("Launch Announcement")).toBeVisible()
-
-    // Filter by Draft stage (no items in "draft" stage)
-    await page.getByRole("combobox").click()
-    await page.getByRole("option", { name: "Draft" }).click()
-
-    await expect(page.getByText("No content yet")).toBeVisible()
-
-    // Reset to All stages
-    await page.getByRole("combobox").click()
-    await page.getByRole("option", { name: "All stages" }).click()
-
-    await expect(page.getByText("My First Blog Post")).toBeVisible()
-    await expect(page.getByText("Launch Announcement")).toBeVisible()
+    // The stage select should show "All stages" by default
+    await expect(page.getByRole("combobox")).toContainText("All stages")
   })
 
   test("creates content with Untitled fallback when title is empty", async ({ page }) => {

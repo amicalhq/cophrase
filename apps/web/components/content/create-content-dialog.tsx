@@ -16,26 +16,27 @@ import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { cn } from "@workspace/ui/lib/utils"
 
-const typeOptions: {
-  value: string
-  label: string
-  description: string
-}[] = [
-  { value: "blog", label: "Blog", description: "Long-form article" },
-  { value: "social", label: "Social Post", description: "Short-form post" },
-]
+interface ContentTypeOption {
+  id: string
+  name: string
+  description: string | null
+}
 
 export function CreateContentDialog({
   orgId,
   projectId,
+  contentTypes,
 }: {
   orgId: string
   projectId: string
+  contentTypes: ContentTypeOption[]
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
-  const [contentTypeId, setContentTypeId] = useState<string>("blog")
+  const [contentTypeId, setContentTypeId] = useState<string>(
+    contentTypes[0]?.id ?? "",
+  )
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -71,7 +72,7 @@ export function CreateContentDialog({
       setLoading(false)
       setOpen(false)
       setTitle("")
-      setContentTypeId("blog")
+      setContentTypeId(contentTypes[0]?.id ?? "")
       router.refresh()
     } catch (error) {
       console.error("Failed to create content:", error)
@@ -113,22 +114,24 @@ export function CreateContentDialog({
             <div className="flex flex-col gap-2">
               <Label>Type</Label>
               <div className="flex gap-3">
-                {typeOptions.map((opt) => (
+                {contentTypes.map((ct) => (
                   <button
-                    key={opt.value}
+                    key={ct.id}
                     type="button"
-                    onClick={() => setContentTypeId(opt.value)}
+                    onClick={() => setContentTypeId(ct.id)}
                     className={cn(
                       "flex-1 rounded-lg border-2 p-4 text-center transition-colors",
-                      contentTypeId === opt.value
+                      contentTypeId === ct.id
                         ? "border-foreground bg-accent"
                         : "border-border hover:border-muted-foreground",
                     )}
                   >
-                    <p className="text-sm font-medium">{opt.label}</p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      {opt.description}
-                    </p>
+                    <p className="text-sm font-medium">{ct.name}</p>
+                    {ct.description && (
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {ct.description}
+                      </p>
+                    )}
                   </button>
                 ))}
               </div>

@@ -38,22 +38,19 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowUp01Icon, ArrowDown01Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons"
 import { columns, type ContentRow } from "./columns"
 
+interface ContentTypeOption {
+  id: string
+  name: string
+}
+
 interface ContentTableProps {
   data: ContentRow[]
   orgId: string
   projectId: string
+  contentTypes: ContentTypeOption[]
 }
 
-const stageOptions = [
-  { label: "All stages", value: "all" },
-  { label: "Idea", value: "idea" },
-  { label: "Draft", value: "draft" },
-  { label: "Review", value: "review" },
-  { label: "Ready", value: "ready" },
-  { label: "Published", value: "published" },
-]
-
-export function ContentTable({ data, orgId, projectId }: ContentTableProps) {
+export function ContentTable({ data, orgId, projectId, contentTypes }: ContentTableProps) {
   const router = useRouter()
   const [sorting, setSorting] = useState<SortingState>([
     { id: "updatedAt", desc: true },
@@ -69,14 +66,30 @@ export function ContentTable({ data, orgId, projectId }: ContentTableProps) {
 
   const selectedTypes = typeFilter ? typeFilter.split(",") : []
 
+  // Derive unique stage names from data
+  const stageOptions = useMemo(() => {
+    const uniqueStages = new Set<string>()
+    for (const row of data) {
+      if (row.currentStageName) {
+        uniqueStages.add(row.currentStageName)
+      }
+    }
+    return [
+      { label: "All stages", value: "all" },
+      ...Array.from(uniqueStages)
+        .sort()
+        .map((name) => ({ label: name, value: name })),
+    ]
+  }, [data])
+
   const columnFilters = useMemo<ColumnFiltersState>(() => {
     const types = typeFilter ? typeFilter.split(",") : []
     const filters: ColumnFiltersState = []
     if (types.length > 0) {
-      filters.push({ id: "type", value: types })
+      filters.push({ id: "contentTypeName", value: types })
     }
     if (stageFilter !== "all") {
-      filters.push({ id: "stage", value: [stageFilter] })
+      filters.push({ id: "currentStageName", value: [stageFilter] })
     }
     return filters
   }, [typeFilter, stageFilter])
@@ -127,8 +140,11 @@ export function ContentTable({ data, orgId, projectId }: ContentTableProps) {
           value={selectedTypes}
           onValueChange={handleTypeChange}
         >
-          <ToggleGroupItem value="blog">Blog</ToggleGroupItem>
-          <ToggleGroupItem value="social">Social</ToggleGroupItem>
+          {contentTypes.map((ct) => (
+            <ToggleGroupItem key={ct.id} value={ct.name}>
+              {ct.name}
+            </ToggleGroupItem>
+          ))}
         </ToggleGroup>
         <Select value={stageFilter} onValueChange={handleStageChange}>
           <SelectTrigger className="w-40">
