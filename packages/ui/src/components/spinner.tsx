@@ -2,9 +2,20 @@ import { cn } from "@workspace/ui/lib/utils"
 import { HugeiconsIcon, type HugeiconsIconProps } from "@hugeicons/react"
 import { Loading03Icon } from "@hugeicons/core-free-icons"
 
-function Spinner({ className, strokeWidth, ...props }: Omit<HugeiconsIconProps, "icon">) {
+function Spinner({
+  className,
+  strokeWidth,
+  ...props
+}: Omit<HugeiconsIconProps, "icon">) {
   return (
-    <HugeiconsIcon icon={Loading03Icon} strokeWidth={strokeWidth ?? 2} role="status" aria-label="Loading" className={cn("size-4 animate-spin", className)} {...props} />
+    <HugeiconsIcon
+      icon={Loading03Icon}
+      strokeWidth={strokeWidth ?? 2}
+      role="status"
+      aria-label="Loading"
+      className={cn("size-4 animate-spin", className)}
+      {...props}
+    />
   )
 }
 
