@@ -1,19 +1,28 @@
 import { generateText, stepCountIs } from "ai"
 import { tool } from "ai"
 import { z } from "zod"
-import { getHarnessMessages, saveHarnessMessages } from "@workspace/db/queries/harness-messages"
-import { searchArtifacts, getArtifactById, getNextArtifactVersion, createArtifact } from "@workspace/db/queries/artifacts"
+import {
+  getHarnessMessages,
+  saveHarnessMessages,
+} from "@workspace/db/queries/harness-messages"
+import {
+  searchArtifacts,
+  getArtifactById,
+  getNextArtifactVersion,
+  createArtifact,
+} from "@workspace/db/queries/artifacts"
 import { getContentByIdOnly } from "@workspace/db/queries/content"
-import { updateAgentRunStatus, saveMessages } from "@workspace/db/queries/agent-runs"
-import { updateContentStage } from "@workspace/db/queries/content"
+import {
+  updateAgentRunStatus,
+  saveMessages,
+} from "@workspace/db/queries/agent-runs"
 import { resolveModel } from "../agents/resolve-model"
 import {
-  handleRunAgent,
+  handleRunStage,
   handleGetContentStatus,
   handleSearchArtifacts,
 } from "./tool-handlers"
-import { getBuiltInAgent } from "../agents/built-in/registry"
-import type { ContentContext, ArtifactSummary } from "./types"
+import type { ContentContext, ArtifactSummary, DynamicHarnessConfig } from "./types"
 import type { ArtifactStatus } from "@workspace/db"
 import type { CompatibleLanguageModel } from "@workflow/ai/agent"
 
@@ -21,10 +30,7 @@ import type { CompatibleLanguageModel } from "@workflow/ai/agent"
 // Load conversation history
 // ---------------------------------------------------------------------------
 
-export async function loadConversationStep(
-  contentId: string,
-  limit: number,
-) {
+export async function loadConversationStep(contentId: string, limit: number) {
   "use step"
 
   const { messages } = await getHarnessMessages(contentId, { limit })
@@ -36,7 +42,18 @@ export async function loadConversationStep(
 // Build dynamic system context
 // ---------------------------------------------------------------------------
 
-export async function buildContextStep(ctx: ContentContext) {
+export async function loadHarnessConfigStep(contentTypeId: string) {
+  "use step"
+  const { getHarnessConfig } = await import(
+    "@workspace/db/queries/content-types"
+  )
+  return getHarnessConfig(contentTypeId)
+}
+
+export async function buildContextStep(
+  ctx: ContentContext,
+  config: DynamicHarnessConfig,
+) {
   "use step"
 
   const contentRow = await getContentByIdOnly(ctx.contentId)
@@ -45,17 +62,59 @@ export async function buildContextStep(ctx: ContentContext) {
     contentId: ctx.contentId,
   })
 
-  const artifactSummary = artifacts.length > 0
-    ? artifacts
-        .map((a) => `- ${a.type} v${a.version}: "${a.title}" (${a.status})`)
-        .join("\n")
-    : "No artifacts yet."
+  // Determine stage completion: check for completed agent runs per sub-agent
+  const { getCompletedRunsByAgentIds } = await import(
+    "@workspace/db/queries/agent-runs"
+  )
+  const allSubAgentIds = config.stages.flatMap((s) =>
+    s.subAgents.map((sa) => sa.agentId),
+  )
+  const completedRuns =
+    allSubAgentIds.length > 0
+      ? await getCompletedRunsByAgentIds(allSubAgentIds, ctx.contentId)
+      : new Set<string>()
+
+  const currentStageId = contentRow?.currentStageId ?? null
+
+  // Build pipeline view
+  const pipelineLines = config.stages.map((s) => {
+    const allDone =
+      s.subAgents.length > 0 &&
+      s.subAgents.every((sa) => completedRuns.has(sa.agentId))
+    const isCurrent = s.id === currentStageId
+    const status = allDone ? "completed" : isCurrent ? "current" : "pending"
+    const subAgentNames = s.subAgents.map((sa) => sa.name).join(", ")
+    return `  ${s.position}. ${s.name} [${status}]${s.optional ? " (optional)" : ""} — Sub-agents: ${subAgentNames || "none"}`
+  })
+
+  const currentStage = config.stages.find((s) => s.id === currentStageId)
+
+  const artifactSummary =
+    artifacts.length > 0
+      ? artifacts
+          .map((a) => `- ${a.type} v${a.version}: "${a.title}" (${a.status})`)
+          .join("\n")
+      : "No artifacts yet."
 
   return `
 Current content: "${contentRow?.title ?? ctx.contentTitle}"
-Stage: ${contentRow?.currentStageId ?? ctx.contentStage}
+Content type: ${config.contentTypeName}
+
+Pipeline:
+${pipelineLines.join("\n")}
+
+Current stage: ${currentStage ? `${currentStage.position}/${config.stages.length} (${currentStage.name})` : "Not started"}
+
 Artifacts:
-${artifactSummary}`
+${artifactSummary}
+
+Available stages you can run:
+${config.stages
+  .map(
+    (s) =>
+      `- run-stage(stageId: "${s.id}") → ${s.name} (${s.subAgents.map((sa) => sa.name).join(", ") || "no sub-agents"})`,
+  )
+  .join("\n")}`
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +122,7 @@ ${artifactSummary}`
 // ---------------------------------------------------------------------------
 
 export function createHarnessModelStepFn(
-  organizationId: string,
+  organizationId: string
 ): () => Promise<CompatibleLanguageModel> {
   return async () => {
     "use step"
@@ -83,7 +142,7 @@ export async function persistHarnessMessages(
     role: "user" | "assistant" | "system" | "tool"
     parts: unknown
     metadata?: unknown
-  }>,
+  }>
 ) {
   "use step"
   if (messages.length === 0) return
@@ -115,13 +174,28 @@ export async function runSubAgentInline(input: {
   tools["save-artifact"] = tool({
     description: "Save an artifact to the database.",
     inputSchema: z.object({
-      type: z.string().describe('Artifact type, e.g. "research-notes", "blog-draft"'),
+      type: z
+        .string()
+        .describe('Artifact type, e.g. "research-notes", "blog-draft"'),
       title: z.string().describe("A short title for the artifact"),
-      data: z.record(z.string(), z.unknown()).describe("The artifact payload as a JSON object."),
-      parentIds: z.array(z.string()).optional().describe("IDs of parent artifacts"),
+      data: z
+        .record(z.string(), z.unknown())
+        .describe("The artifact payload as a JSON object."),
+      parentIds: z
+        .array(z.string())
+        .optional()
+        .describe("IDs of parent artifacts"),
     }),
-    execute: async ({ type, title, data, parentIds }: {
-      type: string; title: string; data: Record<string, unknown>; parentIds?: string[]
+    execute: async ({
+      type,
+      title,
+      data,
+      parentIds,
+    }: {
+      type: string
+      title: string
+      data: Record<string, unknown>
+      parentIds?: string[]
     }) => {
       const version = await getNextArtifactVersion(input.contentId, type)
       const artifact = await createArtifact({
@@ -136,10 +210,11 @@ export async function runSubAgentInline(input: {
         version,
         parentIds,
       })
-      if (type === "blog-draft" && input.contentId) {
-        await updateContentStage(input.contentId, "draft", input.organizationId)
+      return {
+        artifactId: artifact.id,
+        type: artifact.type,
+        version: artifact.version,
       }
-      return { artifactId: artifact.id, type: artifact.type, version: artifact.version }
     },
   })
 
@@ -150,7 +225,11 @@ export async function runSubAgentInline(input: {
     }),
     execute: async ({ artifactId }: { artifactId: string }) => {
       const artifact = await getArtifactById(artifactId)
-      if (!artifact || artifact.organizationId !== input.organizationId || artifact.contentId !== input.contentId) {
+      if (
+        !artifact ||
+        artifact.organizationId !== input.organizationId ||
+        artifact.contentId !== input.contentId
+      ) {
         return { error: "Artifact not found" }
       }
       return {
@@ -170,9 +249,7 @@ export async function runSubAgentInline(input: {
       type: z.string().optional(),
       status: z.enum(["pending", "ready", "approved", "rejected"]).optional(),
     }),
-    execute: async ({ type, status }: {
-      type?: string; status?: string
-    }) => {
+    execute: async ({ type, status }: { type?: string; status?: string }) => {
       const results = await searchArtifacts({
         organizationId: input.organizationId,
         contentId: input.contentId,
@@ -192,21 +269,40 @@ export async function runSubAgentInline(input: {
           query: z.string().describe("The search query"),
           numResults: z.number().min(1).max(10).optional(),
         }),
-        execute: async ({ query, numResults = 5 }: { query: string; numResults?: number }) => {
+        execute: async ({
+          query,
+          numResults = 5,
+        }: {
+          query: string
+          numResults?: number
+        }) => {
           const apiKey = process.env.EXA_API_KEY
           if (!apiKey) throw new Error("EXA_API_KEY is not configured")
           const response = await fetch("https://api.exa.ai/search", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-            body: JSON.stringify({ query, numResults, type: "auto", contents: { text: { maxCharacters: 2000 } } }),
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": apiKey,
+            },
+            body: JSON.stringify({
+              query,
+              numResults,
+              type: "auto",
+              contents: { text: { maxCharacters: 2000 } },
+            }),
           })
-          if (!response.ok) throw new Error(`Exa API error: ${response.status} ${response.statusText}`)
+          if (!response.ok)
+            throw new Error(
+              `Exa API error: ${response.status} ${response.statusText}`
+            )
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const data: any = await response.json()
           return {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             results: (data.results ?? []).map((r: any) => ({
-              title: r.title, url: r.url, snippet: r.text?.slice(0, 500),
+              title: r.title,
+              url: r.url,
+              snippet: r.text?.slice(0, 500),
             })),
           }
         },
@@ -217,7 +313,12 @@ export async function runSubAgentInline(input: {
   const result = await generateText({
     model,
     system: input.agentPrompt,
-    messages: [{ role: "user", content: "Execute the task as instructed in your system prompt." }],
+    messages: [
+      {
+        role: "user",
+        content: "Execute the task as instructed in your system prompt.",
+      },
+    ],
     tools,
     stopWhen: stepCountIs(15),
   })
@@ -238,7 +339,9 @@ export async function runSubAgentInline(input: {
   if (newMsgs.length > 0) {
     await saveMessages(input.runId, newMsgs)
   }
-  await updateAgentRunStatus(input.runId, "completed", { completedAt: new Date() })
+  await updateAgentRunStatus(input.runId, "completed", {
+    completedAt: new Date(),
+  })
 
   return {
     artifacts: createdArtifacts.map((a) => ({
@@ -256,21 +359,24 @@ export async function runSubAgentInline(input: {
 // (DB access must happen inside step functions, not in the workflow bundle)
 // ---------------------------------------------------------------------------
 
-export async function runAgentStep(input: {
-  agentId: string
-  instructions: string
+export async function runStageStep(input: {
+  stageId: string
+  config: DynamicHarnessConfig
   organizationId: string
   projectId: string
   contentId: string
   createdBy: string
 }) {
   "use step"
-  return handleRunAgent(input)
+  return handleRunStage(input)
 }
 
-export async function getContentStatusStep(ctx: ContentContext) {
+export async function getContentStatusStep(
+  ctx: ContentContext,
+  config: DynamicHarnessConfig,
+) {
   "use step"
-  return handleGetContentStatus(ctx)
+  return handleGetContentStatus(ctx, config)
 }
 
 export async function searchArtifactsStep(input: {
@@ -281,14 +387,4 @@ export async function searchArtifactsStep(input: {
 }) {
   "use step"
   return handleSearchArtifacts(input)
-}
-
-export async function getAgentDescriptionsStep(agentIds: string[]) {
-  "use step"
-  return agentIds
-    .map((id) => {
-      const agent = getBuiltInAgent(id)
-      return agent ? `- ${id}: ${agent.description}` : `- ${id}`
-    })
-    .join("\n")
 }

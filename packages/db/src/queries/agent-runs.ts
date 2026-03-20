@@ -1,4 +1,4 @@
-import { eq, asc, desc } from "drizzle-orm"
+import { eq, asc, desc, and, inArray } from "drizzle-orm"
 import { db } from "../index"
 import { agentRun, agentMessage } from "../schema/agent-runs"
 import type { RunStatus, ExecutionMode, MessageRole } from "../schema/enums"
@@ -91,4 +91,27 @@ export async function getExistingMessageIds(
     .from(agentMessage)
     .where(eq(agentMessage.runId, runId))
   return new Set(rows.map((r) => r.id))
+}
+
+/**
+ * Returns a Set of agentIds that have at least one completed run
+ * for the given contentId.
+ */
+export async function getCompletedRunsByAgentIds(
+  agentIds: string[],
+  contentId: string,
+): Promise<Set<string>> {
+  if (agentIds.length === 0) return new Set()
+  const rows = await db
+    .select({ agentId: agentRun.agentId })
+    .from(agentRun)
+    .where(
+      and(
+        inArray(agentRun.agentId, agentIds),
+        eq(agentRun.contentId, contentId),
+        eq(agentRun.status, "completed"),
+      ),
+    )
+    .groupBy(agentRun.agentId)
+  return new Set(rows.map((r) => r.agentId))
 }
