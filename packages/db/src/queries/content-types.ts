@@ -184,6 +184,7 @@ export async function getHarnessConfig(contentTypeId: string) {
   // 4. Load tools for all sub-agent agent IDs
   const subAgentAgentIds = allSubAgents.map((sa) => sa.agentId)
   let allTools: Array<{
+    id: string
     agentId: string
     type: string
     referenceId: string
@@ -194,6 +195,7 @@ export async function getHarnessConfig(contentTypeId: string) {
   if (subAgentAgentIds.length > 0) {
     allTools = await db
       .select({
+        id: agentTool.id,
         agentId: agentTool.agentId,
         type: agentTool.type,
         referenceId: agentTool.referenceId,
@@ -243,6 +245,7 @@ export async function getHarnessConfig(contentTypeId: string) {
         modelId: sa.agentModelId,
         executionOrder: sa.executionOrder,
         tools: (toolsByAgent.get(sa.agentId) ?? []).map((t) => ({
+          id: t.id,
           type: t.type,
           referenceId: t.referenceId,
           required: t.required,

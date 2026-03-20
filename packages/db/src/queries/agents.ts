@@ -50,3 +50,29 @@ export async function addAgentTool(input: {
   if (!result) throw new Error("Failed to insert agent tool row")
   return result
 }
+
+export async function updateAgent(
+  id: string,
+  fields: {
+    prompt?: string
+    modelId?: string | null
+    name?: string
+    description?: string
+  },
+) {
+  // updatedAt is handled automatically by schema $onUpdate
+  const [updated] = await db
+    .update(agent)
+    .set(fields)
+    .where(eq(agent.id, id))
+    .returning()
+  return updated ?? null
+}
+
+export async function removeAgentTool(toolId: string) {
+  const [deleted] = await db
+    .delete(agentTool)
+    .where(eq(agentTool.id, toolId))
+    .returning()
+  return deleted ?? null
+}
