@@ -5,10 +5,29 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@workspace/ui/components/button"
 import { StageList } from "./stage-list"
+import { AgentPromptEditor } from "./agent-prompt-editor"
+import { AgentModelPicker } from "./agent-model-picker"
+
+interface ModelOption {
+  id: string
+  name: string
+  provider: string
+}
+
+interface AgentTool {
+  id: string
+  type: string
+  referenceId: string
+  required: boolean
+}
 
 interface SubAgent {
+  agentId: string
   agentName: string
   agentDescription: string | null
+  prompt: string
+  modelId: string | null
+  tools: AgentTool[]
 }
 
 interface Stage {
@@ -18,22 +37,31 @@ interface Stage {
   subAgents: SubAgent[]
 }
 
+interface ContentAgent {
+  id: string
+  prompt: string
+  modelId: string | null
+}
+
 interface ContentTypeDetailProps {
   contentType: {
     id: string
     name: string
     description: string
     format: string
+    contentAgent?: ContentAgent
     stages: Stage[]
   }
   orgId: string
   projectId: string
+  models: ModelOption[]
 }
 
 export function ContentTypeDetail({
   contentType,
   orgId,
   projectId,
+  models,
 }: ContentTypeDetailProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
@@ -92,9 +120,27 @@ export function ContentTypeDetail({
         </span>
       </div>
 
+      {contentType.contentAgent && (
+        <div className="mb-8 rounded-lg border p-4">
+          <h2 className="mb-4 text-lg font-medium">Content Agent</h2>
+          <div className="flex flex-col gap-4">
+            <AgentPromptEditor
+              agentId={contentType.contentAgent.id}
+              label="Orchestration prompt"
+              initialPrompt={contentType.contentAgent.prompt}
+            />
+            <AgentModelPicker
+              agentId={contentType.contentAgent.id}
+              currentModelId={contentType.contentAgent.modelId}
+              models={models}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="mb-8">
         <h2 className="mb-4 text-lg font-medium">Pipeline Stages</h2>
-        <StageList stages={contentType.stages} />
+        <StageList stages={contentType.stages} models={models} />
       </div>
 
       <div className="rounded-lg border border-destructive/20 p-4">

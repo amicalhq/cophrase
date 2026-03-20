@@ -1,8 +1,35 @@
 "use client"
 
+import { useState } from "react"
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@workspace/ui/components/collapsible"
+import { AgentPromptEditor } from "./agent-prompt-editor"
+import { AgentModelPicker } from "./agent-model-picker"
+import { AgentToolsEditor } from "./agent-tools-editor"
+
+interface ModelOption {
+  id: string
+  name: string
+  provider: string
+}
+
+interface AgentTool {
+  id: string
+  type: string
+  referenceId: string
+  required: boolean
+}
+
 interface SubAgent {
+  agentId: string
   agentName: string
   agentDescription: string | null
+  prompt: string
+  modelId: string | null
+  tools: AgentTool[]
 }
 
 interface Stage {
@@ -14,9 +41,57 @@ interface Stage {
 
 interface StageListProps {
   stages: Stage[]
+  models: ModelOption[]
 }
 
-export function StageList({ stages }: StageListProps) {
+function SubAgentItem({
+  subAgent,
+  models,
+}: {
+  subAgent: SubAgent
+  models: ModelOption[]
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex w-full items-start gap-1 text-left">
+        <span className="mt-0.5 text-xs text-muted-foreground">
+          {open ? "▾" : "▸"}
+        </span>
+        <span className="text-xs">
+          <span className="font-medium">{subAgent.agentName}</span>
+          {subAgent.agentDescription && (
+            <span className="text-muted-foreground">
+              {" \u2014 "}
+              {subAgent.agentDescription}
+            </span>
+          )}
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-3 flex flex-col gap-4 rounded-lg border p-4">
+          <AgentPromptEditor
+            agentId={subAgent.agentId}
+            label="Prompt"
+            initialPrompt={subAgent.prompt}
+          />
+          <AgentModelPicker
+            agentId={subAgent.agentId}
+            currentModelId={subAgent.modelId}
+            models={models}
+          />
+          <AgentToolsEditor
+            agentId={subAgent.agentId}
+            initialTools={subAgent.tools}
+          />
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+export function StageList({ stages, models }: StageListProps) {
   const sortedStages = [...stages].sort((a, b) => a.position - b.position)
 
   if (sortedStages.length === 0) {
@@ -43,16 +118,10 @@ export function StageList({ stages }: StageListProps) {
             )}
           </div>
           {stage.subAgents.length > 0 && (
-            <ul className="mt-2 ml-8 flex flex-col gap-1">
+            <ul className="mt-2 ml-8 flex flex-col gap-2">
               {stage.subAgents.map((sa) => (
-                <li key={sa.agentName} className="text-xs">
-                  <span className="font-medium">{sa.agentName}</span>
-                  {sa.agentDescription && (
-                    <span className="text-muted-foreground">
-                      {" \u2014 "}
-                      {sa.agentDescription}
-                    </span>
-                  )}
+                <li key={sa.agentId}>
+                  <SubAgentItem subAgent={sa} models={models} />
                 </li>
               ))}
             </ul>
