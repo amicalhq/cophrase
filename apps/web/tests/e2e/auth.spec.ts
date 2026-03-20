@@ -10,9 +10,7 @@ test.describe("Unauthenticated user", () => {
     await expect(page.locator("[data-slot='card-title']")).toHaveText("Sign in")
     await expect(page.getByLabel("Email")).toBeVisible()
     await expect(page.getByLabel("Password")).toBeVisible()
-    await expect(
-      page.getByRole("button", { name: "Sign in" })
-    ).toBeVisible()
+    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible()
     await expect(page.getByRole("link", { name: "Sign up" })).toBeVisible()
   })
 

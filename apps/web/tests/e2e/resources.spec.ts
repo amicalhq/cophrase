@@ -56,9 +56,7 @@ test.describe.serial("Resources", () => {
     projectId = projMatch![1]!
   })
 
-  test("resources tab is visible in project navigation", async ({
-    page,
-  }) => {
+  test("resources tab is visible in project navigation", async ({ page }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
@@ -67,9 +65,7 @@ test.describe.serial("Resources", () => {
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
-    await expect(
-      page.getByRole("link", { name: "Resources" }),
-    ).toBeVisible()
+    await expect(page.getByRole("link", { name: "Resources" })).toBeVisible()
   })
 
   test("resources page shows empty state", async ({ page }) => {
@@ -100,7 +96,9 @@ test.describe.serial("Resources", () => {
     await page.getByRole("option", { name: "Brand Voice" }).click()
     await page.getByRole("button", { name: "Text" }).click()
     await page.getByLabel("Title").fill("Tone Guidelines")
-    await page.locator(".ProseMirror").fill("Our brand speaks with warmth and clarity.")
+    await page
+      .locator(".ProseMirror")
+      .fill("Our brand speaks with warmth and clarity.")
 
     await page.getByRole("button", { name: "Create" }).click()
 
@@ -109,7 +107,9 @@ test.describe.serial("Resources", () => {
       timeout: 5_000,
     })
     await expect(
-      page.locator("[data-testid='resource-card']").filter({ hasText: "Brand Voice" }),
+      page
+        .locator("[data-testid='resource-card']")
+        .filter({ hasText: "Brand Voice" })
     ).toBeVisible()
   })
 
@@ -135,7 +135,9 @@ test.describe.serial("Resources", () => {
       timeout: 5_000,
     })
     await expect(
-      page.locator("[data-testid='resource-card']").filter({ hasText: "Website" }),
+      page
+        .locator("[data-testid='resource-card']")
+        .filter({ hasText: "Website" })
     ).toBeVisible()
   })
 

@@ -85,7 +85,9 @@ test.describe.serial("AI Models page", () => {
     await page.keyboard.press("Escape")
   })
 
-  test("add provider: Next is blocked by failed connection test", async ({ page }) => {
+  test("add provider: Next is blocked by failed connection test", async ({
+    page,
+  }) => {
     await signIn(page, testUser.email, testUser.password)
     await page.goto(`/orgs/${orgId}/models`)
 
@@ -124,9 +126,7 @@ test.describe.serial("AI Models page", () => {
         name: "Test OpenAI",
         providerType: "openai",
         apiKey: "sk-test-12345",
-        models: [
-          { modelId: "gpt-4o", modelType: "language" },
-        ],
+        models: [{ modelId: "gpt-4o", modelType: "language" }],
       },
     })
     expect(res.ok()).toBeTruthy()
@@ -142,9 +142,9 @@ test.describe.serial("AI Models page", () => {
     await page.goto(`/orgs/${orgId}/models`)
 
     // The API-created provider has 1 model (gpt-4o)
-    await expect(
-      page.getByText(/\d+ model\(s\)/)
-    ).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(/\d+ model\(s\)/)).toBeVisible({
+      timeout: 10_000,
+    })
   })
 
   test("edit provider", async ({ page }) => {
