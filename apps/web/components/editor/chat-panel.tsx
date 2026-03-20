@@ -26,6 +26,11 @@ import {
 import {
   PromptInput,
   PromptInputFooter,
+  PromptInputSelect,
+  PromptInputSelectContent,
+  PromptInputSelectItem,
+  PromptInputSelectTrigger,
+  PromptInputSelectValue,
   PromptInputSubmit,
   PromptInputTextarea,
   type PromptInputMessage,
@@ -291,7 +296,7 @@ function useHarnessChat(contentId: string) {
 
   // Send message
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, modelId?: string) => {
       if (!text.trim() || status === "streaming") return
 
       const userMsg: HarnessMessage = {
@@ -312,7 +317,7 @@ function useHarnessChat(contentId: string) {
         const res = await fetch(`/api/content/${contentId}/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify({ message: text, modelId }),
           signal: controller.signal,
         })
 
@@ -613,12 +618,20 @@ function ArtifactsList({
 // ChatPanel component
 // ---------------------------------------------------------------------------
 
+export interface ChatModelOption {
+  id: string
+  modelId: string
+  providerType: string
+  isDefault: boolean
+}
+
 interface ChatPanelProps {
   contentId: string
   onArtifactClick?: (artifactId: string) => void
   artifacts: ArtifactData[]
   groupedArtifacts: Record<string, ArtifactData[]>
   selectedArtifactId: string | null
+  languageModels: ChatModelOption[]
 }
 
 export function ChatPanel({
@@ -627,10 +640,20 @@ export function ChatPanel({
   artifacts,
   groupedArtifacts,
   selectedArtifactId,
+  languageModels,
 }: ChatPanelProps) {
   const router = useRouter()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [activeTab, setActiveTab] = useState("agent")
+  const defaultModelId = languageModels.find((m) => m.isDefault)?.id ?? languageModels[0]?.id ?? ""
+  const [selectedModelId, setSelectedModelId] = useState<string>(defaultModelId)
+
+  // Re-sync selection if models list changes (model added/deleted)
+  useEffect(() => {
+    if (languageModels.length > 0 && !languageModels.some((m) => m.id === selectedModelId)) {
+      setSelectedModelId(defaultModelId)
+    }
+  }, [languageModels, selectedModelId, defaultModelId])
 
   const {
     messages,
@@ -647,9 +670,9 @@ export function ChatPanel({
 
   const handlePromptSubmit = useCallback(
     ({ text }: PromptInputMessage) => {
-      sendMessage(text)
+      sendMessage(text, selectedModelId || undefined)
     },
-    [sendMessage]
+    [sendMessage, selectedModelId]
   )
 
   // Infinite scroll
@@ -815,7 +838,7 @@ export function ChatPanel({
                   key={s.label}
                   suggestion={s.prompt}
                   variant={s.primary ? "default" : "outline"}
-                  onClick={(prompt) => sendMessage(prompt)}
+                  onClick={(prompt) => sendMessage(prompt, selectedModelId || undefined)}
                 >
                   {s.label}
                 </Suggestion>
@@ -829,9 +852,25 @@ export function ChatPanel({
           <PromptInput onSubmit={handlePromptSubmit}>
             <PromptInputTextarea placeholder="Ask the AI agent..." />
             <PromptInputFooter>
-              <span className="text-xs text-muted-foreground">
-                Content Assistant
-              </span>
+              {languageModels.length > 0 ? (
+                <PromptInputSelect
+                  value={selectedModelId}
+                  onValueChange={setSelectedModelId}
+                >
+                  <PromptInputSelectTrigger className="h-7 w-auto gap-1.5 px-2 text-xs">
+                    <PromptInputSelectValue placeholder="Select model" />
+                  </PromptInputSelectTrigger>
+                  <PromptInputSelectContent>
+                    {languageModels.map((m) => (
+                      <PromptInputSelectItem key={m.id} value={m.id}>
+                        {m.modelId}
+                      </PromptInputSelectItem>
+                    ))}
+                  </PromptInputSelectContent>
+                </PromptInputSelect>
+              ) : (
+                <span className="text-xs text-muted-foreground">No models configured</span>
+              )}
               <PromptInputSubmit
                 status={promptStatus}
                 onStop={isStreaming ? cancel : undefined}

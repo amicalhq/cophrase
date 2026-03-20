@@ -16,7 +16,7 @@ import {
   updateAgentRunStatus,
   saveMessages,
 } from "@workspace/db/queries/agent-runs"
-import { resolveModel } from "../agents/resolve-model"
+import { resolveModel, getModelMeta, type ResolvedModelMeta } from "@/lib/agents/resolve-model"
 import {
   handleGetContentStatus,
   handleSearchArtifacts,
@@ -117,17 +117,44 @@ ${config.stages
 }
 
 // ---------------------------------------------------------------------------
+// Sub-agent user message builder
+// ---------------------------------------------------------------------------
+
+function buildSubAgentUserMessage(
+  contentTypeName: string,
+  contentTitle: string,
+  artifactIds?: string[]
+): string {
+  let msg = `Execute your task for a ${contentTypeName} about: "${contentTitle}".`
+  if (artifactIds && artifactIds.length > 0) {
+    msg += `\n\nUse load-artifact to load these artifacts from previous stages as input: ${artifactIds.join(", ")}`
+  }
+  msg +=
+    "\n\nUse your tools to complete the work and save the results as an artifact."
+  return msg
+}
+
+// ---------------------------------------------------------------------------
 // Model resolution
 // ---------------------------------------------------------------------------
 
 export function createHarnessModelStepFn(
-  organizationId: string
+  organizationId: string,
+  userSelectedModelId?: string | null
 ): () => Promise<CompatibleLanguageModel> {
   return async () => {
     "use step"
-    const model = await resolveModel(null, organizationId)
+    const model = await resolveModel(userSelectedModelId ?? null, organizationId)
     return model as unknown as CompatibleLanguageModel
   }
+}
+
+export async function resolveModelMetaStep(
+  organizationId: string,
+  modelId?: string | null
+): Promise<ResolvedModelMeta> {
+  "use step"
+  return await getModelMeta(modelId ?? null, organizationId)
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +168,10 @@ export async function persistHarnessMessages(
     role: "user" | "assistant" | "system" | "tool"
     parts: unknown
     metadata?: unknown
+    modelRecordId?: string | null
+    providerRecordId?: string | null
+    modelProviderType?: string | null
+    modelName?: string | null
   }>
 ) {
   "use step"
@@ -332,8 +363,7 @@ export async function runSubAgentInline(input: {
   })
 
   // Save sub-agent messages for observability
-  const newMsgs = result.response.messages.map((m, i) => ({
-    id: `${input.runId}-msg-${i}`,
+  const newMsgs = result.response.messages.map((m) => ({
     role: m.role as "user" | "assistant" | "system" | "tool",
     parts: JSON.stringify("content" in m ? m.content : null),
     metadata: undefined,
@@ -363,6 +393,7 @@ export async function runSubAgentInline(input: {
 
 export async function runStageStep(input: {
   stageId: string
+  artifactIds?: string[]
   config: DynamicHarnessConfig
   organizationId: string
   projectId: string
@@ -531,7 +562,7 @@ export async function runStageStep(input: {
       const result = await generateText({
         model,
         system: sa.prompt,
-        messages: [{ role: "user" as const, content: `Execute your task for a ${input.config.contentTypeName} about: "${contentTitle}". Use your tools (web-search, save-artifact) to complete the work and save the results as an artifact.` }],
+        messages: [{ role: "user" as const, content: buildSubAgentUserMessage(input.config.contentTypeName, contentTitle, input.artifactIds) }],
         tools: subTools,
         stopWhen: stepCountIs(15),
       })
@@ -541,8 +572,7 @@ export async function runStageStep(input: {
         runId: run.id,
       })
 
-      const newMsgs = result.response.messages.map((m, i) => ({
-        id: `${run.id}-msg-${i}`,
+      const newMsgs = result.response.messages.map((m) => ({
         role: m.role as "user" | "assistant" | "system" | "tool",
         parts: JSON.stringify("content" in m ? m.content : null),
         metadata: undefined,

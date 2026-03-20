@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { getContentById } from "@/lib/data/content"
+import { getModelsByOrg } from "@workspace/db/queries/models"
 import { AIEditor } from "@/components/editor/ai-editor"
 
 // Auth + org membership are already checked by the parent layout at
@@ -15,6 +16,16 @@ export default async function EditContentPage({
   const content = await getContentById(contentId, projectId)
   if (!content) notFound()
 
+  const allModels = await getModelsByOrg(orgId)
+  const languageModels = allModels
+    .filter((m) => m.modelType === "language")
+    .map((m) => ({
+      id: m.id,
+      modelId: m.modelId,
+      providerType: m.providerType,
+      isDefault: m.isDefault,
+    }))
+
   return (
     <AIEditor
       contentTitle={content.title}
@@ -22,6 +33,7 @@ export default async function EditContentPage({
       projectId={projectId}
       contentId={contentId}
       contentFormat={content.contentFormat ?? "rich_text"}
+      languageModels={languageModels}
     />
   )
 }

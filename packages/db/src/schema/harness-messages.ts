@@ -18,6 +18,10 @@ export const harnessMessage = pgTable(
     role: messageRoleEnum("role").notNull(),
     parts: jsonb("parts").notNull(),
     metadata: jsonb("metadata"),
+    modelRecordId: text("model_record_id"),         // "aim_xxx" (our aiModel.id, for joins)
+    providerRecordId: text("provider_record_id"),   // "aip_xxx" (our aiProvider.id, for joins)
+    modelProviderType: text("model_provider_type"), // "openai", "groq", "ai-gateway" (denormalized)
+    modelName: text("model_name"),                  // "gpt-5.4-mini", "llama-3-70b" (denormalized)
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

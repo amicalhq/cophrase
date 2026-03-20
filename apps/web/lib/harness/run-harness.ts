@@ -19,6 +19,7 @@ import {
   getContentStatusStep,
   searchArtifactsStep,
   loadHarnessConfigStep,
+  resolveModelMetaStep,
 } from "./steps"
 import { extractTextFromParts } from "./utils"
 import type { ContentContext } from "./types"
@@ -34,6 +35,7 @@ export interface HarnessWorkflowArgs {
   organizationId: string
   projectId: string
   createdBy: string
+  userSelectedModelId?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -82,13 +84,27 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
     const tools = {
       "run-stage": {
         description:
-          "Execute all sub-agents at a pipeline stage. Pass the stageId.",
+          "Execute all sub-agents at a pipeline stage. Pass the stageId and artifact IDs from previous stages so sub-agents can load prior work.",
         inputSchema: z.object({
           stageId: z.string().describe("The contentTypeStage.id to execute"),
+          artifactIds: z
+            .array(z.string())
+            .optional()
+            .describe(
+              "Artifact IDs from previous stages to pass as input. " +
+                "Always include relevant artifacts so the next stage builds on prior work."
+            ),
         }),
-        execute: async ({ stageId }: { stageId: string }) => {
+        execute: async ({
+          stageId,
+          artifactIds,
+        }: {
+          stageId: string
+          artifactIds?: string[]
+        }) => {
           return runStageStep({
             stageId,
+            artifactIds,
             config,
             organizationId: args.organizationId,
             projectId: args.projectId,
@@ -178,9 +194,16 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
     ]
     const messages = JSON.parse(JSON.stringify(rawMessages))
 
+    // Step: Resolve model metadata for audit trail (returns serializable strings)
+    const modelMeta = await resolveModelMetaStep(
+      args.organizationId,
+      args.userSelectedModelId
+    )
+
+    // DurableAgent gets the lazy model step fn (creates LanguageModel inside the step)
     // Step 4: Create DurableAgent and stream
     const agent = new DurableAgent({
-      model: createHarnessModelStepFn(args.organizationId),
+      model: createHarnessModelStepFn(args.organizationId, args.userSelectedModelId),
       system: systemPrompt,
       tools,
     })
@@ -292,6 +315,10 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
         role: "assistant" as const,
         parts: allText,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        modelRecordId: modelMeta.modelRecordId,
+        providerRecordId: modelMeta.providerRecordId,
+        modelProviderType: modelMeta.providerType,
+        modelName: modelMeta.modelName,
       },
     ])
 

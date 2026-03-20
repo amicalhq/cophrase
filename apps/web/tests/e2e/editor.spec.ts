@@ -107,6 +107,24 @@ test.describe.serial("AI Editor page", () => {
     await expect(page.locator(".ProseMirror")).toBeVisible()
   })
 
+  test("shows model picker fallback when no models configured", async ({
+    page,
+  }) => {
+    await signIn(page, testUser.email, testUser.password)
+
+    await page.goto(
+      `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`
+    )
+
+    // Prompt input should be visible
+    await expect(page.getByPlaceholder("Ask the AI agent...")).toBeVisible()
+
+    // With no models configured, the fallback text should appear in the prompt footer
+    await expect(
+      page.getByText("No models configured")
+    ).toBeVisible({ timeout: 5_000 })
+  })
+
   test("shows initial suggestion buttons for empty conversation", async ({
     page,
   }) => {

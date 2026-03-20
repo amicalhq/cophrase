@@ -68,6 +68,10 @@ export async function saveHarnessMessages(
     role: "user" | "assistant" | "system" | "tool"
     parts: unknown
     metadata?: unknown
+    modelRecordId?: string | null
+    providerRecordId?: string | null
+    modelProviderType?: string | null
+    modelName?: string | null
   }>,
 ) {
   if (messages.length === 0) return []

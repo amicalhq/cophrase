@@ -11,7 +11,7 @@ import { runHarnessWorkflow } from "@/lib/harness/run-harness"
 
 // Accept both { message: string } (simple) and { messages: [...] } (useChat format)
 const chatSchema = z.union([
-  z.object({ message: z.string().min(1) }),
+  z.object({ message: z.string().min(1), modelId: z.string().optional() }),
   z.object({
     messages: z
       .array(
@@ -21,6 +21,7 @@ const chatSchema = z.union([
         })
       )
       .min(1),
+    modelId: z.string().optional(),
   }),
 ])
 
@@ -63,6 +64,7 @@ export async function POST(
   try {
     // Extract the user message from either format
     const data = parsed.data
+    const modelId = data.modelId
     const messageText =
       "message" in data
         ? data.message
@@ -87,6 +89,7 @@ export async function POST(
         organizationId: contentRow.organizationId,
         projectId: contentRow.projectId,
         createdBy: session.user.id,
+        userSelectedModelId: modelId ?? null,
       },
       userMessage,
     ])

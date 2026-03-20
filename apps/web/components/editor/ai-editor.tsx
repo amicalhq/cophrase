@@ -11,6 +11,7 @@ import { authClient } from "@workspace/auth/client"
 import { useProject } from "@/app/orgs/[orgId]/projects/[projectId]/project-context"
 import { TopNavigation } from "@/components/navigation/top-navigation"
 import { ChatPanel } from "./chat-panel"
+import type { ChatModelOption } from "./chat-panel"
 import { EditorPanel } from "./editor-panel"
 import { useArtifacts, sortedTypeKeys } from "./artifact-picker"
 import type { ArtifactData } from "./artifact-viewer"
@@ -20,12 +21,14 @@ interface AIEditorProps {
   projectId: string
   contentId: string
   contentFormat: string
+  languageModels: ChatModelOption[]
 }
 
 export function AIEditor({
   contentTitle,
   contentId,
   contentFormat,
+  languageModels,
 }: AIEditorProps) {
   const { project } = useProject()
   const { data: activeOrg } = authClient.useActiveOrganization()
@@ -129,6 +132,7 @@ export function AIEditor({
               artifacts={artifacts}
               groupedArtifacts={grouped}
               selectedArtifactId={selectedArtifact?.id ?? null}
+              languageModels={languageModels}
             />
           </ResizablePanel>
 
