@@ -32,3 +32,8 @@ export const createAgentMessageId = createIdGenerator("msg", 16)
 export const createMcpConnectionId = createIdGenerator("mcc", 10)
 export const createAgentToolId = createIdGenerator("ats", 10)
 export const createHarnessMessageId = createIdGenerator("hm", 16)
+
+// Content Type system
+export const createContentTypeId = createIdGenerator("cty", 10)
+export const createContentTypeStageId = createIdGenerator("cts", 10)
+export const createSubAgentId = createIdGenerator("sa", 10)
