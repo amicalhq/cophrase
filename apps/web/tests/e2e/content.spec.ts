@@ -58,6 +58,24 @@ test.describe.serial("Content pieces", () => {
     projectId = projMatch![1]!
   })
 
+  test("setup: install content types", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    const blogRes = await page.request.post("/api/content-types/install", {
+      data: { templateId: "seed_cty_blog", projectId, orgId },
+    })
+    expect(blogRes.ok()).toBeTruthy()
+
+    const xRes = await page.request.post("/api/content-types/install", {
+      data: { templateId: "seed_cty_x", projectId, orgId },
+    })
+    expect(xRes.ok()).toBeTruthy()
+  })
+
   test("content page shows empty state", async ({ page }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
@@ -67,9 +85,7 @@ test.describe.serial("Content pieces", () => {
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
     await expect(page.getByRole("heading", { name: "Content" })).toBeVisible()
-    await expect(
-      page.getByText("No content yet")
-    ).toBeVisible()
+    await expect(page.getByText("No content yet")).toBeVisible()
   })
 
   test("can create content via dialog", async ({ page }) => {
@@ -94,7 +110,7 @@ test.describe.serial("Content pieces", () => {
       timeout: 5_000,
     })
     await expect(
-      page.getByRole("table").getByText("Blog Post", { exact: true }),
+      page.getByRole("table").getByText("Blog Post", { exact: true })
     ).toBeVisible()
     // New content is created without a stage (currentStageId is null)
   })
@@ -117,7 +133,7 @@ test.describe.serial("Content pieces", () => {
       timeout: 5_000,
     })
     await expect(
-      page.getByRole("table").getByText("X Post", { exact: true }),
+      page.getByRole("table").getByText("X Post", { exact: true })
     ).toBeVisible()
   })
 
@@ -161,7 +177,9 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByText("My First Blog Post")).not.toBeVisible()
   })
 
-  test("stage filter shows only All stages when content has no stages", async ({ page }) => {
+  test("stage filter shows only All stages when content has no stages", async ({
+    page,
+  }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
@@ -178,7 +196,9 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByRole("combobox")).toContainText("All stages")
   })
 
-  test("creates content with Untitled fallback when title is empty", async ({ page }) => {
+  test("creates content with Untitled fallback when title is empty", async ({
+    page,
+  }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
