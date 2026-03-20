@@ -1,17 +1,50 @@
-import { eq, asc } from "drizzle-orm"
+import { eq, asc, sql, inArray } from "drizzle-orm"
 import { db } from "../index"
 import {
   contentType,
   contentTypeStage,
   subAgent,
 } from "../schema/content-types"
-import { agent } from "../schema/agents"
+import { agent, agentTool } from "../schema/agents"
+import { content } from "../schema/content"
+import {
+  createAgentId,
+  createAgentToolId,
+  createContentTypeId,
+  createContentTypeStageId,
+  createSubAgentId,
+} from "@workspace/id"
+
+// ---------------------------------------------------------------------------
+// Read helpers
+// ---------------------------------------------------------------------------
 
 export async function getContentTypesByProject(projectId: string) {
-  return await db
+  const types = await db
     .select()
     .from(contentType)
     .where(eq(contentType.projectId, projectId))
+
+  if (types.length === 0) return []
+
+  const typeIds = types.map((t) => t.id)
+  const allStages = await db
+    .select()
+    .from(contentTypeStage)
+    .where(inArray(contentTypeStage.contentTypeId, typeIds))
+    .orderBy(asc(contentTypeStage.position))
+
+  const stagesByTypeId = new Map<string, (typeof allStages)[number][]>()
+  for (const stage of allStages) {
+    const list = stagesByTypeId.get(stage.contentTypeId) ?? []
+    list.push(stage)
+    stagesByTypeId.set(stage.contentTypeId, list)
+  }
+
+  return types.map((t) => ({
+    ...t,
+    stages: stagesByTypeId.get(t.id) ?? [],
+  }))
 }
 
 export async function getAppContentTypes() {
@@ -60,6 +93,34 @@ export async function getContentTypeWithStages(id: string) {
 
   return { ...ct, stages: stagesWithSubAgents }
 }
+
+export async function getStagesByContentType(contentTypeId: string) {
+  return await db
+    .select()
+    .from(contentTypeStage)
+    .where(eq(contentTypeStage.contentTypeId, contentTypeId))
+    .orderBy(asc(contentTypeStage.position))
+}
+
+export async function getSubAgentsByStage(stageId: string) {
+  return await db
+    .select({
+      id: subAgent.id,
+      stageId: subAgent.stageId,
+      agentId: subAgent.agentId,
+      executionOrder: subAgent.executionOrder,
+      agentName: agent.name,
+      agentDescription: agent.description,
+    })
+    .from(subAgent)
+    .innerJoin(agent, eq(subAgent.agentId, agent.id))
+    .where(eq(subAgent.stageId, stageId))
+    .orderBy(asc(subAgent.executionOrder))
+}
+
+// ---------------------------------------------------------------------------
+// Basic inserts
+// ---------------------------------------------------------------------------
 
 export async function createContentType(input: {
   scope: "app" | "project"
@@ -117,26 +178,451 @@ export async function deleteContentType(id: string) {
   return deleted ?? null
 }
 
-export async function getStagesByContentType(contentTypeId: string) {
-  return await db
-    .select()
-    .from(contentTypeStage)
-    .where(eq(contentTypeStage.contentTypeId, contentTypeId))
-    .orderBy(asc(contentTypeStage.position))
+// ---------------------------------------------------------------------------
+// installContentType
+// ---------------------------------------------------------------------------
+
+export async function installContentType({
+  templateId,
+  projectId,
+  orgId,
+}: {
+  templateId: string
+  projectId: string
+  orgId: string
+}) {
+  return await db.transaction(async (tx) => {
+    // 1. Read template content type
+    const [template] = await tx
+      .select()
+      .from(contentType)
+      .where(eq(contentType.id, templateId))
+    if (!template) throw new Error("Template content type not found")
+    if (template.scope !== "app")
+      throw new Error("Source content type must be app-scoped")
+
+    // 2. Copy content agent
+    let newContentAgentId: string | undefined
+    if (template.agentId) {
+      const [templateAgent] = await tx
+        .select()
+        .from(agent)
+        .where(eq(agent.id, template.agentId))
+      if (templateAgent) {
+        newContentAgentId = createAgentId()
+        await tx.insert(agent).values({
+          id: newContentAgentId,
+          scope: "project",
+          organizationId: orgId,
+          projectId,
+          sourceId: templateAgent.id,
+          name: templateAgent.name,
+          description: templateAgent.description,
+          prompt: templateAgent.prompt,
+          modelId: templateAgent.modelId,
+          inputSchema: templateAgent.inputSchema,
+          outputSchema: templateAgent.outputSchema,
+          executionMode: templateAgent.executionMode,
+          approvalSteps: templateAgent.approvalSteps,
+        })
+      }
+    }
+
+    // 3. Copy content type
+    const newContentTypeId = createContentTypeId()
+    const [newContentType] = await tx
+      .insert(contentType)
+      .values({
+        id: newContentTypeId,
+        scope: "project",
+        organizationId: orgId,
+        projectId,
+        sourceId: templateId,
+        agentId: newContentAgentId,
+        name: template.name,
+        description: template.description,
+        format: template.format,
+        frontmatterSchema: template.frontmatterSchema,
+        icon: template.icon,
+      })
+      .returning()
+    if (!newContentType) throw new Error("Failed to insert content type")
+
+    // 4. Copy stages
+    const templateStages = await tx
+      .select()
+      .from(contentTypeStage)
+      .where(eq(contentTypeStage.contentTypeId, templateId))
+      .orderBy(asc(contentTypeStage.position))
+
+    const stageIdMap = new Map<string, string>()
+    for (const templateStage of templateStages) {
+      const newStageId = createContentTypeStageId()
+      stageIdMap.set(templateStage.id, newStageId)
+      await tx.insert(contentTypeStage).values({
+        id: newStageId,
+        contentTypeId: newContentTypeId,
+        name: templateStage.name,
+        description: templateStage.description,
+        position: templateStage.position,
+        optional: templateStage.optional,
+      })
+    }
+
+    // 5. Copy sub-agents
+    const templateStageIds = templateStages.map((s) => s.id)
+    if (templateStageIds.length > 0) {
+      const templateSubAgents = await tx
+        .select()
+        .from(subAgent)
+        .where(inArray(subAgent.stageId, templateStageIds))
+        .orderBy(asc(subAgent.executionOrder))
+
+      // Map from template sub-agent's agentId to new sub-agent's agentId
+      const subAgentIdMap = new Map<string, string>()
+
+      for (const templateSA of templateSubAgents) {
+        // 5a. Read template sub-agent's agent row
+        const [templateSubAgentAgent] = await tx
+          .select()
+          .from(agent)
+          .where(eq(agent.id, templateSA.agentId))
+        if (!templateSubAgentAgent) continue
+
+        // 5b. Insert new agent
+        const newSubAgentAgentId = createAgentId()
+        subAgentIdMap.set(templateSA.agentId, newSubAgentAgentId)
+        await tx.insert(agent).values({
+          id: newSubAgentAgentId,
+          scope: "project",
+          organizationId: orgId,
+          projectId,
+          sourceId: templateSubAgentAgent.id,
+          name: templateSubAgentAgent.name,
+          description: templateSubAgentAgent.description,
+          prompt: templateSubAgentAgent.prompt,
+          modelId: templateSubAgentAgent.modelId,
+          inputSchema: templateSubAgentAgent.inputSchema,
+          outputSchema: templateSubAgentAgent.outputSchema,
+          executionMode: templateSubAgentAgent.executionMode,
+          approvalSteps: templateSubAgentAgent.approvalSteps,
+        })
+
+        // 5c. Insert sub-agent join row
+        const newStageId = stageIdMap.get(templateSA.stageId)
+        if (!newStageId) continue
+        await tx.insert(subAgent).values({
+          id: createSubAgentId(),
+          stageId: newStageId,
+          agentId: newSubAgentAgentId,
+          executionOrder: templateSA.executionOrder,
+        })
+      }
+
+      // 6. Copy agent tools for each copied sub-agent
+      for (const [templateAgentId, newAgentId] of subAgentIdMap) {
+        const templateTools = await tx
+          .select()
+          .from(agentTool)
+          .where(eq(agentTool.agentId, templateAgentId))
+
+        for (const tool of templateTools) {
+          await tx.insert(agentTool).values({
+            id: createAgentToolId(),
+            agentId: newAgentId,
+            type: tool.type,
+            referenceId: tool.referenceId,
+            required: tool.required,
+            config: tool.config,
+          })
+        }
+      }
+    }
+
+    // Return the installed content type with stages
+    const ct = newContentType
+    const stages = await tx
+      .select()
+      .from(contentTypeStage)
+      .where(eq(contentTypeStage.contentTypeId, newContentTypeId))
+      .orderBy(asc(contentTypeStage.position))
+
+    const stagesWithSubAgents = await Promise.all(
+      stages.map(async (stage) => {
+        const subAgents = await tx
+          .select({
+            id: subAgent.id,
+            stageId: subAgent.stageId,
+            agentId: subAgent.agentId,
+            executionOrder: subAgent.executionOrder,
+            agentName: agent.name,
+            agentDescription: agent.description,
+          })
+          .from(subAgent)
+          .innerJoin(agent, eq(subAgent.agentId, agent.id))
+          .where(eq(subAgent.stageId, stage.id))
+          .orderBy(asc(subAgent.executionOrder))
+        return { ...stage, subAgents }
+      }),
+    )
+
+    return { ...ct, stages: stagesWithSubAgents }
+  })
 }
 
-export async function getSubAgentsByStage(stageId: string) {
-  return await db
-    .select({
-      id: subAgent.id,
-      stageId: subAgent.stageId,
-      agentId: subAgent.agentId,
-      executionOrder: subAgent.executionOrder,
-      agentName: agent.name,
-      agentDescription: agent.description,
+// ---------------------------------------------------------------------------
+// updateContentType
+// ---------------------------------------------------------------------------
+
+export async function updateContentType(
+  id: string,
+  fields: {
+    name?: string
+    description?: string
+    frontmatterSchema?: Record<string, unknown>
+  },
+) {
+  const [updated] = await db
+    .update(contentType)
+    .set({ ...fields, updatedAt: new Date() })
+    .where(eq(contentType.id, id))
+    .returning()
+  return updated ?? null
+}
+
+// ---------------------------------------------------------------------------
+// deleteContentTypeIfUnused
+// ---------------------------------------------------------------------------
+
+export async function deleteContentTypeIfUnused(id: string) {
+  // Check for referencing content rows
+  const referencingContent = await db
+    .select({ id: content.id })
+    .from(content)
+    .where(eq(content.contentTypeId, id))
+    .limit(1)
+
+  if (referencingContent.length > 0) {
+    return { error: "in_use" as const }
+  }
+
+  return await db.transaction(async (tx) => {
+    // Read the content type to get agentId
+    const [ct] = await tx
+      .select()
+      .from(contentType)
+      .where(eq(contentType.id, id))
+    if (!ct) return { error: "in_use" as const }
+
+    // Collect all sub-agent agentIds
+    const stages = await tx
+      .select({ id: contentTypeStage.id })
+      .from(contentTypeStage)
+      .where(eq(contentTypeStage.contentTypeId, id))
+
+    const stageIds = stages.map((s) => s.id)
+    let subAgentAgentIds: string[] = []
+    if (stageIds.length > 0) {
+      const subAgents = await tx
+        .select({ agentId: subAgent.agentId })
+        .from(subAgent)
+        .where(inArray(subAgent.stageId, stageIds))
+      subAgentAgentIds = subAgents.map((sa) => sa.agentId)
+    }
+
+    // Delete the content type (cascades stages + sub-agent join rows)
+    const [deleted] = await tx
+      .delete(contentType)
+      .where(eq(contentType.id, id))
+      .returning()
+
+    // Explicitly delete all sub-agent agent rows
+    if (subAgentAgentIds.length > 0) {
+      await tx.delete(agent).where(inArray(agent.id, subAgentAgentIds))
+    }
+
+    // Explicitly delete the content agent row
+    if (ct.agentId) {
+      await tx.delete(agent).where(eq(agent.id, ct.agentId))
+    }
+
+    return deleted ?? null
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Stage CRUD
+// ---------------------------------------------------------------------------
+
+export async function addStage({
+  contentTypeId: ctId,
+  name,
+  position,
+  optional,
+}: {
+  contentTypeId: string
+  name: string
+  position?: number
+  optional?: boolean
+}) {
+  let pos = position
+  if (pos === undefined) {
+    const [result] = await db
+      .select({ maxPos: sql<number>`coalesce(max(${contentTypeStage.position}), 0)` })
+      .from(contentTypeStage)
+      .where(eq(contentTypeStage.contentTypeId, ctId))
+    pos = (result?.maxPos ?? 0) + 1
+  }
+
+  const [created] = await db
+    .insert(contentTypeStage)
+    .values({
+      id: createContentTypeStageId(),
+      contentTypeId: ctId,
+      name,
+      position: pos,
+      optional: optional ?? false,
     })
+    .returning()
+  if (!created) throw new Error("Failed to insert stage")
+  return created
+}
+
+export async function updateStage(
+  id: string,
+  fields: { name?: string; optional?: boolean },
+) {
+  const [updated] = await db
+    .update(contentTypeStage)
+    .set({ ...fields, updatedAt: new Date() })
+    .where(eq(contentTypeStage.id, id))
+    .returning()
+  return updated ?? null
+}
+
+export async function deleteStage(id: string) {
+  return await db.transaction(async (tx) => {
+    // Read the stage to get contentTypeId
+    const [stage] = await tx
+      .select()
+      .from(contentTypeStage)
+      .where(eq(contentTypeStage.id, id))
+    if (!stage) return null
+
+    // Collect sub-agent agentIds for this stage
+    const subAgents = await tx
+      .select({ agentId: subAgent.agentId })
+      .from(subAgent)
+      .where(eq(subAgent.stageId, id))
+    const subAgentAgentIds = subAgents.map((sa) => sa.agentId)
+
+    // Delete the stage (cascades sub-agent join rows)
+    const [deleted] = await tx
+      .delete(contentTypeStage)
+      .where(eq(contentTypeStage.id, id))
+      .returning()
+
+    // Explicitly delete collected agent rows
+    if (subAgentAgentIds.length > 0) {
+      await tx.delete(agent).where(inArray(agent.id, subAgentAgentIds))
+    }
+
+    // Set content.currentStageId = null where it references this stage
+    await tx
+      .update(content)
+      .set({ currentStageId: null })
+      .where(eq(content.currentStageId, id))
+
+    return deleted ?? null
+  })
+}
+
+export async function reorderStages(
+  contentTypeId: string,
+  stageIds: string[],
+) {
+  return await db.transaction(async (tx) => {
+    // Query all stages for this content type
+    const existingStages = await tx
+      .select({ id: contentTypeStage.id })
+      .from(contentTypeStage)
+      .where(eq(contentTypeStage.contentTypeId, contentTypeId))
+
+    const existingIds = new Set(existingStages.map((s) => s.id))
+    const inputIds = new Set(stageIds)
+
+    // Validate stageIds includes exactly all stage IDs
+    if (
+      existingIds.size !== inputIds.size ||
+      ![...existingIds].every((id) => inputIds.has(id))
+    ) {
+      return { error: "stage_id_mismatch" as const }
+    }
+
+    // Set all positions to negative temps first to avoid unique constraint violations
+    for (let i = 0; i < stageIds.length; i++) {
+      await tx
+        .update(contentTypeStage)
+        .set({ position: -(i + 1) })
+        .where(eq(contentTypeStage.id, stageIds[i]!))
+    }
+
+    // Set final positions
+    for (let i = 0; i < stageIds.length; i++) {
+      await tx
+        .update(contentTypeStage)
+        .set({ position: i + 1 })
+        .where(eq(contentTypeStage.id, stageIds[i]!))
+    }
+
+    return { success: true as const }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Sub-agent binding
+// ---------------------------------------------------------------------------
+
+export async function bindSubAgent({
+  stageId,
+  agentId: agentIdParam,
+  executionOrder,
+}: {
+  stageId: string
+  agentId: string
+  executionOrder?: number
+}) {
+  const [created] = await db
+    .insert(subAgent)
+    .values({
+      id: createSubAgentId(),
+      stageId,
+      agentId: agentIdParam,
+      executionOrder,
+    })
+    .returning()
+  if (!created) throw new Error("Failed to bind sub-agent")
+  return created
+}
+
+export async function unbindSubAgent(id: string) {
+  // Read the sub-agent join row to get agentId
+  const [sa] = await db
+    .select()
     .from(subAgent)
-    .innerJoin(agent, eq(subAgent.agentId, agent.id))
-    .where(eq(subAgent.stageId, stageId))
-    .orderBy(asc(subAgent.executionOrder))
+    .where(eq(subAgent.id, id))
+  if (!sa) return null
+
+  return await db.transaction(async (tx) => {
+    // Delete the join row
+    const [deleted] = await tx
+      .delete(subAgent)
+      .where(eq(subAgent.id, id))
+      .returning()
+
+    // Delete the agent row (each sub-agent copy is specific to one binding)
+    await tx.delete(agent).where(eq(agent.id, sa.agentId))
+
+    return deleted ?? null
+  })
 }
