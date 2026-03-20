@@ -38,10 +38,15 @@ npm-debug.log*
 .DS_Store
 *.pem
 
-# AI
+# AI agent configs
 .claude
 .agents
+.codex
+.gemini
+.cursor
 CLAUDE.md
+GEMINI.md
+AGENTS.md
 agents.md
 
 # Playwright
