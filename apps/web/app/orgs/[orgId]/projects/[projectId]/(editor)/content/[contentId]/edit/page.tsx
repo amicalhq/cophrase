@@ -21,6 +21,7 @@ export default async function EditContentPage({
       orgId={orgId}
       projectId={projectId}
       contentId={contentId}
+      contentFormat={content.contentFormat ?? "rich_text"}
     />
   )
 }

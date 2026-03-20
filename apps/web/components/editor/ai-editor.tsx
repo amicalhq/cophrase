@@ -19,11 +19,13 @@ interface AIEditorProps {
   orgId: string
   projectId: string
   contentId: string
+  contentFormat: string
 }
 
 export function AIEditor({
   contentTitle,
   contentId,
+  contentFormat,
 }: AIEditorProps) {
   const { project } = useProject()
   const { data: activeOrg } = authClient.useActiveOrganization()
@@ -94,6 +96,7 @@ export function AIEditor({
               groupedArtifacts={grouped}
               onArtifactSelect={setSelectedArtifact}
               contentId={contentId}
+              contentFormat={contentFormat}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

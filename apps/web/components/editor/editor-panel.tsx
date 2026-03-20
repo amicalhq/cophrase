@@ -31,6 +31,7 @@ interface EditorPanelProps {
   groupedArtifacts: Record<string, ArtifactData[]>
   onArtifactSelect: (artifact: ArtifactData | null) => void
   contentId: string
+  contentFormat: string
 }
 
 const TEXT_ARTIFACT_TYPES = new Set([
@@ -47,6 +48,7 @@ export function EditorPanel({
   groupedArtifacts,
   onArtifactSelect,
   contentId,
+  contentFormat,
 }: EditorPanelProps) {
   const editor = useEditor({
     immediatelyRender: false,

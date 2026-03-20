@@ -35,6 +35,7 @@ export async function getContentById(id: string, projectId: string) {
       id: content.id,
       title: content.title,
       contentTypeId: content.contentTypeId,
+      contentFormat: contentType.format,
       currentStageId: content.currentStageId,
       organizationId: content.organizationId,
       projectId: content.projectId,
@@ -43,6 +44,7 @@ export async function getContentById(id: string, projectId: string) {
       updatedAt: content.updatedAt,
     })
     .from(content)
+    .leftJoin(contentType, eq(content.contentTypeId, contentType.id))
     .where(and(eq(content.id, id), eq(content.projectId, projectId)))
   return result ?? null
 }
