@@ -1,8 +1,4 @@
-import type {
-  AgentScope,
-  ExecutionMode,
-  AgentToolType,
-} from "@workspace/db"
+import type { AgentScope, ExecutionMode, AgentToolType } from "@workspace/db"
 import type { ModelMessage } from "ai"
 
 export interface AgentConfig {

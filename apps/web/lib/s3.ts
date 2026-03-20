@@ -22,7 +22,7 @@ function getResourceKey(
   orgId: string,
   projectId: string,
   resourceId: string,
-  fileName: string,
+  fileName: string
 ) {
   return `orgs/${orgId}/projects/${projectId}/resources/${resourceId}/${fileName}`
 }
@@ -32,7 +32,7 @@ export async function generatePresignedUploadUrl(
   projectId: string,
   resourceId: string,
   fileName: string,
-  contentType: string,
+  contentType: string
 ) {
   const key = getResourceKey(orgId, projectId, resourceId, fileName)
   const command = new PutObjectCommand({

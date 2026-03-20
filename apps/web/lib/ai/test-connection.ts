@@ -42,7 +42,10 @@ export async function testProviderConnection(params: {
       return { success: false, error: "Connection timed out" }
     }
     if (err instanceof TypeError) {
-      return { success: false, error: "Could not reach provider — check the base URL" }
+      return {
+        success: false,
+        error: "Could not reach provider — check the base URL",
+      }
     }
     return { success: false, error: "Connection failed" }
   }

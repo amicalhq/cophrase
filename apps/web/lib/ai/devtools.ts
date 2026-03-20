@@ -6,12 +6,14 @@ import { wrapLanguageModel } from "ai"
  * Captures all LLM calls to .devtools/generations.json for inspection.
  * No-op in production.
  */
-export async function withDevTools(model: LanguageModel): Promise<LanguageModel> {
+export async function withDevTools(
+  model: LanguageModel
+): Promise<LanguageModel> {
   if (process.env.NODE_ENV !== "development") return model
   if (typeof model === "string" || model.specificationVersion !== "v3") {
     console.debug(
       "[devtools] skipping wrap: model is not LanguageModelV3",
-      typeof model === "string" ? model : model.specificationVersion,
+      typeof model === "string" ? model : model.specificationVersion
     )
     return model
   }

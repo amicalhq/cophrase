@@ -7,7 +7,7 @@ const FETCH_TIMEOUT_MS = 10_000
 
 async function fetchWithCache(
   key: string,
-  fetcher: () => Promise<AvailableModel[]>,
+  fetcher: () => Promise<AvailableModel[]>
 ): Promise<AvailableModel[]> {
   const cached = cache.get(key)
   if (cached && Date.now() < cached.expiresAt) {
@@ -40,7 +40,7 @@ function inferModelType(model: {
 }
 
 async function fetchModelsDevModels(
-  providerType: string,
+  providerType: string
 ): Promise<AvailableModel[]> {
   const res = await fetch("https://models.dev/api.json", {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -52,29 +52,27 @@ async function fetchModelsDevModels(
   if (!provider?.models) return []
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- external API response shape
-  return Object.entries(provider.models).map(
-    ([id, model]: [string, any]) => ({
-      id,
-      name: model.name ?? id,
-      type: inferModelType(model),
-      capabilities: [
-        model.reasoning && "reasoning",
-        model.tool_call && "tools",
-        model.structured_output && "structured-output",
-        model.attachment && "file-input",
-        model.modalities?.input?.includes("image") && "vision",
-        model.modalities?.input?.includes("audio") && "audio",
-      ].filter(Boolean) as string[],
-      contextWindow: model.limit?.context ?? null,
-      pricing: model.cost
-        ? {
-            input: model.cost.input?.toString(),
-            output: model.cost.output?.toString(),
-          }
-        : null,
-      releaseDate: model.release_date ?? null,
-    }),
-  )
+  return Object.entries(provider.models).map(([id, model]: [string, any]) => ({
+    id,
+    name: model.name ?? id,
+    type: inferModelType(model),
+    capabilities: [
+      model.reasoning && "reasoning",
+      model.tool_call && "tools",
+      model.structured_output && "structured-output",
+      model.attachment && "file-input",
+      model.modalities?.input?.includes("image") && "vision",
+      model.modalities?.input?.includes("audio") && "audio",
+    ].filter(Boolean) as string[],
+    contextWindow: model.limit?.context ?? null,
+    pricing: model.cost
+      ? {
+          input: model.cost.input?.toString(),
+          output: model.cost.output?.toString(),
+        }
+      : null,
+    releaseDate: model.release_date ?? null,
+  }))
 }
 
 async function fetchGatewayModels(): Promise<AvailableModel[]> {
@@ -104,7 +102,7 @@ async function fetchGatewayModels(): Promise<AvailableModel[]> {
 }
 
 export async function getAvailableModels(
-  providerType: string,
+  providerType: string
 ): Promise<AvailableModel[]> {
   const cacheKey = `models:${providerType}`
 
