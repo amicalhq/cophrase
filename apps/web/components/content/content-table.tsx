@@ -90,6 +90,20 @@ export function ContentTable({
 
   const selectedTypes = typeFilter ? typeFilter.split(",") : []
 
+  // Derive unique content type names from data + contentTypes prop
+  const typeOptions = useMemo(() => {
+    const names = new Set<string>()
+    for (const ct of contentTypes) {
+      names.add(ct.name)
+    }
+    for (const row of data) {
+      if (row.contentTypeName) {
+        names.add(row.contentTypeName)
+      }
+    }
+    return Array.from(names).sort()
+  }, [data, contentTypes])
+
   // Derive unique stage names from data
   const stageOptions = useMemo(() => {
     const uniqueStages = new Set<string>()
@@ -193,9 +207,9 @@ export function ContentTable({
           value={selectedTypes}
           onValueChange={handleTypeChange}
         >
-          {contentTypes.map((ct) => (
-            <ToggleGroupItem key={ct.id} value={ct.name}>
-              {ct.name}
+          {typeOptions.map((name) => (
+            <ToggleGroupItem key={name} value={name}>
+              {name}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
