@@ -21,6 +21,7 @@ import { ItalicButton } from "./toolbars/formatting-buttons"
 import { UnderlineButton } from "./toolbars/formatting-buttons"
 import { LinkButton } from "./toolbars/insert-buttons"
 import { SlashCommand } from "./extensions/slash-command"
+import { FrontmatterForm } from "./frontmatter-form"
 
 interface EditorPanelProps {
   isChatOpen: boolean
@@ -29,6 +30,7 @@ interface EditorPanelProps {
   artifacts: ArtifactData[]
   groupedArtifacts: Record<string, ArtifactData[]>
   onArtifactSelect: (artifact: ArtifactData | null) => void
+  contentId: string
 }
 
 const TEXT_ARTIFACT_TYPES = new Set([
@@ -44,6 +46,7 @@ export function EditorPanel({
   artifacts,
   groupedArtifacts,
   onArtifactSelect,
+  contentId,
 }: EditorPanelProps) {
   const editor = useEditor({
     immediatelyRender: false,
@@ -105,6 +108,7 @@ export function EditorPanel({
           onChatToggle={onChatToggle}
           trailing={artifactSelect}
         />
+        <FrontmatterForm contentId={contentId} />
         <div className="flex-1 overflow-y-auto p-6">
           <ResearchNotesView
             data={
@@ -124,11 +128,12 @@ export function EditorPanel({
           onChatToggle={onChatToggle}
           trailing={artifactSelect}
         />
+        <FrontmatterForm contentId={contentId} />
         <div className="flex-1 overflow-y-auto">
           {editor && (
             <BubbleMenu
               editor={editor}
-              className="bg-background border-border flex items-center gap-0.5 rounded-md border p-1 shadow-md"
+              className="flex items-center gap-0.5 rounded-md border border-border bg-background p-1 shadow-md"
             >
               <BoldButton />
               <ItalicButton />

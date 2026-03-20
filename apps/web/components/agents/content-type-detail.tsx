@@ -8,6 +8,7 @@ import { StageList } from "./stage-list"
 import { AgentPromptEditor } from "./agent-prompt-editor"
 import { AgentModelPicker } from "./agent-model-picker"
 import { ForkButton } from "./fork-button"
+import { FrontmatterSchemaEditor } from "./frontmatter-schema-editor"
 
 interface ModelOption {
   id: string
@@ -52,6 +53,7 @@ interface ContentTypeDetailProps {
     format: string
     contentAgent?: ContentAgent
     stages: Stage[]
+    frontmatterSchema?: Record<string, unknown> | null
   }
   orgId: string
   projectId: string
@@ -147,6 +149,21 @@ export function ContentTypeDetail({
           </div>
         </div>
       )}
+
+      <div className="mb-8">
+        <h2 className="mb-4 text-lg font-medium">Frontmatter Schema</h2>
+        <FrontmatterSchemaEditor
+          initialSchema={contentType.frontmatterSchema}
+          onSave={async (schema) => {
+            await fetch(`/api/content-types/${contentType.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ frontmatterSchema: schema }),
+            })
+            router.refresh()
+          }}
+        />
+      </div>
 
       <div className="mb-8">
         <h2 className="mb-4 text-lg font-medium">Pipeline Stages</h2>

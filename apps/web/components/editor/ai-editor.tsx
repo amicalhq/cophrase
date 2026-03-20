@@ -93,6 +93,7 @@ export function AIEditor({
               artifacts={artifacts}
               groupedArtifacts={grouped}
               onArtifactSelect={setSelectedArtifact}
+              contentId={contentId}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

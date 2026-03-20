@@ -32,6 +32,7 @@ export default async function ContentTypeDetailPage({
     name: ct.name,
     description: ct.description ?? "",
     format: ct.format,
+    frontmatterSchema: ct.frontmatterSchema,
     contentAgent: harnessConfig
       ? {
           id: harnessConfig.contentAgent.id,
