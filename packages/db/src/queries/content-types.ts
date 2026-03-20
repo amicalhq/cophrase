@@ -509,6 +509,249 @@ export async function installContentType({
 }
 
 // ---------------------------------------------------------------------------
+// createContentTypeFromScratch
+// ---------------------------------------------------------------------------
+
+export async function createContentTypeFromScratch(input: {
+  projectId: string
+  orgId: string
+  name: string
+  description?: string
+  format: "rich_text" | "plain_text" | "image" | "video" | "deck"
+  frontmatterSchema?: Record<string, unknown>
+  icon?: string
+  stages: Array<{
+    name: string
+    position: number
+    optional?: boolean
+  }>
+}) {
+  return await db.transaction(async (tx) => {
+    // 1. Auto-generate a Content Agent
+    const stageList = input.stages
+      .sort((a, b) => a.position - b.position)
+      .map((s) => s.name)
+      .join(" → ")
+
+    const contentAgentId = createAgentId()
+    await tx.insert(agent).values({
+      id: contentAgentId,
+      scope: "project",
+      organizationId: input.orgId,
+      projectId: input.projectId,
+      name: `${input.name} Agent`,
+      description: `Orchestrator agent for ${input.name} content type`,
+      prompt: `You manage a ${input.name} pipeline with stages: ${stageList}. At each stage, invoke the assigned sub-agents using the run-stage tool. After all sub-agents in a stage complete, advance to the next stage. You can also answer questions directly and suggest next actions.`,
+    })
+
+    // 2. Create the content type
+    const newContentTypeId = createContentTypeId()
+    const [newContentType] = await tx
+      .insert(contentType)
+      .values({
+        id: newContentTypeId,
+        scope: "project",
+        organizationId: input.orgId,
+        projectId: input.projectId,
+        agentId: contentAgentId,
+        name: input.name,
+        description: input.description,
+        format: input.format,
+        frontmatterSchema: input.frontmatterSchema,
+        icon: input.icon,
+      })
+      .returning()
+    if (!newContentType) throw new Error("Failed to create content type")
+
+    // 3. Create stages
+    for (const stage of input.stages) {
+      await tx.insert(contentTypeStage).values({
+        id: createContentTypeStageId(),
+        contentTypeId: newContentTypeId,
+        name: stage.name,
+        position: stage.position,
+        optional: stage.optional ?? false,
+      })
+    }
+
+    // 4. Return with stages
+    const stages = await tx
+      .select()
+      .from(contentTypeStage)
+      .where(eq(contentTypeStage.contentTypeId, newContentTypeId))
+      .orderBy(asc(contentTypeStage.position))
+
+    return { ...newContentType, stages }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// forkContentType
+// ---------------------------------------------------------------------------
+
+export async function forkContentType({
+  contentTypeId,
+  projectId,
+  orgId,
+}: {
+  contentTypeId: string
+  projectId: string
+  orgId: string
+}) {
+  return await db.transaction(async (tx) => {
+    // 1. Read source content type
+    const [source] = await tx
+      .select()
+      .from(contentType)
+      .where(eq(contentType.id, contentTypeId))
+    if (!source) throw new Error("Content type not found")
+
+    // 2. Copy content agent
+    let newContentAgentId: string | undefined
+    if (source.agentId) {
+      const [sourceAgent] = await tx
+        .select()
+        .from(agent)
+        .where(eq(agent.id, source.agentId))
+      if (sourceAgent) {
+        newContentAgentId = createAgentId()
+        await tx.insert(agent).values({
+          id: newContentAgentId,
+          scope: "project",
+          organizationId: orgId,
+          projectId,
+          sourceId: sourceAgent.id,
+          name: sourceAgent.name,
+          description: sourceAgent.description,
+          prompt: sourceAgent.prompt,
+          modelId: sourceAgent.modelId,
+          inputSchema: sourceAgent.inputSchema,
+          outputSchema: sourceAgent.outputSchema,
+          executionMode: sourceAgent.executionMode,
+          approvalSteps: sourceAgent.approvalSteps,
+        })
+      }
+    }
+
+    // 3. Copy content type
+    const newContentTypeId = createContentTypeId()
+    const [newCt] = await tx
+      .insert(contentType)
+      .values({
+        id: newContentTypeId,
+        scope: "project",
+        organizationId: orgId,
+        projectId,
+        sourceId: contentTypeId,
+        agentId: newContentAgentId,
+        name: `${source.name} (Copy)`,
+        description: source.description,
+        format: source.format,
+        frontmatterSchema: source.frontmatterSchema,
+        icon: source.icon,
+      })
+      .returning()
+    if (!newCt) throw new Error("Failed to fork content type")
+
+    // 4. Copy stages
+    const sourceStages = await tx
+      .select()
+      .from(contentTypeStage)
+      .where(eq(contentTypeStage.contentTypeId, contentTypeId))
+      .orderBy(asc(contentTypeStage.position))
+
+    const stageIdMap = new Map<string, string>()
+    for (const s of sourceStages) {
+      const newStageId = createContentTypeStageId()
+      stageIdMap.set(s.id, newStageId)
+      await tx.insert(contentTypeStage).values({
+        id: newStageId,
+        contentTypeId: newContentTypeId,
+        name: s.name,
+        description: s.description,
+        position: s.position,
+        optional: s.optional,
+      })
+    }
+
+    // 5. Copy sub-agents
+    const sourceStageIds = sourceStages.map((s) => s.id)
+    if (sourceStageIds.length > 0) {
+      const sourceSubAgents = await tx
+        .select()
+        .from(subAgent)
+        .where(inArray(subAgent.stageId, sourceStageIds))
+        .orderBy(asc(subAgent.executionOrder))
+
+      const subAgentIdMap = new Map<string, string>()
+
+      for (const sa of sourceSubAgents) {
+        const [sourceSubAgent] = await tx
+          .select()
+          .from(agent)
+          .where(eq(agent.id, sa.agentId))
+        if (!sourceSubAgent) continue
+
+        const newSubAgentId = createAgentId()
+        subAgentIdMap.set(sa.agentId, newSubAgentId)
+        await tx.insert(agent).values({
+          id: newSubAgentId,
+          scope: "project",
+          organizationId: orgId,
+          projectId,
+          sourceId: sourceSubAgent.id,
+          name: sourceSubAgent.name,
+          description: sourceSubAgent.description,
+          prompt: sourceSubAgent.prompt,
+          modelId: sourceSubAgent.modelId,
+          inputSchema: sourceSubAgent.inputSchema,
+          outputSchema: sourceSubAgent.outputSchema,
+          executionMode: sourceSubAgent.executionMode,
+          approvalSteps: sourceSubAgent.approvalSteps,
+        })
+
+        const newStageId = stageIdMap.get(sa.stageId)
+        if (!newStageId) continue
+        await tx.insert(subAgent).values({
+          id: createSubAgentId(),
+          stageId: newStageId,
+          agentId: newSubAgentId,
+          executionOrder: sa.executionOrder,
+        })
+      }
+
+      // 6. Copy agent tools
+      for (const [sourceAgentId, newAgentId] of subAgentIdMap) {
+        const sourceTools = await tx
+          .select()
+          .from(agentTool)
+          .where(eq(agentTool.agentId, sourceAgentId))
+
+        for (const tool of sourceTools) {
+          await tx.insert(agentTool).values({
+            id: createAgentToolId(),
+            agentId: newAgentId,
+            type: tool.type,
+            referenceId: tool.referenceId,
+            required: tool.required,
+            config: tool.config,
+          })
+        }
+      }
+    }
+
+    // Return with stages
+    const stages = await tx
+      .select()
+      .from(contentTypeStage)
+      .where(eq(contentTypeStage.contentTypeId, newContentTypeId))
+      .orderBy(asc(contentTypeStage.position))
+
+    return { ...newCt, stages }
+  })
+}
+
+// ---------------------------------------------------------------------------
 // updateContentType
 // ---------------------------------------------------------------------------
 

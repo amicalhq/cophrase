@@ -6,6 +6,8 @@ export {
   getStagesByContentType,
   getHarnessConfig,
   installContentType,
+  createContentTypeFromScratch,
+  forkContentType,
   updateContentType,
   deleteContentTypeIfUnused,
   addStage,
