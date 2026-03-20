@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm"
-import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, index, jsonb } from "drizzle-orm/pg-core"
 import { organization, user } from "./auth"
 import { project } from "./projects"
 import { contentType, contentTypeStage } from "./content-types"
@@ -26,6 +26,7 @@ export const content = pgTable(
       () => contentTypeStage.id,
       { onDelete: "set null" },
     ),
+    frontmatter: jsonb("frontmatter").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

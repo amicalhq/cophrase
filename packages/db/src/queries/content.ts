@@ -90,6 +90,29 @@ export async function updateContentStage(
   return result ?? null
 }
 
+export async function getContentFrontmatter(contentId: string) {
+  const [result] = await db
+    .select({
+      frontmatter: content.frontmatter,
+      contentTypeId: content.contentTypeId,
+    })
+    .from(content)
+    .where(eq(content.id, contentId))
+  return result ?? null
+}
+
+export async function updateContentFrontmatter(
+  contentId: string,
+  frontmatter: Record<string, unknown>,
+) {
+  const [updated] = await db
+    .update(content)
+    .set({ frontmatter })
+    .where(eq(content.id, contentId))
+    .returning({ id: content.id, frontmatter: content.frontmatter })
+  return updated ?? null
+}
+
 export async function getContentByIdOnly(id: string) {
   const [result] = await db
     .select({
