@@ -4,6 +4,7 @@ export {
   getContentTypeWithStages,
   getContentTypeById,
   getStagesByContentType,
+  getHarnessConfig,
   installContentType,
   updateContentType,
   deleteContentTypeIfUnused,

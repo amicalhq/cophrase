@@ -119,6 +119,141 @@ export async function getSubAgentsByStage(stageId: string) {
 }
 
 // ---------------------------------------------------------------------------
+// getHarnessConfig
+// ---------------------------------------------------------------------------
+
+/**
+ * Load the full harness configuration for a content type.
+ * Returns the Content Agent (prompt, model) and the full stage→sub-agent pipeline
+ * with each sub-agent's tools.
+ */
+export async function getHarnessConfig(contentTypeId: string) {
+  // 1. Load content type + content agent
+  const [ct] = await db
+    .select({
+      id: contentType.id,
+      name: contentType.name,
+      format: contentType.format,
+      agentId: contentType.agentId,
+      agentPrompt: agent.prompt,
+      agentModelId: agent.modelId,
+    })
+    .from(contentType)
+    .leftJoin(agent, eq(contentType.agentId, agent.id))
+    .where(eq(contentType.id, contentTypeId))
+
+  if (!ct) return null
+  if (!ct.agentId || !ct.agentPrompt) return null
+
+  // 2. Load stages ordered by position
+  const stages = await db
+    .select()
+    .from(contentTypeStage)
+    .where(eq(contentTypeStage.contentTypeId, contentTypeId))
+    .orderBy(asc(contentTypeStage.position))
+
+  // 3. Load sub-agents for all stages (with agent row data)
+  const stageIds = stages.map((s) => s.id)
+  let allSubAgents: Array<{
+    id: string
+    stageId: string
+    agentId: string
+    executionOrder: number
+    agentName: string
+    agentPrompt: string
+    agentModelId: string | null
+  }> = []
+
+  if (stageIds.length > 0) {
+    allSubAgents = await db
+      .select({
+        id: subAgent.id,
+        stageId: subAgent.stageId,
+        agentId: subAgent.agentId,
+        executionOrder: subAgent.executionOrder,
+        agentName: agent.name,
+        agentPrompt: agent.prompt,
+        agentModelId: agent.modelId,
+      })
+      .from(subAgent)
+      .innerJoin(agent, eq(subAgent.agentId, agent.id))
+      .where(inArray(subAgent.stageId, stageIds))
+      .orderBy(asc(subAgent.executionOrder))
+  }
+
+  // 4. Load tools for all sub-agent agent IDs
+  const subAgentAgentIds = allSubAgents.map((sa) => sa.agentId)
+  let allTools: Array<{
+    agentId: string
+    type: string
+    referenceId: string
+    required: boolean
+    config: unknown
+  }> = []
+
+  if (subAgentAgentIds.length > 0) {
+    allTools = await db
+      .select({
+        agentId: agentTool.agentId,
+        type: agentTool.type,
+        referenceId: agentTool.referenceId,
+        required: agentTool.required,
+        config: agentTool.config,
+      })
+      .from(agentTool)
+      .where(inArray(agentTool.agentId, subAgentAgentIds))
+  }
+
+  // 5. Group tools by agentId
+  const toolsByAgent = new Map<string, typeof allTools>()
+  for (const tool of allTools) {
+    const list = toolsByAgent.get(tool.agentId) ?? []
+    list.push(tool)
+    toolsByAgent.set(tool.agentId, list)
+  }
+
+  // 6. Group sub-agents by stageId
+  const subAgentsByStage = new Map<string, typeof allSubAgents>()
+  for (const sa of allSubAgents) {
+    const list = subAgentsByStage.get(sa.stageId) ?? []
+    list.push(sa)
+    subAgentsByStage.set(sa.stageId, list)
+  }
+
+  // 7. Assemble
+  return {
+    contentTypeId: ct.id,
+    contentTypeName: ct.name,
+    format: ct.format,
+    contentAgent: {
+      id: ct.agentId,
+      prompt: ct.agentPrompt,
+      modelId: ct.agentModelId,
+    },
+    stages: stages.map((s) => ({
+      id: s.id,
+      name: s.name,
+      position: s.position,
+      optional: s.optional,
+      subAgents: (subAgentsByStage.get(s.id) ?? []).map((sa) => ({
+        id: sa.id,
+        agentId: sa.agentId,
+        name: sa.agentName,
+        prompt: sa.agentPrompt,
+        modelId: sa.agentModelId,
+        executionOrder: sa.executionOrder,
+        tools: (toolsByAgent.get(sa.agentId) ?? []).map((t) => ({
+          type: t.type,
+          referenceId: t.referenceId,
+          required: t.required,
+          config: t.config,
+        })),
+      })),
+    })),
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Basic inserts
 // ---------------------------------------------------------------------------
 
