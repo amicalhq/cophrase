@@ -178,8 +178,11 @@ export async function runSubAgentInline(input: {
         .describe('Artifact type, e.g. "research-notes", "blog-draft"'),
       title: z.string().describe("A short title for the artifact"),
       data: z
-        .object({}).passthrough()
-        .describe("The artifact payload as a JSON object."),
+        .record(z.string(), z.unknown())
+        .describe(
+          "The artifact payload as a JSON object. For research-notes: { keywords, sources, insights }. " +
+            "For blog-draft: { markdown, title, metadata: { wordCount, readingTime } }."
+        ),
       parentIds: z
         .array(z.string())
         .optional()
@@ -446,7 +449,12 @@ export async function runStageStep(input: {
         inputSchema: z.object({
           type: z.string().describe('Artifact type, e.g. "research-notes", "blog-draft"'),
           title: z.string().describe("A short title for the artifact"),
-          data: z.object({}).passthrough().describe("The artifact payload as a JSON object."),
+          data: z
+            .record(z.string(), z.unknown())
+            .describe(
+              "The artifact payload as a JSON object. For research-notes: { keywords, sources, insights }. " +
+                "For blog-draft: { markdown, title, metadata: { wordCount, readingTime } }."
+            ),
           parentIds: z.array(z.string()).optional().describe("IDs of parent artifacts"),
         }),
         execute: async ({ type, title, data, parentIds }: {

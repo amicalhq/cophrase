@@ -51,11 +51,30 @@ export function AIEditor({
   }
 
   const handleArtifactClick = useCallback(
-    (artifactId: string) => {
-      const artifact = artifacts.find((a) => a.id === artifactId)
-      if (artifact) setSelectedArtifact(artifact)
+    async (artifactId: string) => {
+      try {
+        const res = await fetch(
+          `/api/content/${contentId}/artifacts/${artifactId}`
+        )
+        if (!res.ok) return
+        const { artifact } = (await res.json()) as { artifact: ArtifactData }
+        setSelectedArtifact(artifact)
+      } catch {
+        // Silently fail — artifact viewer won't update
+      }
     },
-    [artifacts]
+    [contentId]
+  )
+
+  const handleArtifactSelect = useCallback(
+    (artifact: ArtifactData | null) => {
+      if (!artifact) {
+        setSelectedArtifact(null)
+        return
+      }
+      handleArtifactClick(artifact.id)
+    },
+    [handleArtifactClick]
   )
 
   return (
@@ -94,7 +113,7 @@ export function AIEditor({
               artifact={selectedArtifact}
               artifacts={artifacts}
               groupedArtifacts={grouped}
-              onArtifactSelect={setSelectedArtifact}
+              onArtifactSelect={handleArtifactSelect}
               contentId={contentId}
               contentFormat={contentFormat}
             />

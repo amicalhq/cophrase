@@ -93,12 +93,12 @@ function BlogDraftView({ data }: { data: BlogDraftData }) {
   const text = data.content ?? data.markdown ?? ""
   if (!text) {
     return (
-      <p className="text-muted-foreground text-sm">No draft content found.</p>
+      <p className="text-sm text-muted-foreground">No draft content found.</p>
     )
   }
 
   return (
-    <pre className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap font-sans text-sm leading-relaxed">
+    <pre className="prose prose-sm max-w-none font-sans text-sm leading-relaxed whitespace-pre-wrap dark:prose-invert">
       {text}
     </pre>
   )
@@ -110,7 +110,7 @@ function BlogDraftView({ data }: { data: BlogDraftData }) {
 
 function JsonView({ data }: { data: unknown }) {
   return (
-    <pre className="bg-muted overflow-x-auto rounded-md p-4 text-xs">
+    <pre className="overflow-x-auto rounded-md bg-muted p-4 text-xs">
       {JSON.stringify(data, null, 2)}
     </pre>
   )
@@ -126,6 +126,12 @@ interface ArtifactViewerProps {
 
 export function ArtifactViewer({ artifact }: ArtifactViewerProps) {
   const renderContent = () => {
+    if (!artifact.data) {
+      return (
+        <p className="text-sm text-muted-foreground">No artifact data.</p>
+      )
+    }
+
     switch (artifact.type) {
       case "research-notes":
         return (
