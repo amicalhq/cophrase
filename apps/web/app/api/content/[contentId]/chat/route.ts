@@ -13,16 +13,20 @@ import { runHarnessWorkflow } from "@/lib/harness/run-harness"
 const chatSchema = z.union([
   z.object({ message: z.string().min(1) }),
   z.object({
-    messages: z.array(z.object({
-      role: z.string(),
-      content: z.string(),
-    })).min(1),
+    messages: z
+      .array(
+        z.object({
+          role: z.string(),
+          content: z.string(),
+        })
+      )
+      .min(1),
   }),
 ])
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ contentId: string }> },
+  { params }: { params: Promise<{ contentId: string }> }
 ) {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
@@ -42,7 +46,7 @@ export async function POST(
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request body", details: parsed.error.flatten() },
-      { status: 400 },
+      { status: 400 }
     )
   }
 
@@ -59,9 +63,10 @@ export async function POST(
   try {
     // Extract the user message from either format
     const data = parsed.data
-    const messageText = "message" in data
-      ? data.message
-      : data.messages[data.messages.length - 1]!.content
+    const messageText =
+      "message" in data
+        ? data.message
+        : data.messages[data.messages.length - 1]!.content
     const userMessage = JSON.stringify({ role: "user", content: messageText })
 
     // Persist the user message immediately so it survives workflow failures
@@ -77,8 +82,7 @@ export async function POST(
     const workflowRun = await start(runHarnessWorkflow, [
       {
         contentId,
-        contentType: contentRow.contentTypeId,
-        contentStage: contentRow.currentStageId ?? "",
+        contentTypeId: contentRow.contentTypeId,
         contentTitle: contentRow.title,
         organizationId: contentRow.organizationId,
         projectId: contentRow.projectId,
@@ -94,7 +98,8 @@ export async function POST(
       },
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to start harness"
+    const message =
+      error instanceof Error ? error.message : "Failed to start harness"
     console.error("Failed to start harness workflow:", error)
     return NextResponse.json({ error: message }, { status: 500 })
   }

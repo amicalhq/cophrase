@@ -35,15 +35,9 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning"
-import {
-  Suggestions,
-  Suggestion,
-} from "@/components/ai-elements/suggestion"
+import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { extractTextFromParts as extractPartsText } from "@/lib/harness/utils"
-import {
-  getInitialSuggestions,
-  type PromptSuggestion,
-} from "@/lib/harness/suggestions"
+import type { PromptSuggestion } from "@/lib/harness/suggestions"
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -76,9 +70,7 @@ interface ToolCallResult {
 
 function isErrorMetadata(metadata: unknown): boolean {
   return (
-    typeof metadata === "object" &&
-    metadata !== null &&
-    "error" in metadata
+    typeof metadata === "object" && metadata !== null && "error" in metadata
   )
 }
 
@@ -90,7 +82,7 @@ function extractToolCalls(metadata: unknown): ToolCallResult[] | undefined {
     Array.isArray((metadata as { toolCalls: unknown }).toolCalls)
   ) {
     return (metadata as { toolCalls: ToolCallResult[] }).toolCalls.filter(
-      (tc) => tc.toolName !== SUGGEST_TOOL_NAME,
+      (tc) => tc.toolName !== SUGGEST_TOOL_NAME
     )
   }
   return undefined
@@ -115,7 +107,7 @@ function extractReasoning(metadata: unknown): string | undefined {
 
 function parseSSEChunk(
   line: string,
-  state: { text: string; reasoning: string; toolCalls: ToolCallResult[] },
+  state: { text: string; reasoning: string; toolCalls: ToolCallResult[] }
 ) {
   if (!line.startsWith("data: ")) return
   const json = line.slice(6)
@@ -127,10 +119,7 @@ function parseSSEChunk(
 
     if (type === "text-delta" && typeof evt.delta === "string") {
       state.text += evt.delta
-    } else if (
-      type === "reasoning-delta" &&
-      typeof evt.delta === "string"
-    ) {
+    } else if (type === "reasoning-delta" && typeof evt.delta === "string") {
       state.reasoning += evt.delta
     } else if (type === "tool-input-start") {
       // Tool call started — deduplicate by toolCallId
@@ -175,11 +164,7 @@ function parseSSEChunk(
 // useHarnessChat hook
 // ---------------------------------------------------------------------------
 
-function useHarnessChat(
-  contentId: string,
-  contentType: string,
-  contentStage: string,
-) {
+function useHarnessChat(contentId: string) {
   const [messages, setMessages] = useState<HarnessMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>("ready")
   const [hasMore, setHasMore] = useState(false)
@@ -193,9 +178,7 @@ function useHarnessChat(
   useEffect(() => {
     async function loadMessages() {
       try {
-        const res = await fetch(
-          `/api/content/${contentId}/messages?limit=20`,
-        )
+        const res = await fetch(`/api/content/${contentId}/messages?limit=20`)
         if (!res.ok) return
         const data = (await res.json()) as {
           messages: Array<{
@@ -222,8 +205,18 @@ function useHarnessChat(
 
         // Populate suggestions
         if (converted.length === 0) {
-          // Empty conversation — use rule-based initial suggestions
-          setSuggestions(getInitialSuggestions(contentType, contentStage))
+          // Empty conversation — fetch initial suggestions from API
+          try {
+            const sugRes = await fetch(`/api/content/${contentId}/suggestions`)
+            if (sugRes.ok) {
+              const sugData = (await sugRes.json()) as {
+                suggestions: PromptSuggestion[]
+              }
+              setSuggestions(sugData.suggestions)
+            }
+          } catch {
+            // silently fail
+          }
         } else {
           // Existing conversation — extract from raw metadata (before extractToolCalls filters it)
           const lastAssistantRaw = [...data.messages]
@@ -234,7 +227,7 @@ function useHarnessChat(
               lastAssistantRaw.metadata as { toolCalls?: ToolCallResult[] }
             ).toolCalls
             const suggestTc = allToolCalls?.find(
-              (tc) => tc.toolName === SUGGEST_TOOL_NAME,
+              (tc) => tc.toolName === SUGGEST_TOOL_NAME
             )
             if (suggestTc?.input) {
               const inp = suggestTc.input as {
@@ -251,7 +244,7 @@ function useHarnessChat(
       }
     }
     loadMessages()
-  }, [contentId, contentType, contentStage])
+  }, [contentId])
 
   // Load more (older) messages
   const loadMore = useCallback(async () => {
@@ -259,7 +252,7 @@ function useHarnessChat(
     setLoadingMore(true)
     try {
       const res = await fetch(
-        `/api/content/${contentId}/messages?cursor=${cursorRef.current}&limit=20`,
+        `/api/content/${contentId}/messages?cursor=${cursorRef.current}&limit=20`
       )
       if (!res.ok) return
       const data = (await res.json()) as {
@@ -331,7 +324,11 @@ function useHarnessChat(
 
         const decoder = new TextDecoder()
         const assistantMsgId = `assistant-${Date.now()}`
-        const state = { text: "", reasoning: "", toolCalls: [] as ToolCallResult[] }
+        const state = {
+          text: "",
+          reasoning: "",
+          toolCalls: [] as ToolCallResult[],
+        }
         let buffer = ""
 
         while (true) {
@@ -367,7 +364,7 @@ function useHarnessChat(
               toolCalls:
                 state.toolCalls.length > 0
                   ? state.toolCalls.filter(
-                      (tc) => tc.toolName !== SUGGEST_TOOL_NAME,
+                      (tc) => tc.toolName !== SUGGEST_TOOL_NAME
                     )
                   : undefined,
               createdAt: new Date().toISOString(),
@@ -409,7 +406,7 @@ function useHarnessChat(
         }
       }
     },
-    [contentId, status],
+    [contentId, status]
   )
 
   // Cancel
@@ -466,7 +463,7 @@ function ToolCallBlock({
 
   return (
     <Collapsible className="not-prose my-2">
-      <CollapsibleTrigger className="flex w-full items-center gap-2 text-muted-foreground text-xs transition-colors hover:text-foreground">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
         <Badge
           variant={isCalling ? "secondary" : "outline"}
           className="h-5 px-1.5 text-[10px]"
@@ -479,9 +476,7 @@ function ToolCallBlock({
             <LoaderIcon className="ml-1 inline size-3 animate-spin" />
           )}
         </span>
-        {!isCalling && (
-          <ChevronDownIcon className="ml-auto size-3" />
-        )}
+        {!isCalling && <ChevronDownIcon className="ml-auto size-3" />}
       </CollapsibleTrigger>
       {!isCalling && (
         <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
@@ -491,7 +486,7 @@ function ToolCallBlock({
                 <button
                   key={a.id}
                   type="button"
-                  className="text-primary underline hover:no-underline text-xs"
+                  className="text-xs text-primary underline hover:no-underline"
                   onClick={() => onArtifactClick(a.id)}
                 >
                   {a.title ?? a.type} v{a.version}
@@ -500,7 +495,7 @@ function ToolCallBlock({
             </div>
           )}
           {result != null && (
-            <pre className="bg-muted overflow-x-auto rounded-md p-2 text-[10px] max-h-40">
+            <pre className="max-h-40 overflow-x-auto rounded-md bg-muted p-2 text-[10px]">
               {typeof result === "string"
                 ? result
                 : JSON.stringify(result, null, 2)}
@@ -542,7 +537,7 @@ function extractArtifacts(result: unknown): ArtifactRef[] {
   if (Array.isArray(r.artifacts)) {
     return r.artifacts.filter(
       (a): a is ArtifactRef =>
-        typeof a === "object" && a !== null && "id" in a && "type" in a,
+        typeof a === "object" && a !== null && "id" in a && "type" in a
     )
   }
   return []
@@ -554,12 +549,13 @@ function extractArtifacts(result: unknown): ArtifactRef[] {
 
 interface ChatPanelProps {
   contentId: string
-  contentType: string
-  contentStage: string
   onArtifactClick?: (artifactId: string) => void
 }
 
-export function ChatPanel({ contentId, contentType, contentStage, onArtifactClick }: ChatPanelProps) {
+export function ChatPanel({
+  contentId,
+  onArtifactClick,
+}: ChatPanelProps) {
   const router = useRouter()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -572,7 +568,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
     sendMessage,
     loadMore,
     cancel,
-  } = useHarnessChat(contentId, contentType, contentStage)
+  } = useHarnessChat(contentId)
 
   const isStreaming = status === "streaming"
 
@@ -580,7 +576,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
     ({ text }: PromptInputMessage) => {
       sendMessage(text)
     },
-    [sendMessage],
+    [sendMessage]
   )
 
   // Infinite scroll
@@ -588,7 +584,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
     const container = scrollContainerRef.current
     if (!container) return
     const scrollEl = container.querySelector(
-      "[data-stick-to-bottom-scroll]",
+      "[data-stick-to-bottom-scroll]"
     ) as HTMLElement | null
     if (!scrollEl) return
 
@@ -617,7 +613,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-border flex h-11 items-center gap-1 border-b px-2">
+      <div className="flex h-11 items-center gap-1 border-b border-border px-2">
         <Button
           variant="ghost"
           size="icon"
@@ -641,7 +637,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
           <ConversationContent>
             {loadingMore && (
               <div className="flex items-center justify-center py-2">
-                <LoaderIcon className="text-muted-foreground size-4 animate-spin" />
+                <LoaderIcon className="size-4 animate-spin text-muted-foreground" />
               </div>
             )}
 
@@ -652,26 +648,22 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
               />
             ) : (
               messages.map((message) => {
-                const isLastMessage =
-                  message === messages[messages.length - 1]
+                const isLastMessage = message === messages[messages.length - 1]
                 const isAnimating = isStreaming && isLastMessage
 
                 return (
                   <Message key={message.id} from={message.role}>
-                    {message.role === "assistant" &&
-                      message.reasoningText && (
-                        <Reasoning isStreaming={isAnimating} defaultOpen={false}>
-                          <ReasoningTrigger />
-                          <ReasoningContent>
-                            {message.reasoningText}
-                          </ReasoningContent>
-                        </Reasoning>
-                      )}
+                    {message.role === "assistant" && message.reasoningText && (
+                      <Reasoning isStreaming={isAnimating} defaultOpen={false}>
+                        <ReasoningTrigger />
+                        <ReasoningContent>
+                          {message.reasoningText}
+                        </ReasoningContent>
+                      </Reasoning>
+                    )}
                     {message.role === "assistant" &&
                       message.toolCalls
-                        ?.filter(
-                          (tc) => tc.toolName !== SUGGEST_TOOL_NAME,
-                        )
+                        ?.filter((tc) => tc.toolName !== SUGGEST_TOOL_NAME)
                         .map((tc, i) => (
                           <ToolCallBlock
                             key={`${message.id}-tool-${i}`}
@@ -700,7 +692,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
             {isStreaming && messages.length === 0 && (
               <Message from="assistant">
                 <MessageContent>
-                  <span className="text-muted-foreground animate-pulse text-sm">
+                  <span className="animate-pulse text-sm text-muted-foreground">
                     Thinking...
                   </span>
                 </MessageContent>
@@ -740,7 +732,7 @@ export function ChatPanel({ contentId, contentType, contentStage, onArtifactClic
         <PromptInput onSubmit={handlePromptSubmit}>
           <PromptInputTextarea placeholder="Ask the AI agent..." />
           <PromptInputFooter>
-            <span className="text-muted-foreground text-xs">
+            <span className="text-xs text-muted-foreground">
               Content Assistant
             </span>
             <PromptInputSubmit

@@ -19,15 +19,11 @@ interface AIEditorProps {
   orgId: string
   projectId: string
   contentId: string
-  contentType: string
-  contentStage: string
 }
 
 export function AIEditor({
   contentTitle,
   contentId,
-  contentType,
-  contentStage,
 }: AIEditorProps) {
   const { project } = useProject()
   const { data: activeOrg } = authClient.useActiveOrganization()
@@ -38,8 +34,9 @@ export function AIEditor({
   const [isChatOpen, setIsChatOpen] = useState(true)
   const chatPanelRef = useRef<PanelImperativeHandle>(null)
 
-  const [selectedArtifact, setSelectedArtifact] =
-    useState<ArtifactData | null>(null)
+  const [selectedArtifact, setSelectedArtifact] = useState<ArtifactData | null>(
+    null
+  )
 
   const { artifacts, grouped } = useArtifacts(contentId)
 
@@ -56,7 +53,7 @@ export function AIEditor({
       const artifact = artifacts.find((a) => a.id === artifactId)
       if (artifact) setSelectedArtifact(artifact)
     },
-    [artifacts],
+    [artifacts]
   )
 
   return (
@@ -82,8 +79,6 @@ export function AIEditor({
           >
             <ChatPanel
               contentId={contentId}
-              contentType={contentType}
-              contentStage={contentStage}
               onArtifactClick={handleArtifactClick}
             />
           </ResizablePanel>
