@@ -1,42 +1,15 @@
 "use client"
 
 import type { ColumnDef } from "@tanstack/react-table"
-import type { ContentType, ContentStage } from "@workspace/db"
 import { Badge } from "@workspace/ui/components/badge"
 
 export type ContentRow = {
   id: string
   title: string
-  type: ContentType
-  stage: ContentStage
+  contentTypeName: string | null
+  currentStageName: string | null
   creatorName: string | null
   updatedAt: string
-}
-
-const stageColors: Record<ContentRow["stage"], string> = {
-  idea: "bg-muted text-muted-foreground",
-  draft: "bg-blue-500/10 text-blue-500",
-  review: "bg-yellow-500/10 text-yellow-500",
-  ready: "bg-green-500/10 text-green-500",
-  published: "bg-purple-500/10 text-purple-500",
-}
-
-const typeColors: Record<ContentRow["type"], string> = {
-  blog: "bg-blue-500/10 text-blue-500",
-  social: "bg-purple-500/10 text-purple-500",
-}
-
-const typeLabels: Record<ContentRow["type"], string> = {
-  blog: "Blog",
-  social: "Social",
-}
-
-const stageLabels: Record<ContentRow["stage"], string> = {
-  idea: "Idea",
-  draft: "Draft",
-  review: "Review",
-  ready: "Ready",
-  published: "Published",
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -68,32 +41,32 @@ export const columns: ColumnDef<ContentRow>[] = [
     ),
   },
   {
-    accessorKey: "type",
+    accessorKey: "contentTypeName",
     header: "Type",
     size: 100,
     cell: ({ row }) => {
-      const type = row.getValue("type") as ContentRow["type"]
-      return (
-        <Badge variant="secondary" className={`h-6 px-2.5 text-xs ${typeColors[type]}`}>
-          {typeLabels[type]}
+      const typeName = row.getValue("contentTypeName") as string | null
+      return typeName ? (
+        <Badge variant="secondary" className="h-6 px-2.5 text-xs">
+          {typeName}
         </Badge>
-      )
+      ) : null
     },
     filterFn: (row, id, value: string[]) => {
       return value.includes(row.getValue(id))
     },
   },
   {
-    accessorKey: "stage",
+    accessorKey: "currentStageName",
     header: "Stage",
     size: 110,
     cell: ({ row }) => {
-      const stage = row.getValue("stage") as ContentRow["stage"]
-      return (
-        <Badge variant="secondary" className={`h-6 px-2.5 text-xs ${stageColors[stage]}`}>
-          {stageLabels[stage]}
+      const stageName = row.getValue("currentStageName") as string | null
+      return stageName ? (
+        <Badge variant="secondary" className="h-6 px-2.5 text-xs">
+          {stageName}
         </Badge>
-      )
+      ) : null
     },
     filterFn: (row, id, value: string[]) => {
       return value.includes(row.getValue(id))

@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
-import { contentTypeEnum, type ContentType } from "@workspace/db"
 import { getContentByProject, createContent } from "@/lib/data/content"
 import { getProjectByIdAndOrg, isOrgMember } from "@/lib/data/projects"
 
-const validTypes = contentTypeEnum.enumValues as readonly string[]
 const MAX_TITLE_LENGTH = 200
 
 export async function GET(request: NextRequest) {
@@ -65,11 +63,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { projectId, orgId, title, type } = body as {
+  const { projectId, orgId, title, contentTypeId } = body as {
     projectId?: string
     orgId?: string
     title?: string
-    type?: string
+    contentTypeId?: string
   }
 
   if (!projectId) {
@@ -84,9 +82,9 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     )
   }
-  if (!type || !validTypes.includes(type)) {
+  if (!contentTypeId) {
     return NextResponse.json(
-      { error: "type must be 'blog' or 'social'" },
+      { error: "contentTypeId is required" },
       { status: 400 },
     )
   }
@@ -115,7 +113,7 @@ export async function POST(request: NextRequest) {
       organizationId: project.organizationId,
       createdBy: session.user.id,
       title: trimmedTitle,
-      type: type as ContentType,
+      contentTypeId,
     })
 
     return NextResponse.json(created, { status: 201 })

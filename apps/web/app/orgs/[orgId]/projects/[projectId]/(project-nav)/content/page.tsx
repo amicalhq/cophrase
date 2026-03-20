@@ -14,8 +14,8 @@ export default async function ContentPage({
   const content: ContentRow[] = rawContent.map((c) => ({
     id: c.id,
     title: c.title,
-    type: c.type,
-    stage: c.stage,
+    contentTypeName: c.contentTypeName,
+    currentStageName: c.currentStageName,
     creatorName: c.creatorName,
     updatedAt: c.updatedAt.toISOString(),
   }))

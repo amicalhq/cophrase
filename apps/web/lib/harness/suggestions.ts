@@ -1,5 +1,3 @@
-import type { ContentType, ContentStage } from "@workspace/db"
-
 export type PromptSuggestion = {
   label: string
   prompt: string
@@ -7,8 +5,8 @@ export type PromptSuggestion = {
 }
 
 const INITIAL_SUGGESTIONS: Record<
-  ContentType,
-  Partial<Record<ContentStage, PromptSuggestion[]>>
+  string,
+  Partial<Record<string, PromptSuggestion[]>>
 > = {
   blog: {
     idea: [
@@ -62,8 +60,8 @@ const INITIAL_SUGGESTIONS: Record<
 }
 
 export function getInitialSuggestions(
-  contentType: ContentType,
-  stage: ContentStage,
+  contentType: string,
+  stage: string,
 ): PromptSuggestion[] {
   return INITIAL_SUGGESTIONS[contentType]?.[stage] ?? []
 }

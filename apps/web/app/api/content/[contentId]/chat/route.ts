@@ -77,8 +77,8 @@ export async function POST(
     const workflowRun = await start(runHarnessWorkflow, [
       {
         contentId,
-        contentType: contentRow.type,
-        contentStage: contentRow.stage,
+        contentType: contentRow.contentTypeId,
+        contentStage: contentRow.currentStageId ?? "",
         contentTitle: contentRow.title,
         organizationId: contentRow.organizationId,
         projectId: contentRow.projectId,

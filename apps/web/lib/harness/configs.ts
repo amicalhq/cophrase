@@ -1,7 +1,6 @@
-import type { ContentType } from "@workspace/db"
 import type { HarnessConfig } from "./types"
 
-export const HARNESS_CONFIGS: Record<ContentType, HarnessConfig> = {
+export const HARNESS_CONFIGS: Record<string, HarnessConfig> = {
   blog: {
     systemPrompt: `You are the AI assistant managing a blog post. You help the user through the full content lifecycle — researching topics, writing drafts, refining content, and preparing the final piece.
 

@@ -14,15 +14,13 @@ import { ChatPanel } from "./chat-panel"
 import { EditorPanel } from "./editor-panel"
 import { useArtifacts } from "./artifact-picker"
 import type { ArtifactData } from "./artifact-viewer"
-import type { ContentType, ContentStage } from "@workspace/db"
-
 interface AIEditorProps {
   contentTitle: string
   orgId: string
   projectId: string
   contentId: string
-  contentType: ContentType
-  contentStage: ContentStage
+  contentType: string
+  contentStage: string
 }
 
 export function AIEditor({

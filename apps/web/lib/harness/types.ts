@@ -1,5 +1,3 @@
-import type { ContentType, ContentStage } from "@workspace/db"
-
 export interface HarnessConfig {
   systemPrompt: string
   availableAgents: string[]
@@ -7,8 +5,8 @@ export interface HarnessConfig {
 
 export interface ContentContext {
   contentId: string
-  contentType: ContentType
-  contentStage: ContentStage
+  contentType: string
+  contentStage: string
   contentTitle: string
   organizationId: string
   projectId: string

@@ -23,7 +23,6 @@ import {
 import { HARNESS_CONFIGS } from "./configs"
 import { extractTextFromParts } from "./utils"
 import type { ContentContext } from "./types"
-import type { ContentType } from "@workspace/db"
 
 // ---------------------------------------------------------------------------
 // Serializable workflow args
@@ -31,7 +30,7 @@ import type { ContentType } from "@workspace/db"
 
 export interface HarnessWorkflowArgs {
   contentId: string
-  contentType: ContentType
+  contentType: string
   contentStage: string
   contentTitle: string
   organizationId: string
@@ -52,7 +51,7 @@ export async function runHarnessWorkflow(
   const ctx: ContentContext = {
     contentId: args.contentId,
     contentType: args.contentType,
-    contentStage: args.contentStage as ContentContext["contentStage"],
+    contentStage: args.contentStage,
     contentTitle: args.contentTitle,
     organizationId: args.organizationId,
     projectId: args.projectId,

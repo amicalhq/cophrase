@@ -19,7 +19,7 @@ export async function handleGetContentStatus(ctx: ContentContext): Promise<{
   })
 
   return {
-    stage: contentRow?.stage ?? ctx.contentStage,
+    stage: contentRow?.currentStageId ?? ctx.contentStage,
     title: contentRow?.title ?? ctx.contentTitle,
     artifacts: artifacts.map((a) => ({
       id: a.id,

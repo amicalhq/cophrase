@@ -44,8 +44,6 @@ import {
   getInitialSuggestions,
   type PromptSuggestion,
 } from "@/lib/harness/suggestions"
-import type { ContentType, ContentStage } from "@workspace/db"
-
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -179,8 +177,8 @@ function parseSSEChunk(
 
 function useHarnessChat(
   contentId: string,
-  contentType: ContentType,
-  contentStage: ContentStage,
+  contentType: string,
+  contentStage: string,
 ) {
   const [messages, setMessages] = useState<HarnessMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>("ready")
@@ -556,8 +554,8 @@ function extractArtifacts(result: unknown): ArtifactRef[] {
 
 interface ChatPanelProps {
   contentId: string
-  contentType: ContentType
-  contentStage: ContentStage
+  contentType: string
+  contentStage: string
   onArtifactClick?: (artifactId: string) => void
 }
 

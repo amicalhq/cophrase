@@ -15,10 +15,9 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { cn } from "@workspace/ui/lib/utils"
-import type { ContentType } from "@workspace/db"
 
 const typeOptions: {
-  value: ContentType
+  value: string
   label: string
   description: string
 }[] = [
@@ -36,7 +35,7 @@ export function CreateContentDialog({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
-  const [type, setType] = useState<ContentType>("blog")
+  const [contentTypeId, setContentTypeId] = useState<string>("blog")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -53,7 +52,7 @@ export function CreateContentDialog({
           projectId,
           orgId,
           title: title.trim() || undefined,
-          type,
+          contentTypeId,
         }),
       })
 
@@ -72,7 +71,7 @@ export function CreateContentDialog({
       setLoading(false)
       setOpen(false)
       setTitle("")
-      setType("blog")
+      setContentTypeId("blog")
       router.refresh()
     } catch (error) {
       console.error("Failed to create content:", error)
@@ -118,10 +117,10 @@ export function CreateContentDialog({
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => setType(opt.value)}
+                    onClick={() => setContentTypeId(opt.value)}
                     className={cn(
                       "flex-1 rounded-lg border-2 p-4 text-center transition-colors",
-                      type === opt.value
+                      contentTypeId === opt.value
                         ? "border-foreground bg-accent"
                         : "border-border hover:border-muted-foreground",
                     )}

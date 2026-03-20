@@ -53,7 +53,7 @@ export async function buildContextStep(ctx: ContentContext) {
 
   return `
 Current content: "${contentRow?.title ?? ctx.contentTitle}"
-Stage: ${contentRow?.stage ?? ctx.contentStage}
+Stage: ${contentRow?.currentStageId ?? ctx.contentStage}
 Artifacts:
 ${artifactSummary}`
 }
