@@ -41,6 +41,7 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
+import { useQueryState } from "nuqs"
 import { Tabs, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
 import { cn } from "@workspace/ui/lib/utils"
 import type { ArtifactData } from "./artifact-viewer"
@@ -73,7 +74,7 @@ interface HarnessMessage {
 interface ToolCallResult {
   toolCallId: string
   toolName: string
-  state: "calling" | "complete"
+  state: "calling" | "complete" | "stopped"
   input?: unknown
   result?: unknown
 }
@@ -313,6 +314,13 @@ function useHarnessChat(contentId: string) {
       const controller = new AbortController()
       abortRef.current = controller
 
+      const assistantMsgId = `assistant-${Date.now()}`
+      const state = {
+        text: "",
+        reasoning: "",
+        toolCalls: [] as ToolCallResult[],
+      }
+
       try {
         const res = await fetch(`/api/content/${contentId}/chat`, {
           method: "POST",
@@ -333,12 +341,6 @@ function useHarnessChat(contentId: string) {
         }
 
         const decoder = new TextDecoder()
-        const assistantMsgId = `assistant-${Date.now()}`
-        const state = {
-          text: "",
-          reasoning: "",
-          toolCalls: [] as ToolCallResult[],
-        }
         let buffer = ""
 
         while (true) {
@@ -410,6 +412,33 @@ function useHarnessChat(contentId: string) {
         }
         // Don't treat abort as an error
         if (err instanceof DOMException && err.name === "AbortError") {
+          // Mark any in-flight tool calls as stopped
+          for (const tc of state.toolCalls) {
+            if (tc.state === "calling") {
+              tc.state = "stopped"
+            }
+          }
+          // Flush final message state so the UI reflects stopped tools
+          setMessages((prev) => {
+            const msg: HarnessMessage = {
+              id: assistantMsgId,
+              role: "assistant",
+              content: state.text,
+              reasoningText: state.reasoning || undefined,
+              toolCalls:
+                state.toolCalls.length > 0
+                  ? state.toolCalls.filter(
+                      (tc) => tc.toolName !== SUGGEST_TOOL_NAME
+                    )
+                  : undefined,
+              createdAt: new Date().toISOString(),
+            }
+            const existing = prev.find((m) => m.id === assistantMsgId)
+            if (existing) {
+              return prev.map((m) => (m.id === assistantMsgId ? msg : m))
+            }
+            return [...prev, msg]
+          })
           setStatus("ready")
         } else {
           setStatus("error")
@@ -470,15 +499,16 @@ function ToolCallBlock({
   const label = formatToolLabel(toolName, input)
   const artifacts = extractArtifacts(result)
   const isCalling = state === "calling"
+  const isStopped = state === "stopped"
 
   return (
     <Collapsible className="not-prose my-2">
       <CollapsibleTrigger className="flex w-full items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
         <Badge
-          variant={isCalling ? "secondary" : "outline"}
+          variant={isCalling ? "secondary" : isStopped ? "destructive" : "outline"}
           className="h-5 px-1.5 text-[10px]"
         >
-          {isCalling ? "Running" : "Tool"}
+          {isCalling ? "Running" : isStopped ? "Stopped" : "Tool"}
         </Badge>
         <span>
           {label}
@@ -486,9 +516,9 @@ function ToolCallBlock({
             <LoaderIcon className="ml-1 inline size-3 animate-spin" />
           )}
         </span>
-        {!isCalling && <ChevronDownIcon className="ml-auto size-3" />}
+        {!isCalling && !isStopped && <ChevronDownIcon className="ml-auto size-3" />}
       </CollapsibleTrigger>
-      {!isCalling && (
+      {!isCalling && !isStopped && (
         <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
           {artifacts.length > 0 && onArtifactClick && (
             <div className="mb-2 flex flex-wrap gap-1">
@@ -644,13 +674,19 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const router = useRouter()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [activeTab, setActiveTab] = useState("agent")
-  const defaultModelId = languageModels.find((m) => m.isDefault)?.id ?? languageModels[0]?.id ?? ""
+  const [activeTab, setActiveTab] = useQueryState("tab", {
+    defaultValue: "agent",
+  })
+  const defaultModelId =
+    languageModels.find((m) => m.isDefault)?.id ?? languageModels[0]?.id ?? ""
   const [selectedModelId, setSelectedModelId] = useState<string>(defaultModelId)
 
   // Re-sync selection if models list changes (model added/deleted)
   useEffect(() => {
-    if (languageModels.length > 0 && !languageModels.some((m) => m.id === selectedModelId)) {
+    if (
+      languageModels.length > 0 &&
+      !languageModels.some((m) => m.id === selectedModelId)
+    ) {
       setSelectedModelId(defaultModelId)
     }
   }, [languageModels, selectedModelId, defaultModelId])
@@ -838,7 +874,9 @@ export function ChatPanel({
                   key={s.label}
                   suggestion={s.prompt}
                   variant={s.primary ? "default" : "outline"}
-                  onClick={(prompt) => sendMessage(prompt, selectedModelId || undefined)}
+                  onClick={(prompt) =>
+                    sendMessage(prompt, selectedModelId || undefined)
+                  }
                 >
                   {s.label}
                 </Suggestion>
@@ -869,7 +907,9 @@ export function ChatPanel({
                   </PromptInputSelectContent>
                 </PromptInputSelect>
               ) : (
-                <span className="text-xs text-muted-foreground">No models configured</span>
+                <span className="text-xs text-muted-foreground">
+                  No models configured
+                </span>
               )}
               <PromptInputSubmit
                 status={promptStatus}

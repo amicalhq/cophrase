@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useQueryState } from "nuqs"
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -39,36 +40,52 @@ export function AIEditor({
   const [isChatOpen, setIsChatOpen] = useState(true)
   const chatPanelRef = useRef<PanelImperativeHandle>(null)
 
+  // Artifact ID persisted in URL — artifact data fetched on change
+  const [artifactId, setArtifactId] = useQueryState("artifact", {
+    defaultValue: "",
+  })
   const [selectedArtifact, setSelectedArtifact] = useState<ArtifactData | null>(
     null
   )
 
   const { artifacts, grouped } = useArtifacts(contentId)
 
+  // Fetch full artifact data whenever the URL param changes
+  useEffect(() => {
+    if (!artifactId) {
+      setSelectedArtifact(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/content/${contentId}/artifacts/${artifactId}`
+        )
+        if (!res.ok || cancelled) return
+        const { artifact } = (await res.json()) as { artifact: ArtifactData }
+        if (!cancelled) setSelectedArtifact(artifact)
+      } catch {
+        // Silently fail
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [artifactId, contentId])
+
   // Auto-select the latest artifact (furthest stage) on initial load
   const hasAutoSelected = useRef(false)
   useEffect(() => {
-    if (hasAutoSelected.current || artifacts.length === 0) return
+    // Skip if URL already has an artifact or we already auto-selected
+    if (hasAutoSelected.current || artifactId || artifacts.length === 0) return
     hasAutoSelected.current = true
     const types = sortedTypeKeys(Object.keys(grouped))
     const lastType = types[types.length - 1]
     if (!lastType || !grouped[lastType]) return
     const latest = grouped[lastType]![grouped[lastType]!.length - 1]
-    if (latest) {
-      void (async () => {
-        try {
-          const res = await fetch(
-            `/api/content/${contentId}/artifacts/${latest.id}`
-          )
-          if (!res.ok) return
-          const { artifact } = (await res.json()) as { artifact: ArtifactData }
-          setSelectedArtifact(artifact)
-        } catch {
-          // Silently fail
-        }
-      })()
-    }
-  }, [artifacts, grouped, contentId])
+    if (latest) void setArtifactId(latest.id)
+  }, [artifacts, grouped, artifactId, setArtifactId])
 
   const handleChatToggle = () => {
     if (isChatOpen) {
@@ -79,30 +96,17 @@ export function AIEditor({
   }
 
   const handleArtifactClick = useCallback(
-    async (artifactId: string) => {
-      try {
-        const res = await fetch(
-          `/api/content/${contentId}/artifacts/${artifactId}`
-        )
-        if (!res.ok) return
-        const { artifact } = (await res.json()) as { artifact: ArtifactData }
-        setSelectedArtifact(artifact)
-      } catch {
-        // Silently fail — artifact viewer won't update
-      }
+    (id: string) => {
+      void setArtifactId(id)
     },
-    [contentId]
+    [setArtifactId]
   )
 
   const handleArtifactSelect = useCallback(
     (artifact: ArtifactData | null) => {
-      if (!artifact) {
-        setSelectedArtifact(null)
-        return
-      }
-      handleArtifactClick(artifact.id)
+      void setArtifactId(artifact?.id ?? "")
     },
-    [handleArtifactClick]
+    [setArtifactId]
   )
 
   return (
