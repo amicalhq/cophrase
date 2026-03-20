@@ -76,9 +76,7 @@ export function BlockquoteButton() {
     <Toggle
       size="sm"
       pressed={editor?.isActive("blockquote") ?? false}
-      onPressedChange={() =>
-        editor?.chain().focus().toggleBlockquote().run()
-      }
+      onPressedChange={() => editor?.chain().focus().toggleBlockquote().run()}
       aria-label="Blockquote"
     >
       <HugeiconsIcon icon={LeftToRightBlockQuoteIcon} strokeWidth={2} />
@@ -92,9 +90,7 @@ export function CodeBlockButton() {
     <Toggle
       size="sm"
       pressed={editor?.isActive("codeBlock") ?? false}
-      onPressedChange={() =>
-        editor?.chain().focus().toggleCodeBlock().run()
-      }
+      onPressedChange={() => editor?.chain().focus().toggleCodeBlock().run()}
       aria-label="Code block"
     >
       <HugeiconsIcon icon={SourceCodeIcon} strokeWidth={2} />

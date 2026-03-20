@@ -54,7 +54,7 @@ export function TopNavigation({
   const deepestLevel = hasProject ? "project" : hasOrg ? "org" : "none"
 
   return (
-    <div className="bg-background border-border border-b">
+    <div className="border-b border-border bg-background">
       <div className="flex h-11 items-center justify-between px-3 md:px-4 lg:px-6">
         {/* Left side — Logo and Breadcrumbs */}
         <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-1.5 lg:gap-2">
@@ -62,9 +62,13 @@ export function TopNavigation({
             href="/orgs"
             className="mr-1 hidden transition-opacity hover:opacity-80 md:block"
           >
-            <Logo variant="icon" iconClassName="text-lg leading-none" className="gap-0" />
+            <Logo
+              variant="icon"
+              iconClassName="text-lg leading-none"
+              className="gap-0"
+            />
           </Link>
-          <span className="text-muted-foreground/50 hidden md:block">/</span>
+          <span className="hidden text-muted-foreground/50 md:block">/</span>
 
           {/* Mobile breadcrumbs */}
           <div className="flex min-w-0 flex-1 items-center gap-1 md:hidden">
@@ -90,7 +94,9 @@ export function TopNavigation({
             {pageTitle && (
               <>
                 <span className="text-muted-foreground/50">/</span>
-                <span className="truncate text-sm font-medium">{pageTitle}</span>
+                <span className="truncate text-sm font-medium">
+                  {pageTitle}
+                </span>
               </>
             )}
           </div>
@@ -150,7 +156,7 @@ export function TopNavigation({
                 <div className="flex flex-1 flex-col gap-2">
                   <Link
                     href="/orgs"
-                    className="text-foreground hover:bg-accent rounded-md px-3 py-2 text-sm font-medium"
+                    className="rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Organizations
@@ -158,7 +164,7 @@ export function TopNavigation({
                   {hasOrg && (
                     <Link
                       href={`/orgs/${organization!.id}/projects`}
-                      className="text-foreground hover:bg-accent rounded-md px-3 py-2 text-sm font-medium"
+                      className="rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Projects
@@ -204,7 +210,7 @@ function HelpMenu() {
         {isDev && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-muted-foreground text-[10px] uppercase tracking-wider">
+            <DropdownMenuLabel className="text-[10px] tracking-wider text-muted-foreground uppercase">
               Dev Tools
             </DropdownMenuLabel>
             <TooltipProvider>
@@ -243,9 +249,7 @@ function HelpMenu() {
                   </DropdownMenuItem>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  <code className="text-[10px]">
-                    npx @ai-sdk/devtools
-                  </code>
+                  <code className="text-[10px]">npx @ai-sdk/devtools</code>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

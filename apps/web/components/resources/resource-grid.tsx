@@ -10,10 +10,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { Button } from "@workspace/ui/components/button"
-import type {
-  ResourceType,
-  ResourceCategory,
-} from "@workspace/db"
+import type { ResourceType, ResourceCategory } from "@workspace/db"
 import { ResourceCard } from "./resource-card"
 import { ResourceDialog } from "./resource-dialog"
 import type { JSONContent } from "@tiptap/react"
@@ -79,10 +76,7 @@ export function ResourceGrid({
       if (typeFilter !== "all" && r.type !== typeFilter) return false
       if (categoryFilter !== "all" && r.category !== categoryFilter)
         return false
-      if (
-        search &&
-        !r.title.toLowerCase().includes(search.toLowerCase())
-      )
+      if (search && !r.title.toLowerCase().includes(search.toLowerCase()))
         return false
       return true
     })
@@ -91,7 +85,7 @@ export function ResourceGrid({
   async function handleCardClick(r: ResourceRow) {
     try {
       const res = await fetch(
-        `/api/resources/${r.id}?projectId=${projectId}&orgId=${orgId}`,
+        `/api/resources/${r.id}?projectId=${projectId}&orgId=${orgId}`
       )
       if (!res.ok) return
       const data = await res.json()
@@ -127,10 +121,7 @@ export function ResourceGrid({
             ))}
           </SelectContent>
         </Select>
-        <Select
-          value={categoryFilter}
-          onValueChange={setCategoryFilter}
-        >
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-[170px]">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
@@ -153,7 +144,7 @@ export function ResourceGrid({
 
       {/* Grid */}
       {filtered.length === 0 ? (
-        <div className="text-muted-foreground flex flex-col items-center justify-center py-16 text-sm">
+        <div className="flex flex-col items-center justify-center py-16 text-sm text-muted-foreground">
           <p>No resources found</p>
           <Button
             variant="outline"

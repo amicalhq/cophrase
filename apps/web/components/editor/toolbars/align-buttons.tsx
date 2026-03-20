@@ -15,9 +15,7 @@ export function AlignLeftButton() {
     <Toggle
       size="sm"
       pressed={editor?.isActive({ textAlign: "left" }) ?? false}
-      onPressedChange={() =>
-        editor?.chain().focus().setTextAlign("left").run()
-      }
+      onPressedChange={() => editor?.chain().focus().setTextAlign("left").run()}
       aria-label="Align left"
     >
       <HugeiconsIcon icon={TextAlignLeftIcon} strokeWidth={2} />

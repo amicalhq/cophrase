@@ -68,9 +68,7 @@ export function CreateProjectDialog({ orgId }: { orgId: string }) {
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4 py-2">
-            {error && (
-              <p className="text-destructive text-sm">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex flex-col gap-2">
               <Label htmlFor="project-name">Name</Label>
               <Input
@@ -97,10 +95,7 @@ export function CreateProjectDialog({ orgId }: { orgId: string }) {
             </div>
           </div>
           <DialogFooter className="pt-4">
-            <Button
-              type="submit"
-              disabled={loading || !name.trim()}
-            >
+            <Button type="submit" disabled={loading || !name.trim()}>
               {loading ? "Creating..." : "Create project"}
             </Button>
           </DialogFooter>

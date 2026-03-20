@@ -32,7 +32,7 @@ export function ResourceEditor({ content, onChange }: ResourceEditorProps) {
   })
 
   return (
-    <div className="border-input rounded-md border">
+    <div className="rounded-md border border-input">
       <EditorContent editor={editor} />
     </div>
   )

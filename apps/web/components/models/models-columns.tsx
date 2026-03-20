@@ -2,7 +2,11 @@
 
 import { createColumnHelper } from "@tanstack/react-table"
 import { Badge } from "@workspace/ui/components/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar"
 import type { ModelRow } from "./models-page"
 
 const columnHelper = createColumnHelper<ModelRow>()
@@ -63,7 +67,7 @@ export const modelsColumns = [
     size: 80,
     cell: (info) => (
       <span
-        className={`text-base ${info.getValue() ? "text-yellow-500" : "text-muted-foreground/30 cursor-pointer hover:text-yellow-500/50"}`}
+        className={`text-base ${info.getValue() ? "text-yellow-500" : "cursor-pointer text-muted-foreground/30 hover:text-yellow-500/50"}`}
       >
         {info.getValue() ? "★" : "☆"}
       </span>

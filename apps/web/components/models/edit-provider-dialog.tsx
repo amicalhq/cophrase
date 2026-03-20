@@ -13,7 +13,10 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { Badge } from "@workspace/ui/components/badge"
-import { ConnectionTestBanner, type ConnectionTestStatus } from "./connection-test-banner"
+import {
+  ConnectionTestBanner,
+  type ConnectionTestStatus,
+} from "./connection-test-banner"
 
 interface EditProviderDialogProps {
   open: boolean
@@ -80,7 +83,10 @@ export function EditProviderDialog({
     setTestStatus("testing")
     setTestError("")
     try {
-      const body: Record<string, string | undefined> = { orgId, providerId: provider.id }
+      const body: Record<string, string | undefined> = {
+        orgId,
+        providerId: provider.id,
+      }
       if (apiKey.trim()) {
         body.apiKey = apiKey.trim()
       }
@@ -151,10 +157,9 @@ export function EditProviderDialog({
     setDeleteError("")
 
     try {
-      const res = await fetch(
-        `/api/providers/${provider.id}?orgId=${orgId}`,
-        { method: "DELETE" }
-      )
+      const res = await fetch(`/api/providers/${provider.id}?orgId=${orgId}`, {
+        method: "DELETE",
+      })
 
       if (!res.ok) {
         const data = await res.json()
@@ -177,7 +182,9 @@ export function EditProviderDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Edit provider
-            <Badge variant="secondary">{providerTypeLabel(provider.providerType)}</Badge>
+            <Badge variant="secondary">
+              {providerTypeLabel(provider.providerType)}
+            </Badge>
           </DialogTitle>
           <DialogDescription>
             Update provider settings or remove this provider.
@@ -186,9 +193,7 @@ export function EditProviderDialog({
 
         <form onSubmit={handleSave}>
           <div className="flex flex-col gap-4 py-2">
-            {error && (
-              <p className="text-destructive text-sm">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             {/* Name field */}
             <div className="flex flex-col gap-2">
@@ -259,7 +264,9 @@ export function EditProviderDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={testStatus === "testing" || loading || deleteLoading}
+                  disabled={
+                    testStatus === "testing" || loading || deleteLoading
+                  }
                   onClick={handleTestConnection}
                 >
                   {testStatus === "testing" ? "Testing..." : "Test connection"}
@@ -274,9 +281,9 @@ export function EditProviderDialog({
 
         {/* Inline delete confirmation */}
         {showDeleteConfirm && (
-          <div className="border-border mt-2 rounded-md border p-3">
+          <div className="mt-2 rounded-md border border-border p-3">
             {deleteError && (
-              <p className="text-destructive mb-2 text-sm">{deleteError}</p>
+              <p className="mb-2 text-sm text-destructive">{deleteError}</p>
             )}
             <p className="text-sm">
               This will remove all its models. Are you sure?

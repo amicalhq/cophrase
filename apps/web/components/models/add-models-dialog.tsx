@@ -73,7 +73,9 @@ export function AddModelsDialog({
   // initialEnabled is the original enabled set for diff computation
   const [initialEnabled, setInitialEnabled] = useState<Set<string>>(new Set())
   // Reverse lookup: "providerId:modelId" → database row id (for deletions)
-  const [enabledIdLookup, setEnabledIdLookup] = useState<Map<string, string>>(new Map())
+  const [enabledIdLookup, setEnabledIdLookup] = useState<Map<string, string>>(
+    new Map()
+  )
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -110,11 +112,13 @@ export function AddModelsDialog({
             )
             if (!res.ok) return []
             const models: AvailableModel[] = await res.json()
-            return models.map((m): CatalogModel => ({
-              ...m,
-              providerId: provider.id,
-              providerName: provider.name,
-            }))
+            return models.map(
+              (m): CatalogModel => ({
+                ...m,
+                providerId: provider.id,
+                providerName: provider.name,
+              })
+            )
           })
         )
 
@@ -167,7 +171,11 @@ export function AddModelsDialog({
     setError("")
 
     try {
-      const add: Array<{ providerId: string; modelId: string; modelType: string }> = []
+      const add: Array<{
+        providerId: string
+        modelId: string
+        modelType: string
+      }> = []
       const remove: string[] = []
 
       for (const model of catalogModels) {
@@ -211,20 +219,20 @@ export function AddModelsDialog({
   const filteredModels = (type: ModelType) =>
     catalogModels.filter((m) => {
       if (m.type !== type) return false
-      if (providerFilter !== "all" && m.providerId !== providerFilter) return false
+      if (providerFilter !== "all" && m.providerId !== providerFilter)
+        return false
       if (search.trim()) {
         const q = search.trim().toLowerCase()
         return (
-          m.id.toLowerCase().includes(q) ||
-          m.name.toLowerCase().includes(q)
+          m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)
         )
       }
       return true
     })
 
-  const modelTypesWithCounts = (["language", "embedding", "image", "video"] as ModelType[]).filter(
-    (t) => catalogModels.some((m) => m.type === t)
-  )
+  const modelTypesWithCounts = (
+    ["language", "embedding", "image", "video"] as ModelType[]
+  ).filter((t) => catalogModels.some((m) => m.type === t))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -239,11 +247,9 @@ export function AddModelsDialog({
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4 py-2">
             {fetchError && (
-              <p className="text-destructive text-sm">{fetchError}</p>
+              <p className="text-sm text-destructive">{fetchError}</p>
             )}
-            {error && (
-              <p className="text-destructive text-sm">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             {/* Search + provider filter */}
             <div className="flex gap-2">
@@ -254,7 +260,10 @@ export function AddModelsDialog({
                 className="flex-1"
               />
               {providers.length > 1 && (
-                <Select value={providerFilter} onValueChange={setProviderFilter}>
+                <Select
+                  value={providerFilter}
+                  onValueChange={setProviderFilter}
+                >
                   <SelectTrigger className="w-36">
                     <SelectValue placeholder="All providers" />
                   </SelectTrigger>
@@ -271,9 +280,9 @@ export function AddModelsDialog({
             </div>
 
             {fetchingModels ? (
-              <p className="text-muted-foreground text-sm">Loading models...</p>
+              <p className="text-sm text-muted-foreground">Loading models...</p>
             ) : modelTypesWithCounts.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 No models available for your configured providers.
               </p>
             ) : (
@@ -293,9 +302,9 @@ export function AddModelsDialog({
                   const models = filteredModels(type)
                   return (
                     <TabsContent key={type} value={type}>
-                      <div className="max-h-96 overflow-y-auto flex flex-col gap-1 pr-1">
+                      <div className="flex max-h-96 flex-col gap-1 overflow-y-auto pr-1">
                         {models.length === 0 ? (
-                          <p className="text-muted-foreground text-sm py-2">
+                          <p className="py-2 text-sm text-muted-foreground">
                             No models match your search.
                           </p>
                         ) : (
@@ -307,7 +316,7 @@ export function AddModelsDialog({
                               <label
                                 key={key}
                                 className={cn(
-                                  "flex items-center gap-3 rounded-md px-2 py-2 cursor-pointer hover:bg-muted",
+                                  "flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 hover:bg-muted",
                                   isEnabled && "bg-accent"
                                 )}
                               >
@@ -315,16 +324,17 @@ export function AddModelsDialog({
                                   checked={isSelected}
                                   onCheckedChange={() => toggleModel(key)}
                                 />
-                                <div className="flex flex-1 items-center gap-2 min-w-0">
-                                  <span className="text-xs font-medium truncate">
+                                <div className="flex min-w-0 flex-1 items-center gap-2">
+                                  <span className="truncate text-xs font-medium">
                                     {model.id}
                                   </span>
                                   <Badge variant="outline" className="shrink-0">
-                                    {MODEL_TYPE_LABELS[type as ModelType] ?? type}
+                                    {MODEL_TYPE_LABELS[type as ModelType] ??
+                                      type}
                                   </Badge>
                                 </div>
                                 {providers.length > 1 && (
-                                  <span className="text-xs text-muted-foreground shrink-0">
+                                  <span className="shrink-0 text-xs text-muted-foreground">
                                     {model.providerName}
                                   </span>
                                 )}

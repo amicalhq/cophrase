@@ -35,7 +35,7 @@ export function CreateContentDialog({
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [contentTypeId, setContentTypeId] = useState<string>(
-    contentTypes[0]?.id ?? "",
+    contentTypes[0]?.id ?? ""
   )
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -95,13 +95,10 @@ export function CreateContentDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4 py-2">
-            {error && (
-              <p className="text-destructive text-sm">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex flex-col gap-2">
               <Label htmlFor="content-title">
-                Title{" "}
-                <span className="text-muted-foreground">(optional)</span>
+                Title <span className="text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 id="content-title"
@@ -123,12 +120,12 @@ export function CreateContentDialog({
                       "flex-1 rounded-lg border-2 p-4 text-center transition-colors",
                       contentTypeId === ct.id
                         ? "border-foreground bg-accent"
-                        : "border-border hover:border-muted-foreground",
+                        : "border-border hover:border-muted-foreground"
                     )}
                   >
                     <p className="text-sm font-medium">{ct.name}</p>
                     {ct.description && (
-                      <p className="text-muted-foreground mt-1 text-xs">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {ct.description}
                       </p>
                     )}

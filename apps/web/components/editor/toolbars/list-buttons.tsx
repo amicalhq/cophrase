@@ -15,9 +15,7 @@ export function BulletListButton() {
     <Toggle
       size="sm"
       pressed={editor?.isActive("bulletList") ?? false}
-      onPressedChange={() =>
-        editor?.chain().focus().toggleBulletList().run()
-      }
+      onPressedChange={() => editor?.chain().focus().toggleBulletList().run()}
       aria-label="Bullet list"
     >
       <HugeiconsIcon icon={LeftToRightListBulletIcon} strokeWidth={2} />
@@ -31,9 +29,7 @@ export function OrderedListButton() {
     <Toggle
       size="sm"
       pressed={editor?.isActive("orderedList") ?? false}
-      onPressedChange={() =>
-        editor?.chain().focus().toggleOrderedList().run()
-      }
+      onPressedChange={() => editor?.chain().focus().toggleOrderedList().run()}
       aria-label="Ordered list"
     >
       <HugeiconsIcon icon={LeftToRightListNumberIcon} strokeWidth={2} />
@@ -47,9 +43,7 @@ export function HorizontalRuleButton() {
     <Toggle
       size="sm"
       pressed={false}
-      onPressedChange={() =>
-        editor?.chain().focus().setHorizontalRule().run()
-      }
+      onPressedChange={() => editor?.chain().focus().setHorizontalRule().run()}
       aria-label="Horizontal rule"
     >
       <HugeiconsIcon icon={MinusSignIcon} strokeWidth={2} />

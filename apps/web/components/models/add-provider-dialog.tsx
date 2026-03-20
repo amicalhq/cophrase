@@ -22,7 +22,10 @@ import {
 } from "@workspace/ui/components/tabs"
 import { cn } from "@workspace/ui/lib/utils"
 import type { AvailableModel } from "@/lib/ai/types"
-import { ConnectionTestBanner, type ConnectionTestStatus } from "./connection-test-banner"
+import {
+  ConnectionTestBanner,
+  type ConnectionTestStatus,
+} from "./connection-test-banner"
 
 interface AddProviderDialogProps {
   open: boolean
@@ -237,9 +240,9 @@ export function AddProviderDialog({
   const modelsByType = (type: ModelType) =>
     availableModels.filter((m) => m.type === type)
 
-  const modelTypesWithCounts = (["language", "embedding", "image", "video"] as ModelType[]).filter(
-    (t) => modelsByType(t).length > 0
-  )
+  const modelTypesWithCounts = (
+    ["language", "embedding", "image", "video"] as ModelType[]
+  ).filter((t) => modelsByType(t).length > 0)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -259,7 +262,7 @@ export function AddProviderDialog({
           <form onSubmit={handleNextStep}>
             <div className="flex flex-col gap-4 py-2">
               {fetchError && (
-                <p className="text-destructive text-sm">{fetchError}</p>
+                <p className="text-sm text-destructive">{fetchError}</p>
               )}
 
               {/* Provider type selector */}
@@ -278,7 +281,7 @@ export function AddProviderDialog({
                       className={cn(
                         "flex flex-col items-center gap-2 rounded-lg border p-3 text-center transition-colors hover:bg-muted",
                         providerType === option.type
-                          ? "border-primary border-2"
+                          ? "border-2 border-primary"
                           : "border-border"
                       )}
                     >
@@ -384,12 +387,10 @@ export function AddProviderDialog({
         {step === 2 && (
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-4 py-2">
-              {error && (
-                <p className="text-destructive text-sm">{error}</p>
-              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
 
               {modelTypesWithCounts.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-muted-foreground">
                   No models available for this provider.
                 </p>
               ) : (
@@ -407,18 +408,18 @@ export function AddProviderDialog({
 
                   {modelTypesWithCounts.map((type) => (
                     <TabsContent key={type} value={type}>
-                      <div className="max-h-80 overflow-y-auto flex flex-col gap-1 pr-1">
+                      <div className="flex max-h-80 flex-col gap-1 overflow-y-auto pr-1">
                         {modelsByType(type).map((model, index) => (
                           <label
                             key={model.id}
-                            className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted cursor-pointer"
+                            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 hover:bg-muted"
                           >
                             <Checkbox
                               checked={selectedModels.has(model.id)}
                               onCheckedChange={() => toggleModel(model.id)}
                             />
-                            <div className="flex flex-1 items-center gap-2 min-w-0">
-                              <span className="text-xs font-medium truncate">
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                              <span className="truncate text-xs font-medium">
                                 {model.name}
                               </span>
                               {index === 0 && (

@@ -24,9 +24,13 @@ export function FileDropzone({
   const validateAndSelect = useCallback(
     (file: File) => {
       setValidationError("")
-      if (!ALLOWED_MIME_TYPES.includes(file.type as typeof ALLOWED_MIME_TYPES[number])) {
+      if (
+        !ALLOWED_MIME_TYPES.includes(
+          file.type as (typeof ALLOWED_MIME_TYPES)[number]
+        )
+      ) {
         setValidationError(
-          "File type not allowed. Accepted: PNG, JPEG, SVG, WebP, GIF, PDF",
+          "File type not allowed. Accepted: PNG, JPEG, SVG, WebP, GIF, PDF"
         )
         return
       }
@@ -37,7 +41,7 @@ export function FileDropzone({
       setSelectedFile(file)
       onFileSelect(file)
     },
-    [onFileSelect],
+    [onFileSelect]
   )
 
   const handleDrop = useCallback(
@@ -47,7 +51,7 @@ export function FileDropzone({
       const file = e.dataTransfer.files[0]
       if (file) validateAndSelect(file)
     },
-    [validateAndSelect],
+    [validateAndSelect]
   )
 
   const handleChange = useCallback(
@@ -55,7 +59,7 @@ export function FileDropzone({
       const file = e.target.files?.[0]
       if (file) validateAndSelect(file)
     },
-    [validateAndSelect],
+    [validateAndSelect]
   )
 
   const displayError = error || validationError
@@ -73,10 +77,10 @@ export function FileDropzone({
           "flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors",
           dragActive
             ? "border-foreground bg-accent"
-            : "border-border hover:border-muted-foreground",
+            : "border-border hover:border-muted-foreground"
         )}
       >
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {selectedFile
             ? selectedFile.name
             : currentFileName
@@ -99,12 +103,12 @@ export function FileDropzone({
           onChange={handleChange}
           className="hidden"
         />
-        <p className="text-muted-foreground mt-2 text-xs">
+        <p className="mt-2 text-xs text-muted-foreground">
           PNG, JPEG, SVG, WebP, GIF, PDF — max 10MB
         </p>
       </div>
       {displayError && (
-        <p className="text-destructive text-sm">{displayError}</p>
+        <p className="text-sm text-destructive">{displayError}</p>
       )}
     </div>
   )

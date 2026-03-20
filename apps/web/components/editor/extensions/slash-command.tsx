@@ -37,17 +37,20 @@ const allItems: CommandItem[] = [
   {
     label: "Heading 1",
     icon: Heading01Icon,
-    command: (editor) => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+    command: (editor) =>
+      editor.chain().focus().toggleHeading({ level: 1 }).run(),
   },
   {
     label: "Heading 2",
     icon: Heading02Icon,
-    command: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+    command: (editor) =>
+      editor.chain().focus().toggleHeading({ level: 2 }).run(),
   },
   {
     label: "Heading 3",
     icon: Heading03Icon,
-    command: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+    command: (editor) =>
+      editor.chain().focus().toggleHeading({ level: 3 }).run(),
   },
   {
     label: "Bullet List",
@@ -132,7 +135,7 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
     return (
       <div
         ref={containerRef}
-        className="bg-background border-border z-50 max-h-72 overflow-y-auto rounded-md border shadow-md"
+        className="z-50 max-h-72 overflow-y-auto rounded-md border border-border bg-background shadow-md"
       >
         <div className="flex flex-col py-1">
           {items.map((item, index) => (
@@ -155,7 +158,7 @@ const CommandList = forwardRef<CommandListRef, CommandListProps>(
         </div>
       </div>
     )
-  },
+  }
 )
 
 export const SlashCommand = Extension.create({
@@ -178,11 +181,14 @@ export const SlashCommand = Extension.create({
           if (!query) return allItems
           const lowerQuery = query.toLowerCase()
           return allItems.filter((item) =>
-            item.label.toLowerCase().includes(lowerQuery),
+            item.label.toLowerCase().includes(lowerQuery)
           )
         },
         render() {
-          let reactRenderer: ReactRenderer<CommandListRef, CommandListProps> | null = null
+          let reactRenderer: ReactRenderer<
+            CommandListRef,
+            CommandListProps
+          > | null = null
           let popup: TippyInstance[] = []
 
           return {

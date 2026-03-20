@@ -58,13 +58,13 @@ export function TabNavigation({ tabs }: TabNavigationProps) {
         tabRefs.current.delete(href)
       }
     },
-    [],
+    []
   )
 
   const activeHref = findActiveTab(tabs, pathname)?.href
 
   return (
-    <div className="border-border bg-background border-b">
+    <div className="border-b border-border bg-background">
       <nav
         ref={navRef}
         aria-label="Section navigation"
@@ -80,10 +80,10 @@ export function TabNavigation({ tabs }: TabNavigationProps) {
               href={tab.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "whitespace-nowrap px-4 py-1.5 text-sm font-medium transition-colors",
+                "px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
                 isActive
                   ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {tab.label}
@@ -92,8 +92,8 @@ export function TabNavigation({ tabs }: TabNavigationProps) {
         })}
         <span
           className={cn(
-            "bg-foreground absolute bottom-0 h-0.5 transition-all duration-200 ease-out",
-            !isInitialized && "opacity-0",
+            "absolute bottom-0 h-0.5 bg-foreground transition-all duration-200 ease-out",
+            !isInitialized && "opacity-0"
           )}
           style={{
             left: indicatorStyle.left,

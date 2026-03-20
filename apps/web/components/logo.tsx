@@ -16,9 +16,7 @@ export function Logo({
   if (variant === "icon") {
     return (
       <div className={cn("flex items-center", className)}>
-        <span
-          className={cn("font-semibold tracking-tight", iconClassName)}
-        >
+        <span className={cn("font-semibold tracking-tight", iconClassName)}>
           C
         </span>
       </div>
@@ -27,9 +25,7 @@ export function Logo({
 
   return (
     <div className={cn("flex items-center", className)}>
-      <span
-        className={cn("font-semibold tracking-tight", textClassName)}
-      >
+      <span className={cn("font-semibold tracking-tight", textClassName)}>
         CoPhrase
       </span>
     </div>

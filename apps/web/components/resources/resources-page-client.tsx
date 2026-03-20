@@ -36,7 +36,7 @@ export function ResourcesPageClient({
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Resources</h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             Manage inputs for your content agents
           </p>
         </div>

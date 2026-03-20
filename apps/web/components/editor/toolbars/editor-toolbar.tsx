@@ -40,7 +40,7 @@ export function EditorToolbar({
   trailing,
 }: EditorToolbarProps) {
   return (
-    <div className="border-border flex h-11 shrink-0 items-center justify-between border-b px-2">
+    <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-2">
       <div className="flex items-center gap-0.5">
         <button
           type="button"
@@ -92,9 +92,7 @@ export function EditorToolbar({
         <AlignRightButton />
       </div>
 
-      {trailing && (
-        <div className="flex items-center gap-1.5">{trailing}</div>
-      )}
+      {trailing && <div className="flex items-center gap-1.5">{trailing}</div>}
     </div>
   )
 }

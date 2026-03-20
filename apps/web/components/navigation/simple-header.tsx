@@ -6,7 +6,7 @@ import { UserDropdown } from "@/components/user-menu"
 
 export function SimpleHeader() {
   return (
-    <div className="bg-background border-border flex h-11 items-center justify-between border-b px-3 md:px-4 lg:px-6">
+    <div className="flex h-11 items-center justify-between border-b border-border bg-background px-3 md:px-4 lg:px-6">
       <Link href="/orgs" className="transition-opacity hover:opacity-80">
         <Logo
           variant="full"

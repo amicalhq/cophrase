@@ -1,7 +1,10 @@
 "use client"
 
 import { Input } from "@workspace/ui/components/input"
-import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@workspace/ui/components/toggle-group"
 
 interface ModelsFiltersProps {
   search: string

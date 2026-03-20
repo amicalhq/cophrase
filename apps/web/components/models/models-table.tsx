@@ -105,7 +105,7 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
                   >
                     {flexRender(
                       header.column.columnDef.header,
-                      header.getContext(),
+                      header.getContext()
                     )}
                   </TableHead>
                 ))}
@@ -118,9 +118,10 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
               <TableRow>
                 <TableCell
                   colSpan={modelsColumns.length + 1}
-                  className="text-muted-foreground h-24 text-center text-sm"
+                  className="h-24 text-center text-sm text-muted-foreground"
                 >
-                  No models enabled yet. Click &quot;Add models&quot; to get started.
+                  No models enabled yet. Click &quot;Add models&quot; to get
+                  started.
                 </TableCell>
               </TableRow>
             ) : (
@@ -128,8 +129,7 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => {
                     const isDefault =
-                      cell.column.id === "isDefault" &&
-                      !row.original.isDefault
+                      cell.column.id === "isDefault" && !row.original.isDefault
                     return (
                       <TableCell
                         key={cell.id}
@@ -141,7 +141,7 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
-                          cell.getContext(),
+                          cell.getContext()
                         )}
                       </TableCell>
                     )
@@ -149,7 +149,11 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
                           ···
                         </Button>
                       </DropdownMenuTrigger>
@@ -178,7 +182,7 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
       </div>
 
       <div className="flex items-center justify-between">
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {filteredModels.length} model(s)
         </p>
         <div className="flex items-center gap-2">
@@ -190,7 +194,7 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
           >
             Previous
           </Button>
-          <span className="text-muted-foreground text-sm">
+          <span className="text-sm text-muted-foreground">
             Page {table.getState().pagination.pageIndex + 1} of{" "}
             {table.getPageCount()}
           </span>

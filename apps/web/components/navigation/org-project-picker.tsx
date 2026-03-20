@@ -11,10 +11,7 @@ import {
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import {
-  Avatar,
-  AvatarFallback,
-} from "@workspace/ui/components/avatar"
+import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 import { cn } from "@workspace/ui/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowDown01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
@@ -44,7 +41,7 @@ export function OrgProjectPicker({
   const [orgSearch, setOrgSearch] = React.useState("")
   const [projectSearch, setProjectSearch] = React.useState("")
   const [selectedOrgId, setSelectedOrgId] = React.useState(
-    organization?.id ?? "",
+    organization?.id ?? ""
   )
   const orgInputRef = React.useRef<HTMLInputElement>(null)
   const projectInputRef = React.useRef<HTMLInputElement>(null)
@@ -102,11 +99,11 @@ export function OrgProjectPicker({
     })) ?? []
 
   const filteredOrgs = allOrganizations.filter((org) =>
-    org.name.toLowerCase().includes(orgSearch.toLowerCase()),
+    org.name.toLowerCase().includes(orgSearch.toLowerCase())
   )
 
   const filteredProjects = projects.filter((proj) =>
-    proj.name.toLowerCase().includes(projectSearch.toLowerCase()),
+    proj.name.toLowerCase().includes(projectSearch.toLowerCase())
   )
 
   // Loading skeleton
@@ -143,7 +140,7 @@ export function OrgProjectPicker({
 
   const entityAvatar = (
     entity: { name: string },
-    shape: "rounded-full" | "rounded-md",
+    shape: "rounded-full" | "rounded-md"
   ) => (
     <Avatar className={cn("h-6 w-6", shape)}>
       <AvatarFallback className="text-xs">
@@ -155,8 +152,8 @@ export function OrgProjectPicker({
   const pickerPopoverContent = (
     <div className="flex h-[450px]">
       {/* Left Column — Organizations */}
-      <div className="border-border flex flex-1 flex-col border-r">
-        <div className="border-border border-b p-3">
+      <div className="flex flex-1 flex-col border-r border-border">
+        <div className="border-b border-border p-3">
           <Input
             ref={orgInputRef}
             placeholder="Find Organization..."
@@ -166,7 +163,7 @@ export function OrgProjectPicker({
           />
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          <div className="text-muted-foreground mb-1 px-2 py-1.5 text-xs font-medium">
+          <div className="mb-1 px-2 py-1.5 text-xs font-medium text-muted-foreground">
             Organizations
           </div>
           {orgsLoading ? (
@@ -174,7 +171,11 @@ export function OrgProjectPicker({
               <Skeleton className="h-5 w-5" />
             </div>
           ) : (
-            <div role="listbox" aria-label="Organizations" className="space-y-1">
+            <div
+              role="listbox"
+              aria-label="Organizations"
+              className="space-y-1"
+            >
               {filteredOrgs.map((o) => (
                 <button
                   key={o.id}
@@ -182,19 +183,19 @@ export function OrgProjectPicker({
                   aria-selected={o.id === selectedOrgId}
                   onClick={() => handleOrgClick(o)}
                   className={cn(
-                    "hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors",
-                    o.id === selectedOrgId && "bg-accent",
+                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent",
+                    o.id === selectedOrgId && "bg-accent"
                   )}
                 >
                   {entityAvatar(o, "rounded-full")}
-                  <span className="text-foreground flex-1 truncate">
+                  <span className="flex-1 truncate text-foreground">
                     {o.name}
                   </span>
                   {o.id === selectedOrgId && (
                     <HugeiconsIcon
                       icon={Tick02Icon}
                       size={16}
-                      className="text-foreground flex-shrink-0"
+                      className="flex-shrink-0 text-foreground"
                     />
                   )}
                 </button>
@@ -206,7 +207,7 @@ export function OrgProjectPicker({
 
       {/* Right Column — Projects */}
       <div className="flex flex-1 flex-col">
-        <div className="border-border border-b p-3">
+        <div className="border-b border-border p-3">
           <Input
             ref={projectInputRef}
             placeholder="Find Project..."
@@ -216,7 +217,7 @@ export function OrgProjectPicker({
           />
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          <div className="text-muted-foreground mb-1 px-2 py-1.5 text-xs font-medium">
+          <div className="mb-1 px-2 py-1.5 text-xs font-medium text-muted-foreground">
             Projects
           </div>
           {projectsLoading ? (
@@ -224,7 +225,7 @@ export function OrgProjectPicker({
               <Skeleton className="h-5 w-5" />
             </div>
           ) : filteredProjects.length === 0 ? (
-            <div className="text-muted-foreground px-2 py-2 text-sm">
+            <div className="px-2 py-2 text-sm text-muted-foreground">
               No projects yet
             </div>
           ) : (
@@ -236,19 +237,19 @@ export function OrgProjectPicker({
                   aria-selected={proj.id === project?.id}
                   onClick={() => handleProjectClick(proj)}
                   className={cn(
-                    "hover:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors",
-                    proj.id === project?.id && "bg-accent",
+                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent",
+                    proj.id === project?.id && "bg-accent"
                   )}
                 >
                   {entityAvatar(proj, "rounded-md")}
-                  <span className="text-foreground flex-1 truncate">
+                  <span className="flex-1 truncate text-foreground">
                     {proj.name}
                   </span>
                   {proj.id === project?.id && (
                     <HugeiconsIcon
                       icon={Tick02Icon}
                       size={16}
-                      className="text-foreground flex-shrink-0"
+                      className="flex-shrink-0 text-foreground"
                     />
                   )}
                 </button>
@@ -265,7 +266,7 @@ export function OrgProjectPicker({
       variant="ghost"
       size="icon"
       aria-label="Switch organization or project"
-      className="text-muted-foreground hover:text-foreground hover:bg-accent h-8 w-6 rounded-l-none px-0"
+      className="h-8 w-6 rounded-l-none px-0 text-muted-foreground hover:bg-accent hover:text-foreground"
     >
       <HugeiconsIcon icon={ArrowDown01Icon} size={16} />
     </Button>
@@ -277,11 +278,11 @@ export function OrgProjectPicker({
         {/* Mobile: icon-only link */}
         <Link
           href={`/orgs/${org.id}/projects`}
-          className="text-foreground hover:bg-accent flex h-8 items-center rounded-md px-1.5 md:hidden"
+          className="flex h-8 items-center rounded-md px-1.5 text-foreground hover:bg-accent md:hidden"
         >
           {entityAvatar(org, "rounded-full")}
           {showText && (
-            <span className="text-foreground ml-1.5 max-w-[120px] truncate text-sm">
+            <span className="ml-1.5 max-w-[120px] truncate text-sm text-foreground">
               {org.name}
             </span>
           )}
@@ -291,7 +292,7 @@ export function OrgProjectPicker({
         <div className="hidden items-center md:flex">
           <Link
             href={`/orgs/${org.id}/projects`}
-            className="text-foreground hover:bg-accent mx-0 flex h-8 max-w-[150px] items-center gap-2 rounded-l-md px-2 lg:max-w-[180px]"
+            className="mx-0 flex h-8 max-w-[150px] items-center gap-2 rounded-l-md px-2 text-foreground hover:bg-accent lg:max-w-[180px]"
           >
             {entityAvatar(org, "rounded-full")}
             <span className="truncate text-sm">{org.name}</span>
@@ -299,7 +300,7 @@ export function OrgProjectPicker({
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>{chevronButton}</PopoverTrigger>
             <PopoverContent
-              className="border-border bg-background w-[550px] overflow-hidden p-0"
+              className="w-[550px] overflow-hidden border-border bg-background p-0"
               align="start"
               sideOffset={8}
               onOpenAutoFocus={(e) => {
@@ -321,11 +322,11 @@ export function OrgProjectPicker({
       {/* Mobile */}
       <Link
         href={`/orgs/${org.id}/projects/${project?.id}/content`}
-        className="text-foreground hover:bg-accent flex h-8 items-center rounded-md px-1.5 md:hidden"
+        className="flex h-8 items-center rounded-md px-1.5 text-foreground hover:bg-accent md:hidden"
       >
         {entityAvatar(project as { id: string; name: string }, "rounded-md")}
         {showText && (
-          <span className="text-foreground ml-1.5 max-w-[120px] truncate text-sm">
+          <span className="ml-1.5 max-w-[120px] truncate text-sm text-foreground">
             {project?.name}
           </span>
         )}
@@ -335,7 +336,7 @@ export function OrgProjectPicker({
       <div className="hidden items-center md:flex">
         <Link
           href={`/orgs/${org.id}/projects/${project?.id}/content`}
-          className="text-foreground hover:bg-accent flex h-8 max-w-[150px] items-center gap-2 rounded-l-md px-2 lg:max-w-[180px]"
+          className="flex h-8 max-w-[150px] items-center gap-2 rounded-l-md px-2 text-foreground hover:bg-accent lg:max-w-[180px]"
         >
           {entityAvatar(project as { id: string; name: string }, "rounded-md")}
           <span className="truncate text-sm">{project?.name}</span>
@@ -343,7 +344,7 @@ export function OrgProjectPicker({
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>{chevronButton}</PopoverTrigger>
           <PopoverContent
-            className="border-border bg-background w-[550px] overflow-hidden p-0"
+            className="w-[550px] overflow-hidden border-border bg-background p-0"
             align="start"
             sideOffset={8}
             onOpenAutoFocus={(e) => {

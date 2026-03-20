@@ -13,9 +13,7 @@ export function ToolbarProvider({
   children: React.ReactNode
 }) {
   return (
-    <ToolbarContext.Provider value={editor}>
-      {children}
-    </ToolbarContext.Provider>
+    <ToolbarContext.Provider value={editor}>{children}</ToolbarContext.Provider>
   )
 }
 

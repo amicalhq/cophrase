@@ -58,9 +58,9 @@ export function ModelsPage({ orgId, providers, models }: ModelsPageProps) {
         </div>
 
         {providers.length === 0 ? (
-          <div className="border-border rounded-md border border-dashed py-12 text-center">
+          <div className="rounded-md border border-dashed border-border py-12 text-center">
             <p className="text-sm font-medium">No providers configured</p>
-            <p className="text-muted-foreground mt-1 text-xs">
+            <p className="mt-1 text-xs text-muted-foreground">
               Add a provider like OpenAI, Groq, or Vercel AI Gateway to get
               started.
             </p>
@@ -96,8 +96,8 @@ export function ModelsPage({ orgId, providers, models }: ModelsPageProps) {
         </div>
 
         {providers.length === 0 ? (
-          <div className="border-border rounded-md border py-8 text-center">
-            <p className="text-muted-foreground text-sm">
+          <div className="rounded-md border border-border py-8 text-center">
+            <p className="text-sm text-muted-foreground">
               Add a provider first to browse and enable models.
             </p>
           </div>

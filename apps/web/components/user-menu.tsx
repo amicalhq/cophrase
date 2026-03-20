@@ -41,10 +41,7 @@ function getInitials(name: string | null | undefined): string {
   ).toUpperCase()
 }
 
-export function UserDropdown({
-  size = "icon",
-  className,
-}: UserDropdownProps) {
+export function UserDropdown({ size = "icon", className }: UserDropdownProps) {
   const router = useRouter()
   const { data: session, isPending } = authClient.useSession()
 
@@ -66,7 +63,7 @@ export function UserDropdown({
         className="h-8 w-8 rounded-full"
         disabled
       >
-        <div className="bg-muted h-8 w-8 animate-pulse rounded-full" />
+        <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
       </Button>
     )
   }
@@ -93,7 +90,7 @@ export function UserDropdown({
             size === "icon"
               ? "h-8 w-8 rounded-full"
               : "w-full justify-start gap-2",
-            className,
+            className
           )}
         >
           <Avatar className="h-7 w-7">
@@ -113,8 +110,8 @@ export function UserDropdown({
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-muted-foreground text-xs leading-none">
+            <p className="text-sm leading-none font-medium">{user.name}</p>
+            <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>
           </div>

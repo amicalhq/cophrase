@@ -35,7 +35,11 @@ import {
 } from "@workspace/ui/components/toggle-group"
 import { Button } from "@workspace/ui/components/button"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowUp01Icon, ArrowDown01Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons"
+import {
+  ArrowUp01Icon,
+  ArrowDown01Icon,
+  UnfoldMoreIcon,
+} from "@hugeicons/core-free-icons"
 import { columns, type ContentRow } from "./columns"
 
 interface ContentTypeOption {
@@ -50,7 +54,12 @@ interface ContentTableProps {
   contentTypes: ContentTypeOption[]
 }
 
-export function ContentTable({ data, orgId, projectId, contentTypes }: ContentTableProps) {
+export function ContentTable({
+  data,
+  orgId,
+  projectId,
+  contentTypes,
+}: ContentTableProps) {
   const router = useRouter()
   const [sorting, setSorting] = useState<SortingState>([
     { id: "updatedAt", desc: true },
@@ -179,7 +188,9 @@ export function ContentTable({ data, orgId, projectId, contentTypes }: ContentTa
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
-                  const align = (header.column.columnDef.meta as { align?: string })?.align
+                  const align = (
+                    header.column.columnDef.meta as { align?: string }
+                  )?.align
                   return (
                     <TableHead
                       key={header.id}
@@ -198,17 +209,28 @@ export function ContentTable({ data, orgId, projectId, contentTypes }: ContentTa
                           ? null
                           : flexRender(
                               header.column.columnDef.header,
-                              header.getContext(),
+                              header.getContext()
                             )}
-                        {header.column.getCanSort() && (
-                          header.column.getIsSorted() === "asc" ? (
-                            <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={2} className="size-3.5 text-foreground" />
+                        {header.column.getCanSort() &&
+                          (header.column.getIsSorted() === "asc" ? (
+                            <HugeiconsIcon
+                              icon={ArrowUp01Icon}
+                              strokeWidth={2}
+                              className="size-3.5 text-foreground"
+                            />
                           ) : header.column.getIsSorted() === "desc" ? (
-                            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} className="size-3.5 text-foreground" />
+                            <HugeiconsIcon
+                              icon={ArrowDown01Icon}
+                              strokeWidth={2}
+                              className="size-3.5 text-foreground"
+                            />
                           ) : (
-                            <HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={2} className="size-3.5 text-muted-foreground/50" />
-                          )
-                        )}
+                            <HugeiconsIcon
+                              icon={UnfoldMoreIcon}
+                              strokeWidth={2}
+                              className="size-3.5 text-muted-foreground/50"
+                            />
+                          ))}
                       </span>
                     </TableHead>
                   )
@@ -224,12 +246,14 @@ export function ContentTable({ data, orgId, projectId, contentTypes }: ContentTa
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() =>
                     router.push(
-                      `/orgs/${orgId}/projects/${projectId}/content/${row.original.id}/edit`,
+                      `/orgs/${orgId}/projects/${projectId}/content/${row.original.id}/edit`
                     )
                   }
                 >
                   {row.getVisibleCells().map((cell) => {
-                    const align = (cell.column.columnDef.meta as { align?: string })?.align
+                    const align = (
+                      cell.column.columnDef.meta as { align?: string }
+                    )?.align
                     return (
                       <TableCell
                         key={cell.id}
@@ -237,7 +261,7 @@ export function ContentTable({ data, orgId, projectId, contentTypes }: ContentTa
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
-                          cell.getContext(),
+                          cell.getContext()
                         )}
                       </TableCell>
                     )
@@ -250,7 +274,7 @@ export function ContentTable({ data, orgId, projectId, contentTypes }: ContentTa
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-sm text-muted-foreground">
                     No content yet. Create your first piece to get started.
                   </p>
                 </TableCell>
@@ -263,7 +287,7 @@ export function ContentTable({ data, orgId, projectId, contentTypes }: ContentTa
       {/* Pagination */}
       {table.getPageCount() > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             {table.getFilteredRowModel().rows.length} content piece
             {table.getFilteredRowModel().rows.length !== 1 ? "s" : ""}
           </p>
@@ -276,7 +300,7 @@ export function ContentTable({ data, orgId, projectId, contentTypes }: ContentTa
             >
               Previous
             </Button>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-muted-foreground">
               Page {table.getState().pagination.pageIndex + 1} of{" "}
               {table.getPageCount()}
             </span>

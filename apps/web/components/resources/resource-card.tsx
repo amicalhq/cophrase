@@ -87,10 +87,10 @@ export function ResourceCard({
       type="button"
       onClick={onClick}
       data-testid="resource-card"
-      className="border-border hover:border-muted-foreground/50 flex w-full flex-col rounded-lg border p-4 text-left transition-colors"
+      className="flex w-full flex-col rounded-lg border border-border p-4 text-left transition-colors hover:border-muted-foreground/50"
     >
       <div className="mb-3 flex items-start justify-between">
-        <div className="bg-muted flex h-9 w-9 items-center justify-center rounded-md text-lg">
+        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted text-lg">
           {icon}
         </div>
         <Badge variant="secondary" className={categoryVariants[category]}>
@@ -98,7 +98,7 @@ export function ResourceCard({
         </Badge>
       </div>
       <p className="text-sm font-semibold">{title}</p>
-      <p className="text-muted-foreground mt-1 truncate text-xs">
+      <p className="mt-1 truncate text-xs text-muted-foreground">
         {type === "link" && linkUrl}
         {type === "file" && fileName && (
           <>
@@ -108,7 +108,7 @@ export function ResourceCard({
         )}
         {type === "text" && "Text resource"}
       </p>
-      <p className="text-muted-foreground mt-3 text-[10px]">
+      <p className="mt-3 text-[10px] text-muted-foreground">
         {typeLabels[type]} · {formatDate(updatedAt)}
       </p>
     </button>

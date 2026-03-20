@@ -21,10 +21,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { cn } from "@workspace/ui/lib/utils"
-import type {
-  ResourceType,
-  ResourceCategory,
-} from "@workspace/db"
+import type { ResourceType, ResourceCategory } from "@workspace/db"
 import { ResourceEditor } from "./resource-editor"
 import { FileDropzone } from "./file-dropzone"
 import type { JSONContent } from "@tiptap/react"
@@ -116,7 +113,7 @@ export function ResourceDialog({
     try {
       const res = await fetch(
         `/api/resources/${editResource.id}?projectId=${projectId}&orgId=${orgId}`,
-        { method: "DELETE" },
+        { method: "DELETE" }
       )
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -180,11 +177,14 @@ export function ResourceDialog({
           patchBody.fileSize = selectedFile.size
         }
 
-        const res = await fetch(`/api/resources/${editResource.id}?projectId=${projectId}&orgId=${orgId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(patchBody),
-        })
+        const res = await fetch(
+          `/api/resources/${editResource.id}?projectId=${projectId}&orgId=${orgId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patchBody),
+          }
+        )
 
         if (!res.ok) {
           const data = await res.json().catch(() => ({}))
@@ -250,7 +250,7 @@ export function ResourceDialog({
             // Roll back DB record
             await fetch(
               `/api/resources/${result.id}?projectId=${projectId}&orgId=${orgId}`,
-              { method: "DELETE" },
+              { method: "DELETE" }
             )
             setError("File upload failed. Please try again.")
             setLoading(false)
@@ -272,9 +272,7 @@ export function ResourceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Edit resource" : "Add resource"}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? "Edit resource" : "Add resource"}</DialogTitle>
           <DialogDescription>
             {isEdit
               ? "Update this resource's details."
@@ -283,18 +281,14 @@ export function ResourceDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4 py-2">
-            {error && (
-              <p className="text-destructive text-sm">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             {/* Category */}
             <div className="flex flex-col gap-2">
               <Label>Category</Label>
               <Select
                 value={category}
-                onValueChange={(v) =>
-                  setCategory(v as ResourceCategory)
-                }
+                onValueChange={(v) => setCategory(v as ResourceCategory)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a category" />
@@ -323,11 +317,11 @@ export function ResourceDialog({
                         "flex-1 rounded-lg border-2 p-4 text-center transition-colors",
                         type === opt.value
                           ? "border-foreground bg-accent"
-                          : "border-border hover:border-muted-foreground",
+                          : "border-border hover:border-muted-foreground"
                       )}
                     >
                       <p className="text-sm font-medium">{opt.label}</p>
-                      <p className="text-muted-foreground mt-1 text-xs">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {opt.description}
                       </p>
                     </button>
@@ -405,10 +399,7 @@ export function ResourceDialog({
                 {deleting ? "Deleting..." : "Confirm"}
               </Button>
             )}
-            <Button
-              type="submit"
-              disabled={loading || deleting}
-            >
+            <Button type="submit" disabled={loading || deleting}>
               {loading
                 ? isEdit
                   ? "Saving..."
