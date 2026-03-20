@@ -1,6 +1,7 @@
 import { eq, and, desc } from "drizzle-orm"
 import { db } from "../index"
 import { content } from "../schema/content"
+import { contentType, contentTypeStage } from "../schema/content-types"
 import { user } from "../schema/auth"
 
 export async function getContentByProject(projectId: string) {
@@ -9,13 +10,21 @@ export async function getContentByProject(projectId: string) {
       id: content.id,
       title: content.title,
       contentTypeId: content.contentTypeId,
+      contentTypeName: contentType.name,
+      contentTypeFormat: contentType.format,
       currentStageId: content.currentStageId,
+      currentStageName: contentTypeStage.name,
       createdAt: content.createdAt,
       updatedAt: content.updatedAt,
       creatorName: user.name,
     })
     .from(content)
     .leftJoin(user, eq(content.createdBy, user.id))
+    .leftJoin(contentType, eq(content.contentTypeId, contentType.id))
+    .leftJoin(
+      contentTypeStage,
+      eq(content.currentStageId, contentTypeStage.id),
+    )
     .where(eq(content.projectId, projectId))
     .orderBy(desc(content.updatedAt))
 }
@@ -74,7 +83,9 @@ export async function updateContentStage(
   const [result] = await db
     .update(content)
     .set({ currentStageId })
-    .where(and(eq(content.id, id), eq(content.organizationId, organizationId)))
+    .where(
+      and(eq(content.id, id), eq(content.organizationId, organizationId)),
+    )
     .returning()
   return result ?? null
 }
