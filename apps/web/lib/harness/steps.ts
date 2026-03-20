@@ -18,7 +18,6 @@ import {
 } from "@workspace/db/queries/agent-runs"
 import { resolveModel } from "../agents/resolve-model"
 import {
-  handleRunStage,
   handleGetContentStatus,
   handleSearchArtifacts,
 } from "./tool-handlers"
@@ -179,7 +178,7 @@ export async function runSubAgentInline(input: {
         .describe('Artifact type, e.g. "research-notes", "blog-draft"'),
       title: z.string().describe("A short title for the artifact"),
       data: z
-        .record(z.string(), z.unknown())
+        .object({}).passthrough()
         .describe("The artifact payload as a JSON object."),
       parentIds: z
         .array(z.string())
@@ -368,7 +367,212 @@ export async function runStageStep(input: {
   createdBy: string
 }) {
   "use step"
-  return handleRunStage(input)
+
+  // Inline handleRunStage logic here to avoid nested "use step" calls.
+  // handleRunStage calls runSubAgentInline (which has "use step"), causing
+  // a nested step problem. By inlining, we keep everything in one step.
+  const { getAgentTools } = await import("@workspace/db/queries/agents")
+  const { createAgentRun, updateAgentRunStatus } = await import(
+    "@workspace/db/queries/agent-runs"
+  )
+  const { updateContentStage, getContentByIdOnly } = await import(
+    "@workspace/db/queries/content"
+  )
+
+  // Get content title for sub-agent context
+  const contentRow = await getContentByIdOnly(input.contentId)
+  const contentTitle = contentRow?.title ?? "Untitled"
+
+  const stage = input.config.stages.find((s) => s.id === input.stageId)
+  if (!stage) {
+    return {
+      success: false,
+      stageName: "unknown",
+      artifacts: [] as ArtifactSummary[],
+      subAgentResults: [] as Array<{
+        agentName: string
+        success: boolean
+        artifacts: ArtifactSummary[]
+        error?: string
+      }>,
+      error: `Stage ${input.stageId} not found in content type`,
+    }
+  }
+
+  if (stage.subAgents.length === 0) {
+    return {
+      success: false,
+      stageName: stage.name,
+      artifacts: [] as ArtifactSummary[],
+      subAgentResults: [] as Array<{
+        agentName: string
+        success: boolean
+        artifacts: ArtifactSummary[]
+        error?: string
+      }>,
+      error: `Stage "${stage.name}" has no sub-agents configured`,
+    }
+  }
+
+  const allArtifacts: ArtifactSummary[] = []
+  const subAgentResults: Array<{
+    agentName: string
+    success: boolean
+    artifacts: ArtifactSummary[]
+    error?: string
+  }> = []
+
+  for (const sa of stage.subAgents) {
+    const toolRecords = await getAgentTools(sa.agentId)
+
+    const run = await createAgentRun({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      contentId: input.contentId,
+      agentId: sa.agentId,
+      createdBy: input.createdBy,
+      executionMode: "auto",
+    })
+
+    try {
+      // Inline sub-agent execution (same as runSubAgentInline but without "use step")
+      const model = await resolveModel(sa.modelId, input.organizationId)
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const subTools: Record<string, any> = {}
+
+      subTools["save-artifact"] = tool({
+        description: "Save an artifact to the database.",
+        inputSchema: z.object({
+          type: z.string().describe('Artifact type, e.g. "research-notes", "blog-draft"'),
+          title: z.string().describe("A short title for the artifact"),
+          data: z.object({}).passthrough().describe("The artifact payload as a JSON object."),
+          parentIds: z.array(z.string()).optional().describe("IDs of parent artifacts"),
+        }),
+        execute: async ({ type, title, data, parentIds }: {
+          type: string; title: string; data: Record<string, unknown>; parentIds?: string[]
+        }) => {
+          const version = await getNextArtifactVersion(input.contentId, type)
+          const artifact = await createArtifact({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            contentId: input.contentId,
+            agentId: sa.agentId,
+            runId: run.id,
+            type, title, data, version, parentIds,
+          })
+          return { artifactId: artifact.id, type: artifact.type, version: artifact.version }
+        },
+      })
+
+      subTools["load-artifact"] = tool({
+        description: "Load a previously saved artifact by its ID.",
+        inputSchema: z.object({ artifactId: z.string().describe("The artifact ID to load") }),
+        execute: async ({ artifactId }: { artifactId: string }) => {
+          const artifact = await getArtifactById(artifactId)
+          if (!artifact || artifact.organizationId !== input.organizationId || artifact.contentId !== input.contentId) {
+            return { error: "Artifact not found" }
+          }
+          return { id: artifact.id, type: artifact.type, title: artifact.title, data: artifact.data, version: artifact.version, status: artifact.status }
+        },
+      })
+
+      subTools["search-artifacts"] = tool({
+        description: "Search for existing artifacts.",
+        inputSchema: z.object({
+          type: z.string().optional(),
+          status: z.enum(["pending", "ready", "approved", "rejected"]).optional(),
+        }),
+        execute: async ({ type, status }: { type?: string; status?: string }) => {
+          const results = await searchArtifacts({
+            organizationId: input.organizationId,
+            contentId: input.contentId,
+            type,
+            status: status as ArtifactStatus | undefined,
+          })
+          return { count: results.length, artifacts: results }
+        },
+      })
+
+      for (const record of toolRecords) {
+        if (record.type === "function" && record.referenceId === "web-search") {
+          subTools["web-search"] = tool({
+            description: "Search the web for information on a topic.",
+            inputSchema: z.object({
+              query: z.string().describe("The search query"),
+              numResults: z.number().min(1).max(10).optional(),
+            }),
+            execute: async ({ query, numResults = 5 }: { query: string; numResults?: number }) => {
+              const apiKey = process.env.EXA_API_KEY
+              if (!apiKey) throw new Error("EXA_API_KEY is not configured")
+              const response = await fetch("https://api.exa.ai/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+                body: JSON.stringify({ query, numResults, type: "auto", contents: { text: { maxCharacters: 2000 } } }),
+              })
+              if (!response.ok) throw new Error(`Exa API error: ${response.status} ${response.statusText}`)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const resData: any = await response.json()
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              return { results: (resData.results ?? []).map((r: any) => ({ title: r.title, url: r.url, snippet: r.text?.slice(0, 500) })) }
+            },
+          })
+        }
+      }
+
+      const result = await generateText({
+        model,
+        system: sa.prompt,
+        messages: [{ role: "user" as const, content: `Execute your task for a ${input.config.contentTypeName} about: "${contentTitle}". Use your tools (web-search, save-artifact) to complete the work and save the results as an artifact.` }],
+        tools: subTools,
+        stopWhen: stepCountIs(15),
+      })
+
+      const createdArtifacts = await searchArtifacts({
+        organizationId: input.organizationId,
+        runId: run.id,
+      })
+
+      const newMsgs = result.response.messages.map((m, i) => ({
+        id: `${run.id}-msg-${i}`,
+        role: m.role as "user" | "assistant" | "system" | "tool",
+        parts: JSON.stringify("content" in m ? m.content : null),
+        metadata: undefined,
+      }))
+      if (newMsgs.length > 0) {
+        await saveMessages(run.id, newMsgs)
+      }
+      await updateAgentRunStatus(run.id, "completed", { completedAt: new Date() })
+
+      const artifacts = createdArtifacts.map((a) => ({
+        id: a.id, type: a.type, title: a.title, version: a.version, status: a.status,
+      }))
+      allArtifacts.push(...artifacts)
+      subAgentResults.push({ agentName: sa.name, success: true, artifacts })
+    } catch (err) {
+      await updateAgentRunStatus(run.id, "failed", {
+        error: { code: "AGENT_ERROR", message: err instanceof Error ? err.message : String(err) },
+      }).catch(console.error)
+      subAgentResults.push({
+        agentName: sa.name, success: false, artifacts: [],
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  const allSucceeded = subAgentResults.every((r) => r.success)
+  if (allSucceeded) {
+    const nextStage = input.config.stages.find((s) => s.position === stage.position + 1)
+    await updateContentStage(input.contentId, nextStage?.id ?? null, input.organizationId)
+  }
+
+  return {
+    success: allSucceeded,
+    stageName: stage.name,
+    artifacts: allArtifacts,
+    subAgentResults,
+    error: allSucceeded ? undefined : "Some sub-agents failed — stage was not advanced.",
+  }
 }
 
 export async function getContentStatusStep(
