@@ -115,6 +115,14 @@ export async function updateContentFrontmatter(
   return updated ?? null
 }
 
+export async function deleteContent(id: string, organizationId: string) {
+  const [deleted] = await db
+    .delete(content)
+    .where(and(eq(content.id, id), eq(content.organizationId, organizationId)))
+    .returning({ id: content.id })
+  return deleted ?? null
+}
+
 export async function getContentByIdOnly(id: string) {
   const [result] = await db
     .select({

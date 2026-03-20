@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
   useReactTable,
@@ -34,13 +34,23 @@ import {
   ToggleGroupItem,
 } from "@workspace/ui/components/toggle-group"
 import { Button } from "@workspace/ui/components/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@workspace/ui/components/alert-dialog"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowUp01Icon,
   ArrowDown01Icon,
   UnfoldMoreIcon,
 } from "@hugeicons/core-free-icons"
-import { columns, type ContentRow } from "./columns"
+import { createColumns, type ContentRow } from "./columns"
 
 interface ContentTypeOption {
   id: string
@@ -73,6 +83,11 @@ export function ContentTable({
     defaultValue: "all",
   })
 
+  const [deleteTarget, setDeleteTarget] = useState<ContentRow | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmCode, setConfirmCode] = useState("")
+  const [expectedCode, setExpectedCode] = useState("")
+
   const selectedTypes = typeFilter ? typeFilter.split(",") : []
 
   // Derive unique stage names from data
@@ -102,6 +117,35 @@ export function ContentTable({
     }
     return filters
   }, [typeFilter, stageFilter])
+
+  const handleDelete = useCallback((row: ContentRow) => {
+    setDeleteTarget(row)
+    setConfirmCode("")
+    setExpectedCode(String(Math.floor(Math.random() * 90) + 10))
+  }, [])
+
+  const columns = useMemo(() => createColumns(handleDelete), [handleDelete])
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const res = await fetch(
+        `/api/content/${deleteTarget.id}?orgId=${orgId}&projectId=${projectId}`,
+        { method: "DELETE" },
+      )
+      if (!res.ok) {
+        const body = await res.json()
+        console.error("Delete failed:", body.error)
+      }
+      router.refresh()
+    } catch {
+      console.error("Failed to delete content")
+    } finally {
+      setDeleting(false)
+      setDeleteTarget(null)
+    }
+  }
 
   const table = useReactTable({
     data,
@@ -209,7 +253,7 @@ export function ContentTable({
                           ? null
                           : flexRender(
                               header.column.columnDef.header,
-                              header.getContext()
+                              header.getContext(),
                             )}
                         {header.column.getCanSort() &&
                           (header.column.getIsSorted() === "asc" ? (
@@ -246,7 +290,7 @@ export function ContentTable({
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() =>
                     router.push(
-                      `/orgs/${orgId}/projects/${projectId}/content/${row.original.id}/edit`
+                      `/orgs/${orgId}/projects/${projectId}/content/${row.original.id}/edit`,
                     )
                   }
                 >
@@ -261,7 +305,7 @@ export function ContentTable({
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
-                          cell.getContext()
+                          cell.getContext(),
                         )}
                       </TableCell>
                     )
@@ -315,6 +359,53 @@ export function ContentTable({
           </div>
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete content?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <span className="font-medium text-foreground">
+                {deleteTarget?.title}
+              </span>
+              . This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Type{" "}
+              <span className="font-mono font-semibold text-foreground">
+                {expectedCode}
+              </span>{" "}
+              to confirm.
+            </p>
+            <Input
+              value={confirmCode}
+              onChange={(e) => setConfirmCode(e.target.value)}
+              placeholder={expectedCode}
+              className="font-mono"
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting || confirmCode !== expectedCode}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

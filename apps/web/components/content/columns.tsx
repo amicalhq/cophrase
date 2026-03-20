@@ -2,6 +2,15 @@
 
 import type { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@workspace/ui/components/badge"
+import { Button } from "@workspace/ui/components/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { MoreHorizontalIcon, Delete02Icon } from "@hugeicons/core-free-icons"
 
 export type ContentRow = {
   id: string
@@ -31,69 +40,110 @@ function formatRelativeTime(dateStr: string): string {
   return `${months}mo ago`
 }
 
-export const columns: ColumnDef<ContentRow>[] = [
-  {
-    accessorKey: "title",
-    header: "Title",
-    size: 1000,
-    cell: ({ row }) => (
-      <span className="block truncate font-medium">
-        {row.getValue("title")}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "contentTypeName",
-    header: "Type",
-    size: 100,
-    cell: ({ row }) => {
-      const typeName = row.getValue("contentTypeName") as string | null
-      return typeName ? (
-        <Badge variant="secondary" className="h-6 px-2.5 text-xs">
-          {typeName}
-        </Badge>
-      ) : null
+export function createColumns(
+  onDelete: (row: ContentRow) => void,
+): ColumnDef<ContentRow>[] {
+  return [
+    {
+      accessorKey: "title",
+      header: "Title",
+      size: 1000,
+      cell: ({ row }) => (
+        <span className="block truncate font-medium">
+          {row.getValue("title")}
+        </span>
+      ),
     },
-    filterFn: (row, id, value: string[]) => {
-      return value.includes(row.getValue(id))
+    {
+      accessorKey: "contentTypeName",
+      header: "Type",
+      size: 100,
+      cell: ({ row }) => {
+        const typeName = row.getValue("contentTypeName") as string | null
+        return typeName ? (
+          <Badge variant="secondary" className="h-6 px-2.5 text-xs">
+            {typeName}
+          </Badge>
+        ) : null
+      },
+      filterFn: (row, id, value: string[]) => {
+        return value.includes(row.getValue(id))
+      },
     },
-  },
-  {
-    accessorKey: "currentStageName",
-    header: "Stage",
-    size: 110,
-    cell: ({ row }) => {
-      const stageName = row.getValue("currentStageName") as string | null
-      return stageName ? (
-        <Badge variant="secondary" className="h-6 px-2.5 text-xs">
-          {stageName}
-        </Badge>
-      ) : null
+    {
+      accessorKey: "currentStageName",
+      header: "Stage",
+      size: 110,
+      cell: ({ row }) => {
+        const stageName = row.getValue("currentStageName") as string | null
+        return stageName ? (
+          <Badge variant="secondary" className="h-6 px-2.5 text-xs">
+            {stageName}
+          </Badge>
+        ) : null
+      },
+      filterFn: (row, id, value: string[]) => {
+        return value.includes(row.getValue(id))
+      },
     },
-    filterFn: (row, id, value: string[]) => {
-      return value.includes(row.getValue(id))
+    {
+      accessorKey: "creatorName",
+      header: "Created by",
+      size: 120,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.getValue("creatorName") ?? "Unknown"}
+        </span>
+      ),
     },
-  },
-  {
-    accessorKey: "creatorName",
-    header: "Created by",
-    size: 120,
-    enableSorting: false,
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">
-        {row.getValue("creatorName") ?? "Unknown"}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "updatedAt",
-    header: "Updated",
-    size: 130,
-    meta: { align: "right" },
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">
-        {formatRelativeTime(row.getValue("updatedAt"))}
-      </span>
-    ),
-  },
-]
+    {
+      accessorKey: "updatedAt",
+      header: "Updated",
+      size: 130,
+      meta: { align: "right" },
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {formatRelativeTime(row.getValue("updatedAt"))}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      size: 48,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <HugeiconsIcon
+                icon={MoreHorizontalIcon}
+                className="size-4"
+                strokeWidth={2}
+              />
+              <span className="sr-only">Actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => onDelete(row.original)}
+            >
+              <HugeiconsIcon
+                icon={Delete02Icon}
+                className="mr-2 size-4"
+                strokeWidth={2}
+              />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ]
+}
