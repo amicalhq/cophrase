@@ -56,13 +56,16 @@ function extractMarkdown(data: unknown): string {
   if (typeof d.content === "string") return d.content
 
   // Structured format: assemble fields into markdown
+  // Handles both schemas: { intro, body } and { introduction, sections }
   const parts: string[] = []
   if (typeof d.headline === "string") parts.push(`# ${d.headline}`)
   if (typeof d.metaDescription === "string")
     parts.push(`*${d.metaDescription}*`)
-  if (typeof d.intro === "string") parts.push(d.intro)
-  if (Array.isArray(d.body)) {
-    for (const section of d.body) {
+  const intro = d.intro ?? d.introduction
+  if (typeof intro === "string") parts.push(intro)
+  const body = d.body ?? d.sections
+  if (Array.isArray(body)) {
+    for (const section of body) {
       if (typeof section === "string") {
         parts.push(section)
       } else if (section && typeof section === "object") {
