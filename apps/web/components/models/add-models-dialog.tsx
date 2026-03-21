@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { trpc } from "@/lib/trpc/client"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -60,6 +61,9 @@ export function AddModelsDialog({
   enabledModels,
   onSuccess,
 }: AddModelsDialogProps) {
+  const utils = trpc.useUtils()
+  const addMutation = trpc.models.add.useMutation()
+
   const [catalogModels, setCatalogModels] = useState<CatalogModel[]>([])
   const [fetchingModels, setFetchingModels] = useState(false)
   const [fetchError, setFetchError] = useState("")
@@ -107,18 +111,21 @@ export function AddModelsDialog({
       try {
         const results = await Promise.all(
           providers.map(async (provider) => {
-            const res = await fetch(
-              `/api/models/available?orgId=${orgId}&providerType=${provider.providerType}`
-            )
-            if (!res.ok) return []
-            const models: AvailableModel[] = await res.json()
-            return models.map(
-              (m): CatalogModel => ({
-                ...m,
-                providerId: provider.id,
-                providerName: provider.name,
+            try {
+              const models = await utils.models.available.fetch({
+                orgId,
+                providerType: provider.providerType,
               })
-            )
+              return models.map(
+                (m): CatalogModel => ({
+                  ...m,
+                  providerId: provider.id,
+                  providerName: provider.name,
+                })
+              )
+            } catch {
+              return []
+            }
           })
         )
 
@@ -195,23 +202,12 @@ export function AddModelsDialog({
         }
       }
 
-      const res = await fetch("/api/models", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId, add, remove }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to save changes")
-        setLoading(false)
-        return
-      }
+      await addMutation.mutateAsync({ orgId, add, remove })
 
       onOpenChange(false)
       onSuccess()
-    } catch {
-      setError("Something went wrong")
+    } catch (err: any) {
+      setError(err?.message ?? "Something went wrong")
       setLoading(false)
     }
   }

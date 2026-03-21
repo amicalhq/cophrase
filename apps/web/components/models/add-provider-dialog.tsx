@@ -87,6 +87,7 @@ export function AddProviderDialog({
   const [testStatus, setTestStatus] = useState<ConnectionTestStatus>("idle")
   const [testError, setTestError] = useState("")
 
+  const utils = trpc.useUtils()
   const testMutation = trpc.providers.test.useMutation()
   const createMutation = trpc.providers.create.useMutation()
 
@@ -146,16 +147,10 @@ export function AddProviderDialog({
     setFetchingModels(true)
     setFetchError("")
     try {
-      const res = await fetch(
-        `/api/models/available?orgId=${orgId}&providerType=${providerType}`
-      )
-      if (!res.ok) {
-        const data = await res.json()
-        setFetchError(data.error ?? "Failed to fetch available models")
-        setFetchingModels(false)
-        return
-      }
-      const models: AvailableModel[] = await res.json()
+      const models = await utils.models.available.fetch({
+        orgId,
+        providerType,
+      })
       setAvailableModels(models)
 
       // Auto-check the latest model of each type

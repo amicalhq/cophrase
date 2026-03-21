@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { trpc } from "@/lib/trpc/client"
 import {
   useReactTable,
   getCoreRowModel,
@@ -36,6 +37,14 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
 
+  const setDefaultMutation = trpc.models.setDefault.useMutation({
+    onSettled: () => onRefresh(),
+  })
+
+  const removeMutation = trpc.models.remove.useMutation({
+    onSettled: () => onRefresh(),
+  })
+
   const filteredModels = useMemo(() => {
     return models.filter((m) => {
       const matchesSearch = m.modelId
@@ -54,34 +63,12 @@ export function ModelsTable({ models, orgId, onRefresh }: ModelsTableProps) {
     initialState: { pagination: { pageSize: 20 } },
   })
 
-  async function handleSetDefault(modelId: string) {
-    try {
-      const res = await fetch(`/api/models/${modelId}/default`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId }),
-      })
-      if (!res.ok) {
-        console.error("Failed to set default model:", await res.text())
-      }
-    } catch (err) {
-      console.error("Failed to set default model:", err)
-    }
-    onRefresh()
+  function handleSetDefault(modelId: string) {
+    setDefaultMutation.mutate({ orgId, id: modelId })
   }
 
-  async function handleDelete(modelId: string) {
-    try {
-      const res = await fetch(`/api/models/${modelId}?orgId=${orgId}`, {
-        method: "DELETE",
-      })
-      if (!res.ok) {
-        console.error("Failed to delete model:", await res.text())
-      }
-    } catch (err) {
-      console.error("Failed to delete model:", err)
-    }
-    onRefresh()
+  function handleDelete(modelId: string) {
+    removeMutation.mutate({ orgId, id: modelId })
   }
 
   return (
