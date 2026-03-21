@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm"
+import { eq, and, desc, inArray } from "drizzle-orm"
 import { db } from "../index"
 import { content } from "../schema/content"
 import { contentType, contentTypeStage } from "../schema/content-types"
@@ -121,6 +121,20 @@ export async function deleteContent(id: string, organizationId: string) {
     .where(and(eq(content.id, id), eq(content.organizationId, organizationId)))
     .returning({ id: content.id })
   return deleted ?? null
+}
+
+export async function deleteContentBulk(
+  ids: string[],
+  organizationId: string,
+) {
+  if (ids.length === 0) return []
+  const deleted = await db
+    .delete(content)
+    .where(
+      and(inArray(content.id, ids), eq(content.organizationId, organizationId)),
+    )
+    .returning({ id: content.id })
+  return deleted
 }
 
 export async function getContentByIdOnly(id: string) {

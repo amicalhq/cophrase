@@ -11,6 +11,7 @@ import {
   flexRender,
   type SortingState,
   type ColumnFiltersState,
+  type RowSelectionState,
 } from "@tanstack/react-table"
 import { useQueryState } from "nuqs"
 import {
@@ -49,6 +50,7 @@ import {
   ArrowUp01Icon,
   ArrowDown01Icon,
   UnfoldMoreIcon,
+  Delete02Icon,
 } from "@hugeicons/core-free-icons"
 import { createColumns, type ContentRow } from "./columns"
 
@@ -83,10 +85,18 @@ export function ContentTable({
     defaultValue: "all",
   })
 
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+
   const [deleteTarget, setDeleteTarget] = useState<ContentRow | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [confirmCode, setConfirmCode] = useState("")
   const [expectedCode, setExpectedCode] = useState("")
+
+  // Bulk delete state
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkConfirmCode, setBulkConfirmCode] = useState("")
+  const [bulkExpectedCode, setBulkExpectedCode] = useState("")
 
   const selectedTypes = typeFilter ? typeFilter.split(",") : []
 
@@ -161,6 +171,43 @@ export function ContentTable({
     }
   }
 
+  const selectedRows = Object.keys(rowSelection)
+    .filter((k) => rowSelection[k])
+    .map((k) => data[Number(k)]!)
+    .filter((r): r is ContentRow => r !== undefined)
+
+  function openBulkDelete() {
+    setBulkConfirmCode("")
+    setBulkExpectedCode(String(Math.floor(Math.random() * 90) + 10))
+    setBulkDeleteOpen(true)
+  }
+
+  async function confirmBulkDelete() {
+    if (selectedRows.length === 0) return
+    setBulkDeleting(true)
+    try {
+      const res = await fetch("/api/content", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: selectedRows.map((r) => r.id),
+          orgId,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json()
+        console.error("Bulk delete failed:", body.error)
+      }
+      setRowSelection({})
+      router.refresh()
+    } catch {
+      console.error("Failed to bulk delete content")
+    } finally {
+      setBulkDeleting(false)
+      setBulkDeleteOpen(false)
+    }
+  }
+
   const table = useReactTable({
     data,
     columns,
@@ -169,10 +216,12 @@ export function ContentTable({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
+    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       columnFilters,
       globalFilter: searchQuery,
+      rowSelection,
     },
     globalFilterFn: (row, _columnId, filterValue: string) => {
       const title = row.getValue("title") as string
@@ -226,6 +275,34 @@ export function ContentTable({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Bulk action bar */}
+      {selectedRows.length > 0 && (
+        <div className="flex items-center gap-3 rounded-md border border-destructive/20 bg-destructive/5 px-4 py-2">
+          <span className="text-sm font-medium">
+            {selectedRows.length} selected
+          </span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={openBulkDelete}
+          >
+            <HugeiconsIcon
+              icon={Delete02Icon}
+              className="mr-1.5 size-4"
+              strokeWidth={2}
+            />
+            Delete
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setRowSelection({})}
+          >
+            Clear selection
+          </Button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-md border">
@@ -301,7 +378,8 @@ export function ContentTable({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="cursor-pointer hover:bg-muted/50"
+                  data-state={row.getIsSelected() && "selected"}
+                  className="group/row cursor-pointer hover:bg-muted/50"
                   onClick={() =>
                     router.push(
                       `/orgs/${orgId}/projects/${projectId}/content/${row.original.id}/edit`,
@@ -416,6 +494,54 @@ export function ContentTable({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation dialog */}
+      <AlertDialog
+        open={bulkDeleteOpen}
+        onOpenChange={(open) => {
+          if (!open) setBulkDeleteOpen(false)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedRows.length} items?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              <span className="font-medium text-foreground">
+                {selectedRows.length} content piece
+                {selectedRows.length !== 1 ? "s" : ""}
+              </span>
+              . This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Type{" "}
+              <span className="font-mono font-semibold text-foreground">
+                {bulkExpectedCode}
+              </span>{" "}
+              to confirm.
+            </p>
+            <Input
+              value={bulkConfirmCode}
+              onChange={(e) => setBulkConfirmCode(e.target.value)}
+              placeholder={bulkExpectedCode}
+              className="font-mono"
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              disabled={bulkDeleting || bulkConfirmCode !== bulkExpectedCode}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? "Deleting..." : `Delete ${selectedRows.length}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

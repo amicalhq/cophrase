@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@workspace/auth"
-import { getContentByProject, createContent } from "@/lib/data/content"
+import {
+  getContentByProject,
+  createContent,
+  deleteContentBulk,
+} from "@/lib/data/content"
 import { getProjectByIdAndOrg, isOrgMember } from "@/lib/data/projects"
 
 const MAX_TITLE_LENGTH = 200
@@ -43,6 +47,48 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { error: "Failed to fetch content" },
       { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
+  const { ids, orgId } = body as { ids?: string[]; orgId?: string }
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return NextResponse.json(
+      { error: "ids array is required" },
+      { status: 400 },
+    )
+  }
+  if (!orgId) {
+    return NextResponse.json({ error: "orgId is required" }, { status: 400 })
+  }
+
+  const isMember = await isOrgMember(session.user.id, orgId)
+  if (!isMember) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  try {
+    const deleted = await deleteContentBulk(ids, orgId)
+    return NextResponse.json({ deleted: deleted.length })
+  } catch (error) {
+    console.error("Failed to bulk delete content:", error)
+    return NextResponse.json(
+      { error: "Failed to delete content" },
+      { status: 500 },
     )
   }
 }

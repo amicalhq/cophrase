@@ -3,12 +3,14 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
+import { Checkbox } from "@workspace/ui/components/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
+import { cn } from "@workspace/ui/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { MoreHorizontalIcon, Delete02Icon } from "@hugeicons/core-free-icons"
 
@@ -44,6 +46,41 @@ export function createColumns(
   onDelete: (row: ContentRow) => void,
 ): ColumnDef<ContentRow>[] {
   return [
+    {
+      id: "select",
+      size: 40,
+      enableSorting: false,
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+          onClick={(e) => e.stopPropagation()}
+          className="border-muted-foreground/40 data-[state=checked]:bg-foreground data-[state=checked]:text-background data-[state=indeterminate]:bg-foreground data-[state=indeterminate]:text-background"
+        />
+      ),
+      cell: ({ row }) => (
+        <div
+          className={cn(
+            "transition-opacity",
+            row.getIsSelected()
+              ? "opacity-100"
+              : "opacity-0 group-hover/row:opacity-100",
+          )}
+        >
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+            onClick={(e) => e.stopPropagation()}
+            className="border-muted-foreground/40 data-[state=checked]:bg-foreground data-[state=checked]:text-background"
+          />
+        </div>
+      ),
+    },
     {
       accessorKey: "title",
       header: "Title",

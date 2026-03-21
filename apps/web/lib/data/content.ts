@@ -3,4 +3,5 @@ export {
   getContentById,
   createContent,
   deleteContent,
+  deleteContentBulk,
 } from "@workspace/db/queries/content"
