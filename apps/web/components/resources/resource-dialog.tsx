@@ -25,6 +25,7 @@ import type { ResourceType, ResourceCategory } from "@workspace/db"
 import { ResourceEditor } from "./resource-editor"
 import { FileDropzone } from "./file-dropzone"
 import type { JSONContent } from "@tiptap/react"
+import { trpc } from "@/lib/trpc/client"
 
 const categoryOptions: { value: ResourceCategory; label: string }[] = [
   { value: "brand_voice", label: "Brand Voice" },
@@ -84,6 +85,10 @@ export function ResourceDialog({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  const deleteMutation = trpc.resources.delete.useMutation()
+  const updateMutation = trpc.resources.update.useMutation()
+  const createMutation = trpc.resources.create.useMutation()
+
   useEffect(() => {
     if (!open) {
       setCategory("")
@@ -111,21 +116,18 @@ export function ResourceDialog({
     if (!editResource) return
     setDeleting(true)
     try {
-      const res = await fetch(
-        `/api/resources/${editResource.id}?projectId=${projectId}&orgId=${orgId}`,
-        { method: "DELETE" }
-      )
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setError(data.error ?? "Failed to delete resource")
-        setDeleting(false)
-        return
-      }
+      await deleteMutation.mutateAsync({
+        orgId,
+        id: editResource.id,
+        projectId,
+      })
       setDeleting(false)
       onOpenChange(false)
       router.refresh()
-    } catch {
-      setError("Something went wrong")
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to delete resource"
+      setError(message)
       setDeleting(false)
     }
   }
@@ -163,41 +165,26 @@ export function ResourceDialog({
 
     try {
       if (isEdit) {
-        const patchBody: Record<string, unknown> = {
-          projectId,
+        const patchInput: Parameters<typeof updateMutation.mutateAsync>[0] = {
           orgId,
+          id: editResource.id,
+          projectId,
           title: title.trim(),
-          category,
+          category: category as ResourceCategory,
         }
-        if (type === "link") patchBody.linkUrl = linkUrl
-        if (type === "text") patchBody.content = editorContent
+        if (type === "link") patchInput.linkUrl = linkUrl
+        if (type === "text") patchInput.content = editorContent as Record<string, unknown>
         if (type === "file" && selectedFile) {
-          patchBody.fileName = selectedFile.name
-          patchBody.fileMimeType = selectedFile.type
-          patchBody.fileSize = selectedFile.size
+          patchInput.fileName = selectedFile.name
+          patchInput.fileMimeType = selectedFile.type
+          patchInput.fileSize = selectedFile.size
         }
 
-        const res = await fetch(
-          `/api/resources/${editResource.id}?projectId=${projectId}&orgId=${orgId}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(patchBody),
-          }
-        )
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          setError(data.error ?? "Failed to update resource")
-          setLoading(false)
-          return
-        }
-
-        const result = await res.json()
+        const result = await updateMutation.mutateAsync(patchInput)
 
         // Upload replacement file if needed
         if (result.uploadUrl && selectedFile) {
-          const uploadRes = await fetch(result.uploadUrl, {
+          const uploadRes = await fetch(result.uploadUrl as string, {
             method: "PUT",
             body: selectedFile,
             headers: { "Content-Type": selectedFile.type },
@@ -209,49 +196,37 @@ export function ResourceDialog({
           }
         }
       } else {
-        const postBody: Record<string, unknown> = {
-          projectId,
+        const postInput: Parameters<typeof createMutation.mutateAsync>[0] = {
           orgId,
+          projectId,
           title: title.trim(),
-          type,
-          category,
+          type: type as ResourceType,
+          category: category as ResourceCategory,
         }
-        if (type === "link") postBody.linkUrl = linkUrl
-        if (type === "text") postBody.content = editorContent
+        if (type === "link") postInput.linkUrl = linkUrl
+        if (type === "text") postInput.content = editorContent as Record<string, unknown>
         if (type === "file" && selectedFile) {
-          postBody.fileName = selectedFile.name
-          postBody.fileMimeType = selectedFile.type
-          postBody.fileSize = selectedFile.size
+          postInput.fileName = selectedFile.name
+          postInput.fileMimeType = selectedFile.type
+          postInput.fileSize = selectedFile.size
         }
 
-        const res = await fetch("/api/resources", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(postBody),
-        })
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          setError(data.error ?? "Failed to create resource")
-          setLoading(false)
-          return
-        }
-
-        const result = await res.json()
+        const result = await createMutation.mutateAsync(postInput)
 
         // Upload file to S3 via presigned URL
         if (result.uploadUrl && selectedFile) {
-          const uploadRes = await fetch(result.uploadUrl, {
+          const uploadRes = await fetch(result.uploadUrl as string, {
             method: "PUT",
             body: selectedFile,
             headers: { "Content-Type": selectedFile.type },
           })
           if (!uploadRes.ok) {
             // Roll back DB record
-            await fetch(
-              `/api/resources/${result.id}?projectId=${projectId}&orgId=${orgId}`,
-              { method: "DELETE" }
-            )
+            await deleteMutation.mutateAsync({
+              orgId,
+              id: result.id as string,
+              projectId,
+            })
             setError("File upload failed. Please try again.")
             setLoading(false)
             return
@@ -262,8 +237,10 @@ export function ResourceDialog({
       setLoading(false)
       onOpenChange(false)
       router.refresh()
-    } catch {
-      setError("Something went wrong")
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong"
+      setError(message)
       setLoading(false)
     }
   }
