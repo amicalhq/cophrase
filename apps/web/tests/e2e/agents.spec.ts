@@ -178,6 +178,10 @@ test.describe.serial("Content type agents", () => {
     // Blog Post should be the default selection
     await page.getByRole("button", { name: "Create" }).click()
 
+    // Dismiss the post-creation dialog
+    await expect(page.getByText("Content created")).toBeVisible({ timeout: 5_000 })
+    await page.getByRole("button", { name: "Pick up later" }).click()
+
     await expect(page.getByText("Test Blog")).toBeVisible({ timeout: 5_000 })
     await expect(
       page.getByRole("table").getByText("Blog Post", { exact: true })

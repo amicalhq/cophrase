@@ -14,6 +14,7 @@ import type { ResourceType, ResourceCategory } from "@workspace/db"
 import { ResourceCard } from "./resource-card"
 import { ResourceDialog } from "./resource-dialog"
 import type { JSONContent } from "@tiptap/react"
+import { trpc } from "@/lib/trpc/client"
 
 interface ResourceRow {
   id: string
@@ -70,6 +71,7 @@ export function ResourceGrid({
     content?: JSONContent | null
   } | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const utils = trpc.useUtils()
 
   const filtered = useMemo(() => {
     return resources.filter((r) => {
@@ -84,19 +86,20 @@ export function ResourceGrid({
 
   async function handleCardClick(r: ResourceRow) {
     try {
-      const res = await fetch(
-        `/api/resources/${r.id}?projectId=${projectId}&orgId=${orgId}`
-      )
-      if (!res.ok) return
-      const data = await res.json()
+      const raw = await utils.resources.get.fetch({
+        orgId,
+        id: r.id,
+        projectId,
+      })
+      const data = raw as Record<string, unknown>
       setEditResource({
-        id: data.id,
-        title: data.title,
-        type: data.type,
-        category: data.category,
-        linkUrl: data.linkUrl,
-        fileName: data.fileName,
-        content: data.content ?? null,
+        id: data.id as string,
+        title: data.title as string,
+        type: data.type as ResourceType,
+        category: data.category as ResourceCategory,
+        linkUrl: (data.linkUrl as string | null) ?? null,
+        fileName: (data.fileName as string | null) ?? null,
+        content: (data.content as JSONContent) ?? null,
       })
       setEditOpen(true)
     } catch {

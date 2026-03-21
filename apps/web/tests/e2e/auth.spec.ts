@@ -59,9 +59,9 @@ test.describe.serial("Auth flow", () => {
     await page.getByLabel("Organization name").fill(testUser.orgName)
     await page.getByRole("button", { name: "Continue" }).click()
 
-    // Should land on authenticated home
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
-    await expect(page.getByText("Welcome to CoPhrase.")).toBeVisible()
+    // Should land on organizations listing
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+    await expect(page.getByText("Organizations")).toBeVisible()
   })
 
   test("can sign out from home page", async ({ page }) => {
@@ -71,11 +71,11 @@ test.describe.serial("Auth flow", () => {
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
 
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
-    await expect(page.getByText("Welcome to CoPhrase.")).toBeVisible()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+    await expect(page.getByText("Organizations")).toBeVisible()
 
-    // Open user menu and sign out
-    await page.locator("[data-slot='avatar']").click()
+    // Open user menu (button shows user initials "TU" for "Test User")
+    await page.getByRole("button", { name: "TU" }).click()
     await page.getByRole("menuitem", { name: "Sign out" }).click()
 
     // Should redirect to sign-in
@@ -90,8 +90,8 @@ test.describe.serial("Auth flow", () => {
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
 
-    await expect(page).toHaveURL("/", { timeout: 10_000 })
-    await expect(page.getByText("Welcome to CoPhrase.")).toBeVisible()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+    await expect(page.getByText("Organizations")).toBeVisible()
     await expect(page.getByText(testUser.orgName)).toBeVisible()
   })
 
