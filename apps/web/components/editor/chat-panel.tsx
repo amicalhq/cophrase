@@ -195,10 +195,10 @@ function useHarnessChat(contentId: string) {
       const converted: HarnessMessage[] = data.messages.map((m) => ({
         id: m.id,
         role: m.role as HarnessMessage["role"],
-        content: extractPartsText(m.parts),
-        reasoningText: extractReasoning(m.metadata),
-        toolCalls: extractToolCalls(m.metadata),
-        isError: isErrorMetadata(m.metadata),
+        content: extractPartsText(m.parts ?? null),
+        reasoningText: extractReasoning(m.metadata ?? null),
+        toolCalls: extractToolCalls(m.metadata ?? null),
+        isError: isErrorMetadata(m.metadata ?? null),
         createdAt: m.createdAt,
       }))
       setMessages(converted.reverse())
@@ -259,10 +259,10 @@ function useHarnessChat(contentId: string) {
       const converted: HarnessMessage[] = data.messages.map((m) => ({
         id: m.id,
         role: m.role as HarnessMessage["role"],
-        content: extractPartsText(m.parts),
-        reasoningText: extractReasoning(m.metadata),
-        toolCalls: extractToolCalls(m.metadata),
-        isError: isErrorMetadata(m.metadata),
+        content: extractPartsText(m.parts ?? null),
+        reasoningText: extractReasoning(m.metadata ?? null),
+        toolCalls: extractToolCalls(m.metadata ?? null),
+        isError: isErrorMetadata(m.metadata ?? null),
         createdAt: m.createdAt,
       }))
       setMessages((prev) => [...converted.reverse(), ...prev])
