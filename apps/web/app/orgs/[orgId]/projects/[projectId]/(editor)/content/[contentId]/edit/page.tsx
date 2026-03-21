@@ -29,6 +29,7 @@ export default async function EditContentPage({
   return (
     <AIEditor
       contentTitle={content.title}
+      currentStageName={content.currentStageName}
       orgId={orgId}
       projectId={projectId}
       contentId={contentId}

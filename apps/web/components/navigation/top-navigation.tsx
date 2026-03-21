@@ -18,6 +18,7 @@ import {
   AiSearchIcon,
   BookOpen01Icon,
 } from "@hugeicons/core-free-icons"
+import { Badge } from "@workspace/ui/components/badge"
 import { Logo } from "@/components/logo"
 import { OrgProjectPicker } from "./org-project-picker"
 import { UserDropdown } from "@/components/user-menu"
@@ -40,12 +41,14 @@ interface TopNavigationProps {
   organization?: { id: string; name: string; logo?: string | null }
   project?: { id: string; name: string }
   pageTitle?: string
+  pageBadge?: string | null
 }
 
 export function TopNavigation({
   organization,
   project,
   pageTitle,
+  pageBadge,
 }: TopNavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
 
@@ -97,6 +100,11 @@ export function TopNavigation({
                 <span className="truncate text-sm font-medium">
                   {pageTitle}
                 </span>
+                {pageBadge && (
+                  <Badge variant="secondary" className="ml-1 shrink-0">
+                    {pageBadge}
+                  </Badge>
+                )}
               </>
             )}
           </div>
@@ -124,6 +132,11 @@ export function TopNavigation({
               <>
                 <span className="text-muted-foreground/50">/</span>
                 <span className="text-sm font-medium">{pageTitle}</span>
+                {pageBadge && (
+                  <Badge variant="secondary" className="ml-1">
+                    {pageBadge}
+                  </Badge>
+                )}
               </>
             )}
           </div>

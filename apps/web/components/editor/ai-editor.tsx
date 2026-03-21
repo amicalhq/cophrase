@@ -18,6 +18,7 @@ import { useArtifacts, sortedTypeKeys } from "./artifact-picker"
 import type { ArtifactData } from "./artifact-viewer"
 interface AIEditorProps {
   contentTitle: string
+  currentStageName: string | null
   orgId: string
   projectId: string
   contentId: string
@@ -27,6 +28,7 @@ interface AIEditorProps {
 
 export function AIEditor({
   contentTitle,
+  currentStageName,
   contentId,
   contentFormat,
   languageModels,
@@ -115,6 +117,7 @@ export function AIEditor({
         organization={organization}
         project={project}
         pageTitle={contentTitle}
+        pageBadge={currentStageName}
       />
 
       {/* Split panel editor */}
