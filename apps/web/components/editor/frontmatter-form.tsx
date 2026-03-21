@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Input } from "@workspace/ui/components/input"
 import { Checkbox } from "@workspace/ui/components/checkbox"
 import { Label } from "@workspace/ui/components/label"
+import { trpc } from "@/lib/trpc/client"
 
 interface JsonSchemaProperty {
   type: string
@@ -26,21 +27,19 @@ export function FrontmatterForm({ contentId }: FrontmatterFormProps) {
   const [schema, setSchema] = useState<JsonSchema | null>(null)
   const [values, setValues] = useState<FrontmatterValues>({})
   const [loading, setLoading] = useState(true)
+  const utils = trpc.useUtils()
+  const updateFrontmatterMutation = trpc.content.updateFrontmatter.useMutation()
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
       try {
-        const fmRes = await fetch(`/api/content/${contentId}/frontmatter`)
-        if (!fmRes.ok) return
-        const fmData = (await fmRes.json()) as {
-          frontmatter: Record<string, unknown>
-          contentTypeId: string | null
-        }
+        const fmData = await utils.content.getFrontmatter.fetch({ contentId })
 
         if (!fmData.contentTypeId) return
 
+        // NOTE: content-types endpoint stays as raw fetch (Task 7)
         const ctRes = await fetch(`/api/content-types/${fmData.contentTypeId}`)
         if (!ctRes.ok) return
         const ctData = (await ctRes.json()) as {
@@ -61,13 +60,12 @@ export function FrontmatterForm({ contentId }: FrontmatterFormProps) {
     return () => {
       cancelled = true
     }
-  }, [contentId])
+  }, [contentId, utils])
 
-  async function handleBlurSave(updatedValues: FrontmatterValues) {
-    await fetch(`/api/content/${contentId}/frontmatter`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ frontmatter: updatedValues }),
+  function handleBlurSave(updatedValues: FrontmatterValues) {
+    updateFrontmatterMutation.mutate({
+      contentId,
+      frontmatter: updatedValues,
     })
   }
 

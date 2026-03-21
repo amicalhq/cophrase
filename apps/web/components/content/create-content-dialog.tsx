@@ -15,6 +15,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { cn } from "@workspace/ui/lib/utils"
+import { trpc } from "@/lib/trpc/client"
 
 interface ContentTypeOption {
   id: string
@@ -44,6 +45,8 @@ export function CreateContentDialog({
   const [phase, setPhase] = useState<"create" | "created">("create")
   const [createdContentId, setCreatedContentId] = useState("")
 
+  const createMutation = trpc.content.create.useMutation()
+
   const selectedType = contentTypes.find((ct) => ct.id === contentTypeId)
   const createdTitle = title.trim() || "Untitled"
 
@@ -63,36 +66,20 @@ export function CreateContentDialog({
     setLoading(true)
 
     try {
-      const res = await fetch("/api/content", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          orgId,
-          title: title.trim() || undefined,
-          contentTypeId,
-        }),
+      const created = await createMutation.mutateAsync({
+        projectId,
+        orgId,
+        title: title.trim() || undefined,
+        contentTypeId,
       })
-
-      if (!res.ok) {
-        const text = await res.text()
-        try {
-          const data = JSON.parse(text)
-          setError(data.error ?? "Failed to create content")
-        } catch {
-          setError("Failed to create content")
-        }
-        setLoading(false)
-        return
-      }
-
-      const created = await res.json()
       setCreatedContentId(created.id)
       setPhase("created")
       setLoading(false)
-    } catch (error) {
-      console.error("Failed to create content:", error)
-      setError("Something went wrong")
+    } catch (err) {
+      console.error("Failed to create content:", err)
+      const message =
+        err instanceof Error ? err.message : "Something went wrong"
+      setError(message)
       setLoading(false)
     }
   }

@@ -53,6 +53,7 @@ import {
   Delete02Icon,
 } from "@hugeicons/core-free-icons"
 import { createColumns, type ContentRow } from "./columns"
+import { trpc } from "@/lib/trpc/client"
 
 interface ContentTypeOption {
   id: string
@@ -142,6 +143,9 @@ export function ContentTable({
     return filters
   }, [typeFilter, stageFilter])
 
+  const deleteMutation = trpc.content.delete.useMutation()
+  const bulkDeleteMutation = trpc.content.bulkDelete.useMutation()
+
   const handleDelete = useCallback((row: ContentRow) => {
     setDeleteTarget(row)
     setConfirmCode("")
@@ -154,17 +158,14 @@ export function ContentTable({
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      const res = await fetch(
-        `/api/content/${deleteTarget.id}?orgId=${orgId}&projectId=${projectId}`,
-        { method: "DELETE" },
-      )
-      if (!res.ok) {
-        const body = await res.json()
-        console.error("Delete failed:", body.error)
-      }
+      await deleteMutation.mutateAsync({
+        contentId: deleteTarget.id,
+        projectId,
+        orgId,
+      })
       router.refresh()
-    } catch {
-      console.error("Failed to delete content")
+    } catch (err) {
+      console.error("Failed to delete content:", err)
     } finally {
       setDeleting(false)
       setDeleteTarget(null)
@@ -186,22 +187,14 @@ export function ContentTable({
     if (selectedRows.length === 0) return
     setBulkDeleting(true)
     try {
-      const res = await fetch("/api/content", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ids: selectedRows.map((r) => r.id),
-          orgId,
-        }),
+      await bulkDeleteMutation.mutateAsync({
+        ids: selectedRows.map((r) => r.id),
+        orgId,
       })
-      if (!res.ok) {
-        const body = await res.json()
-        console.error("Bulk delete failed:", body.error)
-      }
       setRowSelection({})
       router.refresh()
-    } catch {
-      console.error("Failed to bulk delete content")
+    } catch (err) {
+      console.error("Failed to bulk delete content:", err)
     } finally {
       setBulkDeleting(false)
       setBulkDeleteOpen(false)

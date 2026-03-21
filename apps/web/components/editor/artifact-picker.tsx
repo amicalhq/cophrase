@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Select,
   SelectContent,
@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import type { ArtifactData } from "./artifact-viewer"
+import { trpc } from "@/lib/trpc/client"
 
 const ARTIFACT_TYPE_ORDER: string[] = [
   "research-notes",
@@ -46,33 +47,20 @@ export function sortedTypeKeys(types: string[]): string[] {
 export function useArtifacts(contentId: string) {
   const [artifacts, setArtifacts] = useState<ArtifactData[]>([])
   const [grouped, setGrouped] = useState<Record<string, ArtifactData[]>>({})
-  const [loading, setLoading] = useState(false)
 
-  const fetchArtifacts = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/content/${contentId}/artifacts`)
-      if (!res.ok) return
-      const data = (await res.json()) as {
-        artifacts: ArtifactData[]
-        grouped: Record<string, ArtifactData[]>
-      }
-      setArtifacts(data.artifacts)
-      setGrouped(data.grouped)
-    } catch {
-      // silently fail — artifacts are supplementary
-    } finally {
-      setLoading(false)
-    }
-  }, [contentId])
+  const { data, isLoading } = trpc.content.artifacts.useQuery(
+    { contentId },
+    { refetchInterval: 5000 },
+  )
 
   useEffect(() => {
-    fetchArtifacts()
-    const interval = setInterval(fetchArtifacts, 5000)
-    return () => clearInterval(interval)
-  }, [fetchArtifacts])
+    if (data) {
+      setArtifacts(data.artifacts as ArtifactData[])
+      setGrouped(data.grouped as Record<string, ArtifactData[]>)
+    }
+  }, [data])
 
-  return { artifacts, grouped, loading }
+  return { artifacts, grouped, loading: isLoading }
 }
 
 // ---------------------------------------------------------------------------

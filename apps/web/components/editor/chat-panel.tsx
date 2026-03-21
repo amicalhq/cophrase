@@ -49,6 +49,7 @@ import { typeLabel, sortedTypeKeys } from "./artifact-picker"
 import { FrontmatterForm } from "./frontmatter-form"
 import { extractTextFromParts as extractPartsText } from "@/lib/harness/utils"
 import type { PromptSuggestion } from "@/lib/harness/suggestions"
+import { trpc } from "@/lib/trpc/client"
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -184,22 +185,13 @@ function useHarnessChat(contentId: string) {
   const abortRef = useRef<AbortController | null>(null)
   const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([])
   const pendingSuggestionsRef = useRef<PromptSuggestion[] | null>(null)
+  const utils = trpc.useUtils()
+  const cancelMutation = trpc.content.cancelChat.useMutation()
 
   // Load messages from API — used on initial mount and after stream ends
   const loadMessages = useCallback(async () => {
     try {
-      const res = await fetch(`/api/content/${contentId}/messages?limit=20`)
-      if (!res.ok) return
-      const data = (await res.json()) as {
-        messages: Array<{
-          id: string
-          role: string
-          parts: unknown
-          metadata: unknown
-          createdAt: string
-        }>
-        nextCursor?: string
-      }
+      const data = await utils.content.messages.fetch({ contentId })
       const converted: HarnessMessage[] = data.messages.map((m) => ({
         id: m.id,
         role: m.role as HarnessMessage["role"],
@@ -217,13 +209,8 @@ function useHarnessChat(contentId: string) {
       if (converted.length === 0) {
         // Empty conversation — fetch initial suggestions from API
         try {
-          const sugRes = await fetch(`/api/content/${contentId}/suggestions`)
-          if (sugRes.ok) {
-            const sugData = (await sugRes.json()) as {
-              suggestions: PromptSuggestion[]
-            }
-            setSuggestions(sugData.suggestions)
-          }
+          const sugData = await utils.content.suggestions.fetch({ contentId })
+          setSuggestions(sugData.suggestions)
         } catch {
           // silently fail
         }
@@ -252,7 +239,7 @@ function useHarnessChat(contentId: string) {
     } catch {
       // silently fail
     }
-  }, [contentId])
+  }, [contentId, utils])
 
   // Load initial messages
   useEffect(() => {
@@ -264,20 +251,11 @@ function useHarnessChat(contentId: string) {
     if (!cursorRef.current || !hasMore || loadingMore) return
     setLoadingMore(true)
     try {
-      const res = await fetch(
-        `/api/content/${contentId}/messages?cursor=${cursorRef.current}&limit=20`
-      )
-      if (!res.ok) return
-      const data = (await res.json()) as {
-        messages: Array<{
-          id: string
-          role: string
-          parts: unknown
-          metadata: unknown
-          createdAt: string
-        }>
-        nextCursor?: string
-      }
+      const data = await utils.content.messages.fetch({
+        contentId,
+        cursor: cursorRef.current,
+        limit: 20,
+      })
       const converted: HarnessMessage[] = data.messages.map((m) => ({
         id: m.id,
         role: m.role as HarnessMessage["role"],
@@ -295,7 +273,7 @@ function useHarnessChat(contentId: string) {
     } finally {
       setLoadingMore(false)
     }
-  }, [contentId, hasMore, loadingMore])
+  }, [contentId, hasMore, loadingMore, utils])
 
   // Send message
   const sendMessage = useCallback(
@@ -457,14 +435,12 @@ function useHarnessChat(contentId: string) {
     abortRef.current = null
 
     try {
-      await fetch(`/api/content/${contentId}/chat/cancel`, {
-        method: "POST",
-      })
+      cancelMutation.mutate({ contentId })
       setStatus("ready")
     } catch {
       // silently fail
     }
-  }, [contentId])
+  }, [contentId, cancelMutation])
 
   // Abort on unmount
   useEffect(() => {
