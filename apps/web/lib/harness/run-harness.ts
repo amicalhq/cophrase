@@ -80,6 +80,13 @@ export async function runHarnessWorkflow(
 ${dynamicContext}
 ${SUGGEST_ACTIONS_INSTRUCTION}`
 
+    // Capture tool results directly from execute functions so we don't rely
+    // on the DurableAgent's serialized result (which may lose data via proxies).
+    const capturedToolCalls = new Map<
+      string,
+      { toolName: string; input: unknown; result: unknown }
+    >()
+
     // Build harness tools — delegates to step-wrapped tool handlers
     const tools = {
       "run-stage": {
@@ -97,31 +104,50 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
                 "Always include relevant artifacts so the next stage builds on prior work."
             ),
         }),
-        execute: async ({
-          stageId,
-          artifactIds,
-        }: {
-          stageId: string
-          stageName?: string
-          artifactIds?: string[]
-        }) => {
-          return runStageStep({
-            stageId,
-            artifactIds,
+        execute: async (
+          input: {
+            stageId: string
+            stageName?: string
+            artifactIds?: string[]
+          },
+          options?: { toolCallId?: string }
+        ) => {
+          const result = await runStageStep({
+            stageId: input.stageId,
+            artifactIds: input.artifactIds,
             config,
             organizationId: args.organizationId,
             projectId: args.projectId,
             contentId: args.contentId,
             createdBy: args.createdBy,
           })
+          if (options?.toolCallId) {
+            capturedToolCalls.set(options.toolCallId, {
+              toolName: "run-stage",
+              input,
+              result,
+            })
+          }
+          return result
         },
       },
       "get-content-status": {
         description:
           "Get the current status of this content piece including stage and artifacts.",
         inputSchema: z.object({}),
-        execute: async () => {
-          return getContentStatusStep(ctx, config)
+        execute: async (
+          _input: Record<string, never>,
+          options?: { toolCallId?: string }
+        ) => {
+          const result = await getContentStatusStep(ctx, config)
+          if (options?.toolCallId) {
+            capturedToolCalls.set(options.toolCallId, {
+              toolName: "get-content-status",
+              input: {},
+              result,
+            })
+          }
+          return result
         },
       },
       "search-artifacts": {
@@ -132,19 +158,24 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
             .enum(["pending", "ready", "approved", "rejected"])
             .optional(),
         }),
-        execute: async ({
-          type,
-          status,
-        }: {
-          type?: string
-          status?: string
-        }) => {
-          return searchArtifactsStep({
+        execute: async (
+          input: { type?: string; status?: string },
+          options?: { toolCallId?: string }
+        ) => {
+          const result = await searchArtifactsStep({
             organizationId: args.organizationId,
             contentId: args.contentId,
-            type,
-            status,
+            type: input.type,
+            status: input.status,
           })
+          if (options?.toolCallId) {
+            capturedToolCalls.set(options.toolCallId, {
+              toolName: "search-artifacts",
+              input,
+              result,
+            })
+          }
+          return result
         },
       },
       "suggest-next-actions": {
@@ -245,45 +276,9 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
       .filter(Boolean)
       .join("\n\n")
 
-    // Serialize result to plain object (workflow bundler uses proxies)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const r: any = JSON.parse(JSON.stringify(result))
-
-    // Build a lookup of tool results by toolCallId from all available sources.
-    // The DurableAgent may store results in steps[].toolResults, top-level
-    // toolResults, or in response messages (role: "tool").
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const toolResultMap = new Map<string, any>()
-
-    // Source 1: steps[].toolResults
-    for (const step of r.steps ?? []) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const tr of step.toolResults ?? []) {
-        if (tr.toolCallId) toolResultMap.set(tr.toolCallId, tr.output ?? tr.result)
-      }
-    }
-
-    // Source 2: top-level toolResults
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const tr of r.toolResults ?? []) {
-      if (tr.toolCallId && !toolResultMap.has(tr.toolCallId)) {
-        toolResultMap.set(tr.toolCallId, tr.output ?? tr.result)
-      }
-    }
-
-    // Source 3: response messages with role "tool" (most reliable fallback)
-    for (const msg of r.messages ?? []) {
-      if (msg.role === "tool" && Array.isArray(msg.content)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for (const part of msg.content) {
-          if (part.toolCallId && !toolResultMap.has(part.toolCallId)) {
-            toolResultMap.set(part.toolCallId, part.output ?? part.result)
-          }
-        }
-      }
-    }
-
-    // Extract tool calls from all steps
+    // Build tool calls for persistence from the captured map (reliable)
+    // rather than extracting from the serialized DurableAgent result
+    // (which loses data due to proxy/getter serialization issues).
     const toolCalls: Array<{
       toolCallId: string
       toolName: string
@@ -292,32 +287,43 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
       state: "complete"
     }> = []
 
-    for (const step of r.steps ?? []) {
-      for (const tc of step.toolCalls ?? []) {
-        toolCalls.push({
-          toolCallId: tc.toolCallId,
-          toolName: tc.toolName,
-          input: tc.input ?? tc.args,
-          result: toolResultMap.get(tc.toolCallId),
-          state: "complete",
-        })
+    for (const [toolCallId, captured] of capturedToolCalls) {
+      // Strip transient fields (reasoningText, text) from sub-agent results
+      // before persisting — they are shown during the stream but not stored.
+      // Only durationMs is kept so the UI can show "Thought for Xs" on reload.
+      let persistableResult = captured.result
+      if (
+        captured.toolName === "run-stage" &&
+        persistableResult &&
+        typeof persistableResult === "object"
+      ) {
+        const res = persistableResult as Record<string, unknown>
+        const subAgentResults = res.subAgentResults as
+          | Array<Record<string, unknown>>
+          | undefined
+        if (subAgentResults) {
+          persistableResult = {
+            ...res,
+            subAgentResults: subAgentResults.map((sr) => {
+              const { reasoningText: _, text: __, ...rest } = sr
+              return rest
+            }),
+          }
+        }
       }
+
+      toolCalls.push({
+        toolCallId,
+        toolName: captured.toolName,
+        input: captured.input,
+        result: persistableResult,
+        state: "complete",
+      })
     }
 
-    // Also check top-level toolCalls (from last step)
-    for (const tc of r.toolCalls ?? []) {
-      if (!toolCalls.some((t) => t.toolCallId === tc.toolCallId)) {
-        toolCalls.push({
-          toolCallId: tc.toolCallId,
-          toolName: tc.toolName,
-          input: tc.input ?? tc.args,
-          result: toolResultMap.get(tc.toolCallId),
-          state: "complete",
-        })
-      }
-    }
-
-    // Extract reasoning text
+    // Extract reasoning text from serialized result (harness-level reasoning)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r: any = JSON.parse(JSON.stringify(result))
     let reasoning = ""
     for (const step of r.steps ?? []) {
       if (typeof step.reasoningText === "string" && step.reasoningText) {
@@ -333,28 +339,8 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
       }
     }
 
-    // Strip transient fields (reasoningText, text) from sub-agent results
-    // before persisting — they are shown during the stream but not stored.
-    // Only durationMs is kept so the UI can show "Thought for Xs" on reload.
-    const persistableToolCalls = toolCalls.map((tc) => {
-      if (tc.toolName !== "run-stage" || !tc.result) return tc
-      const res = tc.result as Record<string, unknown>
-      const subAgentResults = res.subAgentResults as Array<Record<string, unknown>> | undefined
-      if (!subAgentResults) return tc
-      return {
-        ...tc,
-        result: {
-          ...res,
-          subAgentResults: subAgentResults.map((sr) => {
-            const { reasoningText: _, text: __, ...rest } = sr
-            return rest
-          }),
-        },
-      }
-    })
-
     const metadata: Record<string, unknown> = {}
-    if (persistableToolCalls.length > 0) metadata.toolCalls = persistableToolCalls
+    if (toolCalls.length > 0) metadata.toolCalls = toolCalls
     if (reasoning) metadata.reasoning = reasoning
 
     await persistHarnessMessages([
