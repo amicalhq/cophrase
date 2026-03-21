@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { trpc } from "@/lib/trpc/client"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -61,6 +62,10 @@ export function EditProviderDialog({
   const [testStatus, setTestStatus] = useState<ConnectionTestStatus>("idle")
   const [testError, setTestError] = useState("")
 
+  const testMutation = trpc.providers.test.useMutation()
+  const updateMutation = trpc.providers.update.useMutation()
+  const deleteMutation = trpc.providers.delete.useMutation()
+
   const showBaseUrl = BASE_URL_PROVIDER_TYPES.includes(provider.providerType)
 
   // Reset state when dialog opens/closes or provider changes
@@ -83,23 +88,12 @@ export function EditProviderDialog({
     setTestStatus("testing")
     setTestError("")
     try {
-      const body: Record<string, string | undefined> = {
+      const data = await testMutation.mutateAsync({
         orgId,
         providerId: provider.id,
-      }
-      if (apiKey.trim()) {
-        body.apiKey = apiKey.trim()
-      }
-      if (baseURL.trim()) {
-        body.baseURL = baseURL.trim()
-      }
-
-      const res = await fetch("/api/providers/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        apiKey: apiKey.trim() || undefined,
+        baseURL: baseURL.trim() || undefined,
       })
-      const data = await res.json()
       if (data.success) {
         setTestStatus("success")
       } else {
@@ -119,61 +113,44 @@ export function EditProviderDialog({
     setLoading(true)
     setError("")
 
-    try {
-      const body: Record<string, string | null> = {
+    updateMutation.mutate(
+      {
         orgId,
+        id: provider.id,
         name: name.trim(),
+        apiKey: apiKey.trim() || undefined,
+        baseURL: showBaseUrl ? (baseURL.trim() || null) : undefined,
+      },
+      {
+        onSuccess: () => {
+          onOpenChange(false)
+          onSuccess()
+        },
+        onError: (err) => {
+          setError(err.message ?? "Failed to save changes")
+          setLoading(false)
+        },
       }
-      if (apiKey.trim()) {
-        body.apiKey = apiKey.trim()
-      }
-      if (showBaseUrl) {
-        body.baseURL = baseURL.trim() || null
-      }
-
-      const res = await fetch(`/api/providers/${provider.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to save changes")
-        setLoading(false)
-        return
-      }
-
-      onOpenChange(false)
-      onSuccess()
-    } catch {
-      setError("Something went wrong")
-      setLoading(false)
-    }
+    )
   }
 
   async function handleConfirmDelete() {
     setDeleteLoading(true)
     setDeleteError("")
 
-    try {
-      const res = await fetch(`/api/providers/${provider.id}?orgId=${orgId}`, {
-        method: "DELETE",
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setDeleteError(data.error ?? "Failed to delete provider")
-        setDeleteLoading(false)
-        return
+    deleteMutation.mutate(
+      { orgId, id: provider.id },
+      {
+        onSuccess: () => {
+          onOpenChange(false)
+          onSuccess()
+        },
+        onError: (err) => {
+          setDeleteError(err.message ?? "Failed to delete provider")
+          setDeleteLoading(false)
+        },
       }
-
-      onOpenChange(false)
-      onSuccess()
-    } catch {
-      setDeleteError("Something went wrong")
-      setDeleteLoading(false)
-    }
+    )
   }
 
   return (

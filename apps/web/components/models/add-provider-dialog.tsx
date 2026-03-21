@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { trpc } from "@/lib/trpc/client"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -86,6 +87,9 @@ export function AddProviderDialog({
   const [testStatus, setTestStatus] = useState<ConnectionTestStatus>("idle")
   const [testError, setTestError] = useState("")
 
+  const testMutation = trpc.providers.test.useMutation()
+  const createMutation = trpc.providers.create.useMutation()
+
   // Reset all state when dialog closes
   useEffect(() => {
     if (!open) {
@@ -110,17 +114,12 @@ export function AddProviderDialog({
     setTestStatus("testing")
     setTestError("")
     try {
-      const res = await fetch("/api/providers/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orgId,
-          providerType,
-          apiKey: apiKey.trim(),
-          baseURL: baseURL.trim() || undefined,
-        }),
+      const data = await testMutation.mutateAsync({
+        orgId,
+        providerType: providerType ?? undefined,
+        apiKey: apiKey.trim(),
+        baseURL: baseURL.trim() || undefined,
       })
-      const data = await res.json()
       if (data.success) {
         setTestStatus("success")
         return true
@@ -192,37 +191,30 @@ export function AddProviderDialog({
     setLoading(true)
     setError("")
 
-    try {
-      const models = availableModels
-        .filter((m) => selectedModels.has(m.id))
-        .map((m) => ({ modelId: m.id, modelType: m.type }))
+    const models = availableModels
+      .filter((m) => selectedModels.has(m.id))
+      .map((m) => ({ modelId: m.id, modelType: m.type }))
 
-      const res = await fetch("/api/providers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orgId,
-          name: name.trim(),
-          providerType,
-          apiKey: apiKey.trim(),
-          baseURL: baseURL.trim() || undefined,
-          models,
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to add provider")
-        setLoading(false)
-        return
+    createMutation.mutate(
+      {
+        orgId,
+        name: name.trim(),
+        providerType,
+        apiKey: apiKey.trim(),
+        baseURL: baseURL.trim() || undefined,
+        models,
+      },
+      {
+        onSuccess: () => {
+          onOpenChange(false)
+          onSuccess()
+        },
+        onError: (err) => {
+          setError(err.message ?? "Failed to add provider")
+          setLoading(false)
+        },
       }
-
-      onOpenChange(false)
-      onSuccess()
-    } catch {
-      setError("Something went wrong")
-      setLoading(false)
-    }
+    )
   }
 
   function toggleModel(modelId: string) {
