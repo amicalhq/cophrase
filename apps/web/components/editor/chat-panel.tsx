@@ -592,57 +592,43 @@ function ToolResultDisplay({
           text?: string
         }>
       | undefined
+    const isSingleAgent = subAgentResults?.length === 1
     return (
       <div className="space-y-2">
-        {stageName && (
-          <p>
-            <span className="font-medium">{stageName}</span>
-            {success != null && (
-              <span className={success ? " text-green-600" : " text-destructive"}>
-                {success ? " — completed" : " — failed"}
-              </span>
-            )}
-          </p>
-        )}
         {subAgentResults && subAgentResults.length > 0 && (
           <div className="space-y-2">
             {subAgentResults.map((sr, i) => (
               <div key={i} className="space-y-1">
-                <p>
-                  <span className="font-medium">{sr.agentName}</span>
-                  {sr.success ? (
-                    sr.artifacts.length > 0 ? (
-                      <>
-                        {" — "}
-                        {sr.artifacts.map((a, j) => (
+                {/* For single-agent stages, skip the agent name — it's already in the label */}
+                {!isSingleAgent && (
+                  <p className="font-medium">{sr.agentName}</p>
+                )}
+                {sr.success ? (
+                  sr.artifacts.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {sr.artifacts.map((a) => (
+                        onArtifactClick ? (
+                          <button
+                            key={a.id}
+                            type="button"
+                            className="text-primary underline hover:no-underline"
+                            onClick={() => onArtifactClick(a.id)}
+                          >
+                            {a.title ?? a.type} v{a.version}
+                          </button>
+                        ) : (
                           <span key={a.id}>
-                            {j > 0 && ", "}
-                            {onArtifactClick ? (
-                              <button
-                                type="button"
-                                className="text-primary underline hover:no-underline"
-                                onClick={() => onArtifactClick(a.id)}
-                              >
-                                {a.title ?? a.type} v{a.version}
-                              </button>
-                            ) : (
-                              <span>
-                                {a.title ?? a.type} v{a.version}
-                              </span>
-                            )}
+                            {a.title ?? a.type} v{a.version}
                           </span>
-                        ))}
-                      </>
-                    ) : (
-                      " — done"
-                    )
-                  ) : (
-                    <span className="text-destructive">
-                      {" — failed"}
-                      {sr.error && `: ${sr.error}`}
-                    </span>
-                  )}
-                </p>
+                        )
+                      ))}
+                    </div>
+                  ) : null
+                ) : (
+                  <p className="text-destructive">
+                    Failed{sr.error && `: ${sr.error}`}
+                  </p>
+                )}
                 {/* Reasoning: collapsible if text available, summary if only duration */}
                 {sr.reasoningText ? (
                   <Collapsible>
