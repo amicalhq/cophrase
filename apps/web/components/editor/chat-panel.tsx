@@ -485,6 +485,196 @@ function useHarnessChat(contentId: string) {
 }
 
 // ---------------------------------------------------------------------------
+// SubAgentRow — collapsible row for a single sub-agent result
+// ---------------------------------------------------------------------------
+
+function SubAgentRow({
+  agent,
+  onArtifactClick,
+}: {
+  agent: {
+    agentName: string
+    success: boolean
+    artifacts: ArtifactRef[]
+    error?: string
+    durationMs?: number
+    reasoningText?: string
+  }
+  onArtifactClick?: (artifactId: string) => void
+}) {
+  return (
+    <Collapsible defaultOpen>
+      <CollapsibleTrigger className="flex w-full items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+        <span className="text-muted-foreground/60">↳</span>
+        {agent.success ? (
+          <CheckIcon className="size-3 text-green-600" />
+        ) : (
+          <XIcon className="size-3 text-destructive" />
+        )}
+        <span>{agent.agentName}</span>
+        <ChevronDownIcon className="ml-auto size-3" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-1 space-y-1 pl-7 text-xs text-muted-foreground">
+        {agent.success ? (
+          agent.artifacts.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {agent.artifacts.map((a) =>
+                onArtifactClick ? (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className="text-primary underline hover:no-underline"
+                    onClick={() => onArtifactClick(a.id)}
+                  >
+                    {a.title ?? a.type} v{a.version}
+                  </button>
+                ) : (
+                  <span key={a.id}>
+                    {a.title ?? a.type} v{a.version}
+                  </span>
+                )
+              )}
+            </div>
+          ) : null
+        ) : (
+          <p className="text-destructive">
+            Failed{agent.error ? `: ${agent.error}` : ""}
+          </p>
+        )}
+        {agent.reasoningText ? (
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
+              <ChevronDownIcon className="size-3" />
+              Thought
+              {agent.durationMs != null && (
+                <span> for {Math.round(agent.durationMs / 1000)}s</span>
+              )}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-1 rounded-md bg-muted/50 p-2 text-[10px] text-muted-foreground">
+              {agent.reasoningText}
+            </CollapsibleContent>
+          </Collapsible>
+        ) : agent.durationMs != null ? (
+          <p className="text-[10px] text-muted-foreground">
+            Thought for {Math.round(agent.durationMs / 1000)}s
+          </p>
+        ) : null}
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// RunStageBlock — stage → sub-agent hierarchy for run-stage tool calls
+// ---------------------------------------------------------------------------
+
+function RunStageBlock({
+  toolCall,
+  onArtifactClick,
+}: {
+  toolCall: ToolCallResult
+  onArtifactClick?: (artifactId: string) => void
+}) {
+  const { state, input, result } = toolCall
+  const inp = input as Record<string, unknown> | undefined
+  const res = result as Record<string, unknown> | undefined
+
+  const stageName =
+    (res?.stageName as string | undefined) ??
+    (inp?.stageName as string | undefined) ??
+    "Stage"
+  const agentNames = (inp?.agentNames ?? []) as string[]
+  const isCalling = state === "calling"
+  const isStopped = state === "stopped"
+  const isComplete = state === "complete"
+
+  // Completed state — collapsible stage with sub-agent rows
+  if (isComplete && res) {
+    const success = res.success as boolean | undefined
+    const subAgentResults = (res.subAgentResults ?? []) as Array<{
+      agentName: string
+      success: boolean
+      artifacts: ArtifactRef[]
+      error?: string
+      durationMs?: number
+      reasoningText?: string
+    }>
+
+    return (
+      <div className="not-prose my-2 space-y-1">
+        <Collapsible defaultOpen>
+          <CollapsibleTrigger className="flex w-full items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
+            {success ? (
+              <Badge className="h-5 gap-1 border-green-600/30 bg-green-500/10 px-1.5 text-[10px] text-green-600">
+                <CheckIcon className="size-3" />
+                Done
+              </Badge>
+            ) : (
+              <Badge variant="destructive" className="h-5 gap-1 px-1.5 text-[10px]">
+                <XIcon className="size-3" />
+                Failed
+              </Badge>
+            )}
+            <span>{stageName}</span>
+            <ChevronDownIcon className="ml-auto size-3" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+            {subAgentResults.map((sr, i) => (
+              <SubAgentRow
+                key={i}
+                agent={sr}
+                onArtifactClick={onArtifactClick}
+              />
+            ))}
+            {typeof res.error === "string" && (
+              <p className="text-destructive">{res.error}</p>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+    )
+  }
+
+  // Calling / Stopped state — stage row + sub-agent running rows (not collapsible)
+  return (
+    <div className="not-prose my-2 space-y-1">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {isStopped ? (
+          <Badge variant="destructive" className="h-5 gap-1 px-1.5 text-[10px]">
+            <XIcon className="size-3" />
+            Stopped
+          </Badge>
+        ) : (
+          <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
+            <LoaderIcon className="size-3 animate-spin" />
+            Running
+          </Badge>
+        )}
+        <span>
+          {stageName}
+          {agentNames.length > 1 && (
+            <span className="ml-1 text-muted-foreground/60">
+              · {agentNames.length} agents
+            </span>
+          )}
+        </span>
+      </div>
+      {isCalling &&
+        agentNames.map((name, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-1.5 pl-4 text-xs text-muted-foreground"
+          >
+            <span className="text-muted-foreground/60">↳</span>
+            <LoaderIcon className="size-3 animate-spin" />
+            <span>{name}</span>
+          </div>
+        ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // ToolCallBlock
 // ---------------------------------------------------------------------------
 
@@ -495,67 +685,51 @@ function ToolCallBlock({
   toolCall: ToolCallResult
   onArtifactClick?: (artifactId: string) => void
 }) {
+  // Route run-stage to its dedicated component
+  if (toolCall.toolName === "run-stage") {
+    return (
+      <RunStageBlock toolCall={toolCall} onArtifactClick={onArtifactClick} />
+    )
+  }
+
   const { toolName, state, input, result } = toolCall
   const label = formatToolLabel(toolName, input, result)
   const isCalling = state === "calling"
   const isStopped = state === "stopped"
 
-  // For run-stage during calling, show each sub-agent with running status
-  const inp = input as Record<string, unknown> | undefined
-  const callingAgentNames =
-    isCalling && toolName === "run-stage"
-      ? ((inp?.agentNames ?? []) as string[])
-      : []
-
   return (
     <div className="not-prose my-2 space-y-1">
-      {callingAgentNames.length > 0 ? (
-        // Show each sub-agent as its own status row while running
-        callingAgentNames.map((name, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2 text-xs text-muted-foreground"
-          >
+      <Collapsible>
+        <CollapsibleTrigger className="flex w-full items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
+          {isCalling ? (
             <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
               <LoaderIcon className="size-3 animate-spin" />
               Running
             </Badge>
-            <span>{name}</span>
-          </div>
-        ))
-      ) : (
-        <Collapsible>
-          <CollapsibleTrigger className="flex w-full items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
-            {isCalling ? (
-              <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
-                <LoaderIcon className="size-3 animate-spin" />
-                Running
-              </Badge>
-            ) : isStopped ? (
-              <Badge variant="destructive" className="h-5 gap-1 px-1.5 text-[10px]">
-                <XIcon className="size-3" />
-                Stopped
-              </Badge>
-            ) : (
-              <Badge className="h-5 gap-1 border-green-600/30 bg-green-500/10 px-1.5 text-[10px] text-green-600">
-                <CheckIcon className="size-3" />
-                Done
-              </Badge>
-            )}
-            <span>{label}</span>
-            {!isCalling && !isStopped && <ChevronDownIcon className="ml-auto size-3" />}
-          </CollapsibleTrigger>
-          {!isCalling && !isStopped && (
-            <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
-              <ToolResultDisplay
-                toolName={toolName}
-                result={result}
-                onArtifactClick={onArtifactClick}
-              />
-            </CollapsibleContent>
+          ) : isStopped ? (
+            <Badge variant="destructive" className="h-5 gap-1 px-1.5 text-[10px]">
+              <XIcon className="size-3" />
+              Stopped
+            </Badge>
+          ) : (
+            <Badge className="h-5 gap-1 border-green-600/30 bg-green-500/10 px-1.5 text-[10px] text-green-600">
+              <CheckIcon className="size-3" />
+              Done
+            </Badge>
           )}
-        </Collapsible>
-      )}
+          <span>{label}</span>
+          {!isCalling && !isStopped && <ChevronDownIcon className="ml-auto size-3" />}
+        </CollapsibleTrigger>
+        {!isCalling && !isStopped && (
+          <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
+            <ToolResultDisplay
+              toolName={toolName}
+              result={result}
+              onArtifactClick={onArtifactClick}
+            />
+          </CollapsibleContent>
+        )}
+      </Collapsible>
     </div>
   )
 }
