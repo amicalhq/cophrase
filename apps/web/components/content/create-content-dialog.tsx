@@ -40,6 +40,23 @@ export function CreateContentDialog({
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
+  // Post-creation state
+  const [phase, setPhase] = useState<"create" | "created">("create")
+  const [createdContentId, setCreatedContentId] = useState("")
+
+  const selectedType = contentTypes.find((ct) => ct.id === contentTypeId)
+  const createdTitle = title.trim() || "Untitled"
+
+  function resetAndClose() {
+    setOpen(false)
+    setPhase("create")
+    setTitle("")
+    setCreatedContentId("")
+    setContentTypeId(contentTypes[0]?.id ?? "")
+    setError("")
+    router.refresh()
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
@@ -69,11 +86,10 @@ export function CreateContentDialog({
         return
       }
 
+      const created = await res.json()
+      setCreatedContentId(created.id)
+      setPhase("created")
       setLoading(false)
-      setOpen(false)
-      setTitle("")
-      setContentTypeId(contentTypes[0]?.id ?? "")
-      router.refresh()
     } catch (error) {
       console.error("Failed to create content:", error)
       setError("Something went wrong")
@@ -81,65 +97,111 @@ export function CreateContentDialog({
     }
   }
 
+  function handleOpenInEditor() {
+    const editUrl = `/orgs/${orgId}/projects/${projectId}/content/${createdContentId}/edit`
+    resetAndClose()
+    router.push(editUrl)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          resetAndClose()
+        } else {
+          setOpen(true)
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm">New content</Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New content</DialogTitle>
-          <DialogDescription>
-            Create a new content piece for this project.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-4 py-2">
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="content-title">
-                Title <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Input
-                id="content-title"
-                placeholder="e.g. How to Scale Your Startup"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Type</Label>
-              <div className="flex gap-3">
-                {contentTypes.map((ct) => (
-                  <button
-                    key={ct.id}
-                    type="button"
-                    onClick={() => setContentTypeId(ct.id)}
-                    className={cn(
-                      "flex-1 rounded-lg border-2 p-4 text-center transition-colors",
-                      contentTypeId === ct.id
-                        ? "border-foreground bg-accent"
-                        : "border-border hover:border-muted-foreground"
-                    )}
-                  >
-                    <p className="text-sm font-medium">{ct.name}</p>
-                    {ct.description && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {ct.description}
-                      </p>
-                    )}
-                  </button>
-                ))}
+        {phase === "create" ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>New content</DialogTitle>
+              <DialogDescription>
+                Create a new content piece for this project.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit}>
+              <div className="flex flex-col gap-4 py-2">
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="content-title">
+                    Title{" "}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="content-title"
+                    placeholder="e.g. How to Scale Your Startup"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label>Type</Label>
+                  <div className="flex gap-3">
+                    {contentTypes.map((ct) => (
+                      <button
+                        key={ct.id}
+                        type="button"
+                        onClick={() => setContentTypeId(ct.id)}
+                        className={cn(
+                          "flex-1 rounded-lg border-2 p-4 text-center transition-colors",
+                          contentTypeId === ct.id
+                            ? "border-foreground bg-accent"
+                            : "border-border hover:border-muted-foreground"
+                        )}
+                      >
+                        <p className="text-sm font-medium">{ct.name}</p>
+                        {ct.description && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {ct.description}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
+              <DialogFooter className="pt-4">
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Creating..." : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Content created</DialogTitle>
+              <DialogDescription>
+                Your {selectedType?.name ?? "content"} is ready.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-lg border p-4">
+              <p className="font-medium">{createdTitle}</p>
+              {selectedType && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selectedType.name}
+                  {selectedType.description
+                    ? ` — ${selectedType.description}`
+                    : ""}
+                </p>
+              )}
             </div>
-          </div>
-          <DialogFooter className="pt-4">
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter className="pt-4">
+              <Button variant="outline" onClick={resetAndClose}>
+                Pick up later
+              </Button>
+              <Button onClick={handleOpenInEditor}>✨ Open in AI Editor</Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )
