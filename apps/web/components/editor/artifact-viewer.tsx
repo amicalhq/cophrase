@@ -17,65 +17,24 @@ export interface ArtifactData {
 // ---------------------------------------------------------------------------
 
 export interface ResearchNotesData {
-  keywords?: string[]
-  sources?: Array<{ title: string; url?: string }>
-  insights?: string[]
+  markdown?: string
   [key: string]: unknown
 }
 
 export function ResearchNotesView({ data }: { data: ResearchNotesData }) {
+  if (data.markdown) {
+    return (
+      <pre className="prose prose-sm max-w-none font-sans text-sm leading-relaxed whitespace-pre-wrap dark:prose-invert">
+        {data.markdown}
+      </pre>
+    )
+  }
+
+  // Fallback: render raw JSON for artifacts without markdown field
   return (
-    <div className="space-y-6">
-      {data.keywords && data.keywords.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-medium">Keywords</h3>
-          <div className="flex flex-wrap gap-1.5">
-            {data.keywords.map((kw) => (
-              <Badge key={kw} variant="secondary">
-                {kw}
-              </Badge>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {data.sources && data.sources.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-medium">Sources</h3>
-          <ul className="space-y-1 text-sm">
-            {data.sources.map((src, i) => (
-              <li key={i} className="text-muted-foreground">
-                {src.url ? (
-                  <a
-                    href={src.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary underline"
-                  >
-                    {src.title}
-                  </a>
-                ) : (
-                  src.title
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {data.insights && data.insights.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-medium">Insights</h3>
-          <ul className="list-inside list-disc space-y-1 text-sm">
-            {data.insights.map((insight, i) => (
-              <li key={i} className="text-muted-foreground">
-                {insight}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
+    <pre className="overflow-x-auto rounded-md bg-muted p-4 text-xs">
+      {JSON.stringify(data, null, 2)}
+    </pre>
   )
 }
 

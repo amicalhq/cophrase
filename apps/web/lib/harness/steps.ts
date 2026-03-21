@@ -214,8 +214,8 @@ export async function runSubAgentInline(input: {
       data: z
         .record(z.string(), z.unknown())
         .describe(
-          "The artifact payload as a JSON object. For research-notes: { keywords, sources, insights }. " +
-            "For blog-draft: { markdown, title, metadata: { wordCount, readingTime } }."
+          "The artifact payload. MUST include a 'markdown' field with the full content as well-formatted markdown. " +
+            "Example: { markdown: '# Title\\n\\nContent with **bold**, lists, etc.', ...optional structured metadata }"
         ),
       parentIds: z
         .array(z.string())
@@ -498,8 +498,8 @@ export async function runStageStep(input: {
           data: z
             .record(z.string(), z.unknown())
             .describe(
-              "The artifact payload as a JSON object. For research-notes: { keywords, sources, insights }. " +
-                "For blog-draft: { markdown, title, metadata: { wordCount, readingTime } }."
+              "The artifact payload. MUST include a 'markdown' field with the full content as well-formatted markdown. " +
+                "Example: { markdown: '# Title\\n\\nContent with **bold**, lists, etc.', ...optional structured metadata }"
             ),
           parentIds: z.array(z.string()).optional().describe("IDs of parent artifacts"),
         }),
