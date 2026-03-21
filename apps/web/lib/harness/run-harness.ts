@@ -198,7 +198,23 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
             .min(2)
             .max(4),
         }),
-        execute: async () => {
+        execute: async (
+          input: {
+            suggestions: Array<{
+              label: string
+              prompt: string
+              primary?: boolean
+            }>
+          },
+          options?: { toolCallId?: string }
+        ) => {
+          if (options?.toolCallId) {
+            capturedToolCalls.set(options.toolCallId, {
+              toolName: "suggest-next-actions",
+              input,
+              result: { ok: true },
+            })
+          }
           return { ok: true }
         },
       },
