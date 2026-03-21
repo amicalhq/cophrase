@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { trpcQuery, trpcMutate } from "./helpers/trpc"
 
 test.describe.serial("Resources", () => {
   const testId = Date.now()
@@ -111,6 +112,33 @@ test.describe.serial("Resources", () => {
         .locator("[data-testid='resource-card']")
         .filter({ hasText: "Brand Voice" })
     ).toBeVisible()
+  })
+
+  test("can get a single resource via API", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
+
+    // List resources to get the text resource ID
+    const resources = await trpcQuery(page.request, 'resources.list', {
+      orgId, projectId,
+    })
+    const toneResource = resources.find(
+      (r: { title: string }) => r.title === "Tone Guidelines",
+    )
+    expect(toneResource).toBeTruthy()
+
+    // Get a single resource
+    const result = await trpcQuery(page.request, 'resources.get', {
+      orgId, projectId,
+      id: toneResource.id,
+    })
+    expect(result.title).toBe("Tone Guidelines")
+    expect(result.type).toBe("text")
+    expect(result.category).toBe("brand_voice")
+    expect(result.content).toBeTruthy()
   })
 
   test("create a link resource", async ({ page }) => {

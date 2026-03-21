@@ -220,6 +220,10 @@ test.describe.serial("Content type agents", () => {
     ).not.toBeVisible()
   })
 
+  // Skipped: agents.getRun requires an agent run to exist, which is only
+  // created by the streaming chat endpoint (tested in harness.spec.ts).
+  // There is no way to create a run via tRPC mutations alone.
+
   test.afterAll(async () => {
     await db.delete(user).where(eq(user.email, testUser.email))
     await db.delete(organization).where(eq(organization.name, testUser.orgName))

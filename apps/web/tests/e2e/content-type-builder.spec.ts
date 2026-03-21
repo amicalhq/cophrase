@@ -255,4 +255,179 @@ test.describe.serial("Content type builder", () => {
     expect(fmData.frontmatter.title).toBe("My Article Title")
     expect(fmData.frontmatter.author).toBe("Test Author")
   })
+
+  // ---------------------------------------------------------------------------
+  // Stage CRUD via API
+  // ---------------------------------------------------------------------------
+
+  let stageContentTypeId = ""
+  let addedStageId = ""
+
+  test("can add a stage to a content type via API", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    // Use the "Custom Article" content type created earlier
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
+    const customType = types.find((t: { name: string }) => t.name === "Custom Article")
+    expect(customType).toBeTruthy()
+    stageContentTypeId = customType.id
+
+    const stage = await trpcMutate(page.request, 'contentTypes.addStage', {
+      contentTypeId: stageContentTypeId,
+      name: "Review",
+      optional: true,
+    })
+    expect(stage.id).toBeTruthy()
+    addedStageId = stage.id
+
+    // Verify the stage was added
+    const result = await trpcQuery(page.request, 'contentTypes.get', {
+      id: stageContentTypeId,
+    })
+    expect(result.stages).toContainEqual(
+      expect.objectContaining({ name: "Review" }),
+    )
+  })
+
+  test("can update a stage via API", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    await trpcMutate(page.request, 'contentTypes.updateStage', {
+      contentTypeId: stageContentTypeId,
+      stageId: addedStageId,
+      name: "Final Review",
+    })
+
+    const result = await trpcQuery(page.request, 'contentTypes.get', {
+      id: stageContentTypeId,
+    })
+    expect(result.stages).toContainEqual(
+      expect.objectContaining({ name: "Final Review" }),
+    )
+    expect(result.stages).not.toContainEqual(
+      expect.objectContaining({ name: "Review" }),
+    )
+  })
+
+  test("can reorder stages via API", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    const before = await trpcQuery(page.request, 'contentTypes.get', {
+      id: stageContentTypeId,
+    })
+    const stageIds = before.stages.map((s: { id: string }) => s.id)
+    expect(stageIds.length).toBeGreaterThanOrEqual(2)
+
+    const reversed = [...stageIds].reverse()
+    await trpcMutate(page.request, 'contentTypes.reorderStages', {
+      contentTypeId: stageContentTypeId,
+      stageIds: reversed,
+    })
+
+    const after = await trpcQuery(page.request, 'contentTypes.get', {
+      id: stageContentTypeId,
+    })
+    const afterIds = after.stages.map((s: { id: string }) => s.id)
+    expect(afterIds).toEqual(reversed)
+  })
+
+  test("can delete a stage via API", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    await trpcMutate(page.request, 'contentTypes.deleteStage', {
+      contentTypeId: stageContentTypeId,
+      stageId: addedStageId,
+    })
+
+    const result = await trpcQuery(page.request, 'contentTypes.get', {
+      id: stageContentTypeId,
+    })
+    const stageIds = result.stages.map((s: { id: string }) => s.id)
+    expect(stageIds).not.toContain(addedStageId)
+  })
+
+  test("can bind a sub-agent to a stage via API", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    // Get content type to find its agent ID and a stage
+    const ct = await trpcQuery(page.request, 'contentTypes.get', {
+      id: stageContentTypeId,
+    })
+    expect(ct.agentId).toBeTruthy()
+    expect(ct.stages.length).toBeGreaterThan(0)
+
+    const targetStageId = ct.stages[0].id
+
+    const bound = await trpcMutate(page.request, 'contentTypes.bindSubAgent', {
+      contentTypeId: stageContentTypeId,
+      stageId: targetStageId,
+      agentId: ct.agentId,
+    })
+    expect(bound.id).toBeTruthy()
+
+    // Verify the sub-agent binding
+    const updated = await trpcQuery(page.request, 'contentTypes.get', {
+      id: stageContentTypeId,
+    })
+    const targetStage = updated.stages.find(
+      (s: { id: string }) => s.id === targetStageId,
+    )
+    expect(targetStage).toBeTruthy()
+    expect(targetStage.subAgents.length).toBeGreaterThan(0)
+  })
+
+  test("can unbind a sub-agent from a stage via API", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    // Find the sub-agent we just bound
+    const ct = await trpcQuery(page.request, 'contentTypes.get', {
+      id: stageContentTypeId,
+    })
+    const stageWithAgent = ct.stages.find(
+      (s: { subAgents: unknown[] }) => s.subAgents.length > 0,
+    )
+    expect(stageWithAgent).toBeTruthy()
+
+    const subAgentId = stageWithAgent.subAgents[0].id
+
+    await trpcMutate(page.request, 'contentTypes.unbindSubAgent', {
+      contentTypeId: stageContentTypeId,
+      subAgentId,
+    })
+
+    // Verify it's unbound
+    const updated = await trpcQuery(page.request, 'contentTypes.get', {
+      id: stageContentTypeId,
+    })
+    const updatedStage = updated.stages.find(
+      (s: { id: string }) => s.id === stageWithAgent.id,
+    )
+    expect(updatedStage.subAgents.length).toBe(0)
+  })
 })

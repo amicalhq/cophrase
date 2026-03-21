@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { db, eq, user, organization } from "@workspace/db"
-import { trpcMutate } from "./helpers/trpc"
+import { trpcMutate, trpcQuery } from "./helpers/trpc"
 
 test.describe.serial("Content pieces", () => {
   const testId = Date.now()
@@ -104,6 +104,11 @@ test.describe.serial("Content pieces", () => {
     // "Blog Post" is selected by default (first content type)
     await page.getByRole("button", { name: "Create" }).click()
 
+    // Dismiss post-creation dialog if shown
+    const pickUpLater = page.getByRole("button", { name: "Pick up later" })
+    await expect(pickUpLater).toBeVisible({ timeout: 5_000 })
+    await pickUpLater.click()
+
     // Should see the new content in the table
     await expect(page.getByText("My First Blog Post")).toBeVisible({
       timeout: 5_000,
@@ -127,6 +132,11 @@ test.describe.serial("Content pieces", () => {
     await page.getByLabel("Title").fill("Launch Announcement")
     await page.getByRole("dialog").getByText("X Post").click()
     await page.getByRole("button", { name: "Create" }).click()
+
+    // Dismiss post-creation dialog if shown
+    const pickUpLater = page.getByRole("button", { name: "Pick up later" })
+    await expect(pickUpLater).toBeVisible({ timeout: 5_000 })
+    await pickUpLater.click()
 
     await expect(page.getByText("Launch Announcement")).toBeVisible({
       timeout: 5_000,
@@ -210,6 +220,11 @@ test.describe.serial("Content pieces", () => {
     await page.getByRole("button", { name: "New content" }).click()
     await page.getByRole("button", { name: "Create" }).click()
 
+    // Dismiss post-creation dialog if shown
+    const pickUpLater = page.getByRole("button", { name: "Pick up later" })
+    await expect(pickUpLater).toBeVisible({ timeout: 5_000 })
+    await pickUpLater.click()
+
     // Should see "Untitled" in the table
     await expect(page.getByText("Untitled")).toBeVisible({ timeout: 5_000 })
   })
@@ -230,6 +245,115 @@ test.describe.serial("Content pieces", () => {
     // Click it and verify navigation
     await contentTab.click()
     await expect(page).toHaveURL(/\/content/, { timeout: 5_000 })
+  })
+
+  test("can delete a single content item", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    // Get a content type to create content via API
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
+    const blogType = types.find((t: { name: string }) => t.name === "Blog Post")
+    expect(blogType).toBeTruthy()
+
+    // Create content via API
+    const content = await trpcMutate(page.request, 'content.create', {
+      projectId, orgId,
+      title: "Delete Me",
+      contentTypeId: blogType.id,
+    })
+    expect(content.id).toBeTruthy()
+
+    // Navigate to content list
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
+    await expect(page.getByText("Delete Me")).toBeVisible({ timeout: 5_000 })
+
+    // Open the actions dropdown for the "Delete Me" row
+    const row = page.getByRole("row").filter({ hasText: "Delete Me" })
+    await row.getByRole("button", { name: "Actions" }).click()
+    await page.getByRole("menuitem", { name: "Delete" }).click()
+
+    // Read the confirmation code from the dialog
+    const codeSpan = page.locator(".font-mono.font-semibold.text-foreground")
+    await expect(codeSpan).toBeVisible({ timeout: 5_000 })
+    const code = await codeSpan.textContent()
+    expect(code).toBeTruthy()
+
+    // Enter the confirmation code
+    await page.getByPlaceholder(code!).fill(code!)
+
+    // Click the delete button
+    await page.getByRole("button", { name: "Delete", exact: true }).click()
+
+    // Verify the content is removed
+    await expect(page.getByText("Delete Me")).not.toBeVisible({ timeout: 5_000 })
+  })
+
+  test("can bulk delete content items", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    // Get a content type
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
+    const blogType = types.find((t: { name: string }) => t.name === "Blog Post")
+    expect(blogType).toBeTruthy()
+
+    // Create 2 content items via API
+    const item1 = await trpcMutate(page.request, 'content.create', {
+      projectId, orgId,
+      title: "Bulk Delete A",
+      contentTypeId: blogType.id,
+    })
+    expect(item1.id).toBeTruthy()
+
+    const item2 = await trpcMutate(page.request, 'content.create', {
+      projectId, orgId,
+      title: "Bulk Delete B",
+      contentTypeId: blogType.id,
+    })
+    expect(item2.id).toBeTruthy()
+
+    // Navigate to content list
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
+    await expect(page.getByText("Bulk Delete A")).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText("Bulk Delete B")).toBeVisible()
+
+    // Select both checkboxes via the row checkboxes
+    const rowA = page.getByRole("row").filter({ hasText: "Bulk Delete A" })
+    await rowA.getByRole("checkbox").click()
+
+    const rowB = page.getByRole("row").filter({ hasText: "Bulk Delete B" })
+    await rowB.getByRole("checkbox").click()
+
+    // Click the bulk delete button
+    await expect(page.getByText("2 selected")).toBeVisible()
+    await page.getByRole("button", { name: "Delete" }).click()
+
+    // Read the confirmation code from the bulk delete dialog
+    const codeSpan = page.locator(".font-mono.font-semibold.text-foreground")
+    await expect(codeSpan).toBeVisible({ timeout: 5_000 })
+    const code = await codeSpan.textContent()
+    expect(code).toBeTruthy()
+
+    // Enter the confirmation code
+    await page.getByPlaceholder(code!).fill(code!)
+
+    // Click the confirm button (shows "Delete 2")
+    await page.getByRole("button", { name: /Delete 2/ }).click()
+
+    // Verify both items are removed
+    await expect(page.getByText("Bulk Delete A")).not.toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText("Bulk Delete B")).not.toBeVisible()
   })
 
   test.afterAll(async () => {

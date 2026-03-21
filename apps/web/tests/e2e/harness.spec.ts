@@ -181,6 +181,24 @@ test.describe.serial("Dynamic harness", () => {
     ).toBeVisible({ timeout: 90_000 })
   })
 
+  test("cancelChat returns empty array when no runs are active", async ({
+    page,
+  }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
+
+    const result = await trpcMutate(page.request, 'content.cancelChat', {
+      contentId,
+    })
+    expect(result).toBeDefined()
+    expect(result.cancelledRuns).toBeDefined()
+    expect(Array.isArray(result.cancelledRuns)).toBe(true)
+    expect(result.cancelledRuns.length).toBe(0)
+  })
+
   test("content type has DB-driven stages", async ({ page }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
