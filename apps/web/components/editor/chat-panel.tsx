@@ -749,90 +749,6 @@ function ToolResultDisplay({
 
   const res = typeof result === "object" ? (result as Record<string, unknown>) : null
 
-  // run-stage: show stage name, sub-agent results, and artifacts
-  if (toolName === "run-stage" && res) {
-    const success = res.success as boolean | undefined
-    const stageName = res.stageName as string | undefined
-    const subAgentResults = res.subAgentResults as
-      | Array<{
-          agentName: string
-          success: boolean
-          artifacts: ArtifactRef[]
-          error?: string
-          durationMs?: number
-          reasoningText?: string
-          text?: string
-        }>
-      | undefined
-    const isSingleAgent = subAgentResults?.length === 1
-    return (
-      <div className="space-y-2">
-        {subAgentResults && subAgentResults.length > 0 && (
-          <div className="space-y-2">
-            {subAgentResults.map((sr, i) => (
-              <div key={i} className="space-y-1">
-                {/* For single-agent stages, skip the agent name — it's already in the label */}
-                {!isSingleAgent && (
-                  <p className="font-medium">{sr.agentName}</p>
-                )}
-                {sr.success ? (
-                  sr.artifacts.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {sr.artifacts.map((a) => (
-                        onArtifactClick ? (
-                          <button
-                            key={a.id}
-                            type="button"
-                            className="text-primary underline hover:no-underline"
-                            onClick={() => onArtifactClick(a.id)}
-                          >
-                            {a.title ?? a.type} v{a.version}
-                          </button>
-                        ) : (
-                          <span key={a.id}>
-                            {a.title ?? a.type} v{a.version}
-                          </span>
-                        )
-                      ))}
-                    </div>
-                  ) : null
-                ) : (
-                  <p className="text-destructive">
-                    Failed{sr.error && `: ${sr.error}`}
-                  </p>
-                )}
-                {/* Reasoning: collapsible if text available, summary if only duration */}
-                {sr.reasoningText ? (
-                  <Collapsible>
-                    <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
-                      <ChevronDownIcon className="size-3" />
-                      Thought
-                      {sr.durationMs != null && (
-                        <span>
-                          {" "}for {Math.round(sr.durationMs / 1000)}s
-                        </span>
-                      )}
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-1 rounded-md bg-muted/50 p-2 text-[10px] text-muted-foreground">
-                      {sr.reasoningText}
-                    </CollapsibleContent>
-                  </Collapsible>
-                ) : sr.durationMs != null ? (
-                  <p className="text-[10px] text-muted-foreground">
-                    Thought for {Math.round(sr.durationMs / 1000)}s
-                  </p>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-        {typeof res.error === "string" && (
-          <p className="text-destructive">{res.error}</p>
-        )}
-      </div>
-    )
-  }
-
   // get-content-status: show stage position, title, and artifacts
   if (toolName === "get-content-status" && res) {
     const title = res.title as string | undefined
@@ -992,13 +908,6 @@ function formatToolLabel(
   const res = result as Record<string, unknown> | undefined
   switch (toolName) {
     case "run-stage": {
-      // Show agent names, fall back to stage name
-      const agentNames = (inp?.agentNames ?? res?.agentNames) as
-        | string[]
-        | undefined
-      if (agentNames && agentNames.length > 0) {
-        return agentNames.join(", ")
-      }
       const stageName =
         (res?.stageName as string | undefined) ??
         (inp?.stageName as string | undefined)
