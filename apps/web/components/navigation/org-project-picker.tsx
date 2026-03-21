@@ -16,6 +16,7 @@ import { cn } from "@workspace/ui/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowDown01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
 import { authClient } from "@workspace/auth/client"
+import { trpc } from "@/lib/trpc/client"
 
 interface OrgProjectPickerProps {
   organization?: { id: string; name: string; logo?: string | null }
@@ -51,30 +52,13 @@ export function OrgProjectPicker({
     authClient.useListOrganizations()
 
   // Fetch projects for selected org
-  const [projects, setProjects] = React.useState<ProjectItem[]>([])
-  const [projectsLoading, setProjectsLoading] = React.useState(false)
+  const { data: projectsData, isLoading: projectsLoading } =
+    trpc.projects.list.useQuery(
+      { orgId: selectedOrgId },
+      { enabled: open && !!selectedOrgId }
+    )
 
-  React.useEffect(() => {
-    if (!open || !selectedOrgId) return
-    const controller = new AbortController()
-    setProjectsLoading(true)
-    fetch(`/api/projects?orgId=${encodeURIComponent(selectedOrgId)}`, {
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      })
-      .then((data: ProjectItem[]) => setProjects(data))
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === "AbortError") return
-        setProjects([])
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setProjectsLoading(false)
-      })
-    return () => controller.abort()
-  }, [open, selectedOrgId])
+  const projects: ProjectItem[] = projectsData ?? []
 
   // Sync selectedOrgId when organization prop changes
   React.useEffect(() => {

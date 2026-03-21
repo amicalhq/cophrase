@@ -15,6 +15,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { Textarea } from "@workspace/ui/components/textarea"
+import { trpc } from "@/lib/trpc/client"
 
 export function CreateProjectDialog({ orgId }: { orgId: string }) {
   const router = useRouter()
@@ -22,36 +23,24 @@ export function CreateProjectDialog({ orgId }: { orgId: string }) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-
-    try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, orgId }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to create project")
-        setLoading(false)
-        return
-      }
-
-      const project = await res.json()
+  const mutation = trpc.projects.create.useMutation({
+    onSuccess(project) {
+      if (!project) return
       setOpen(false)
       setName("")
       setDescription("")
       router.push(`/orgs/${orgId}/projects/${project.id}/content`)
-    } catch {
-      setError("Something went wrong")
-      setLoading(false)
-    }
+    },
+    onError(err) {
+      setError(err.message ?? "Failed to create project")
+    },
+  })
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError("")
+    mutation.mutate({ orgId, name, description })
   }
 
   return (
@@ -95,8 +84,11 @@ export function CreateProjectDialog({ orgId }: { orgId: string }) {
             </div>
           </div>
           <DialogFooter className="pt-4">
-            <Button type="submit" disabled={loading || !name.trim()}>
-              {loading ? "Creating..." : "Create project"}
+            <Button
+              type="submit"
+              disabled={mutation.isPending || !name.trim()}
+            >
+              {mutation.isPending ? "Creating..." : "Create project"}
             </Button>
           </DialogFooter>
         </form>
