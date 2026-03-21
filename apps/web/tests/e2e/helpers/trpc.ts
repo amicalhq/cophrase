@@ -12,7 +12,7 @@ export async function trpcQuery(
   input?: unknown,
 ) {
   const url = input
-    ? `/api/trpc/${procedure}?input=${encodeURIComponent(JSON.stringify({ json: input }))}`
+    ? `/api/trpc/${procedure}?input=${encodeURIComponent(JSON.stringify(input))}`
     : `/api/trpc/${procedure}`
   const res = await request.get(url)
   const json = await res.json()
@@ -20,12 +20,12 @@ export async function trpcQuery(
     throw new Error(
       `tRPC ${procedure} failed: ${JSON.stringify(json.error)}`,
     )
-  return json.result?.data?.json ?? json.result?.data
+  return json.result?.data
 }
 
 /**
  * Call a tRPC mutation procedure from Playwright tests.
- * Sends a POST with JSON body in tRPC's expected format.
+ * Sends a POST with JSON body — raw input, not batch-wrapped.
  */
 export async function trpcMutate(
   request: APIRequestContext,
@@ -33,7 +33,7 @@ export async function trpcMutate(
   input: unknown,
 ) {
   const res = await request.post(`/api/trpc/${procedure}`, {
-    data: { json: input },
+    data: input,
     headers: { "content-type": "application/json" },
   })
   const json = await res.json()
@@ -41,5 +41,5 @@ export async function trpcMutate(
     throw new Error(
       `tRPC ${procedure} failed: ${JSON.stringify(json.error)}`,
     )
-  return json.result?.data?.json ?? json.result?.data
+  return json.result?.data
 }
