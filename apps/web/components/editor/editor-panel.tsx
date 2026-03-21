@@ -15,7 +15,6 @@ import { Markdown } from "tiptap-markdown"
 import { ToolbarProvider } from "./toolbar-provider"
 import { EditorToolbar } from "./toolbars/editor-toolbar"
 import type { ArtifactData } from "./artifact-viewer"
-import { ResearchNotesView } from "./artifact-viewer"
 import { ArtifactSelect } from "./artifact-picker"
 import { BoldButton } from "./toolbars/formatting-buttons"
 import { ItalicButton } from "./toolbars/formatting-buttons"
@@ -36,12 +35,6 @@ interface EditorPanelProps {
   onArtifactSelect: (artifact: ArtifactData | null) => void
   contentFormat: string
 }
-
-const TEXT_ARTIFACT_TYPES = new Set([
-  "blog-draft",
-  "humanized-draft",
-  "final-blog",
-])
 
 /**
  * Extract displayable markdown from artifact data.
@@ -123,13 +116,13 @@ export function EditorPanel({
     },
   })
 
-  // Sync text artifact content into Tiptap when artifact changes
+  // Sync artifact content into Tiptap when artifact changes — all types are markdown
   useEffect(() => {
     if (!editor) return
-    if (artifact && TEXT_ARTIFACT_TYPES.has(artifact.type)) {
+    if (artifact) {
       const content = extractMarkdown(artifact.data)
       editor.commands.setContent(content)
-    } else if (!artifact) {
+    } else {
       editor.commands.setContent("")
     }
   }, [editor, artifact])
@@ -142,22 +135,6 @@ export function EditorPanel({
       onSelect={onArtifactSelect}
     />
   )
-
-  // When artifact is research-notes type, render the structured view instead of Tiptap
-  if (artifact && artifact.type === "research-notes") {
-    return (
-      <div className="flex h-full flex-col">
-        <EditorToolbar
-          isChatOpen={isChatOpen}
-          onChatToggle={onChatToggle}
-          trailing={artifactSelect}
-        />
-        <div className="flex-1 overflow-y-auto p-6">
-          <ResearchNotesView data={artifact.data} />
-        </div>
-      </div>
-    )
-  }
 
   // Format-specific rendering for non-rich-text formats
   if (contentFormat !== "rich_text") {
