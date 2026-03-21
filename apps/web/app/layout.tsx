@@ -3,6 +3,7 @@ import { NuqsAdapter } from "nuqs/adapters/next/app"
 
 import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { TRPCProvider } from "@/lib/trpc/provider"
 import { cn } from "@workspace/ui/lib/utils"
 
 const notoSans = Noto_Sans({ variable: "--font-sans" })
@@ -30,7 +31,9 @@ export default function RootLayout({
     >
       <body>
         <NuqsAdapter>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            <TRPCProvider>{children}</TRPCProvider>
+          </ThemeProvider>
         </NuqsAdapter>
       </body>
     </html>
