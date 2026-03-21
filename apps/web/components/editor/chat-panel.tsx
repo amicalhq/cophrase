@@ -584,7 +584,6 @@ function RunStageBlock({
     (inp?.stageName as string | undefined) ??
     "Stage"
   const agentNames = (inp?.agentNames ?? []) as string[]
-  const isCalling = state === "calling"
   const isStopped = state === "stopped"
   const isComplete = state === "complete"
 
@@ -659,8 +658,7 @@ function RunStageBlock({
           )}
         </span>
       </div>
-      {isCalling &&
-        agentNames.map((name, i) => (
+      {agentNames.map((name, i) => (
           <div
             key={i}
             className="flex items-center gap-1.5 pl-4 text-xs text-muted-foreground"
@@ -669,7 +667,7 @@ function RunStageBlock({
             <LoaderIcon className="size-3 animate-spin" />
             <span>{name}</span>
           </div>
-        ))}
+      ))}
     </div>
   )
 }
