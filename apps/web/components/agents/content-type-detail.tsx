@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { trpc } from "@/lib/trpc/client"
 import { Button } from "@workspace/ui/components/button"
 import { StageList } from "./stage-list"
 import { AgentPromptEditor } from "./agent-prompt-editor"
@@ -70,32 +71,30 @@ export function ContentTypeDetail({
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const deleteMutation = trpc.contentTypes.delete.useMutation({
+    onSuccess() {
+      router.push(`/orgs/${orgId}/projects/${projectId}/agents`)
+    },
+    onError(err) {
+      if (err.data?.code === "CONFLICT") {
+        setError("Cannot delete — content pieces still reference this type.")
+      } else {
+        setError(err.message ?? "Failed to delete")
+      }
+      setDeleting(false)
+    },
+  })
+
+  const updateMutation = trpc.contentTypes.update.useMutation({
+    onSuccess() {
+      router.refresh()
+    },
+  })
+
   async function handleDelete() {
     setDeleting(true)
     setError(null)
-
-    try {
-      const res = await fetch(`/api/content-types/${contentType.id}`, {
-        method: "DELETE",
-      })
-
-      if (res.status === 409) {
-        setError("Cannot delete — content pieces still reference this type.")
-        return
-      }
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to delete")
-        return
-      }
-
-      router.push(`/orgs/${orgId}/projects/${projectId}/agents`)
-    } catch {
-      setError("Failed to delete")
-    } finally {
-      setDeleting(false)
-    }
+    deleteMutation.mutate({ id: contentType.id })
   }
 
   const agentsHref = `/orgs/${orgId}/projects/${projectId}/agents`
@@ -155,12 +154,10 @@ export function ContentTypeDetail({
         <FrontmatterSchemaEditor
           initialSchema={contentType.frontmatterSchema}
           onSave={async (schema) => {
-            await fetch(`/api/content-types/${contentType.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ frontmatterSchema: schema }),
+            updateMutation.mutate({
+              id: contentType.id,
+              frontmatterSchema: schema,
             })
-            router.refresh()
           }}
         />
       </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { trpc } from "@/lib/trpc/client"
 import { Button } from "@workspace/ui/components/button"
 
 interface ForkButtonProps {
@@ -15,28 +16,20 @@ export function ForkButton({ contentTypeId, orgId, projectId }: ForkButtonProps)
   const [forking, setForking] = useState(false)
   const [error, setError] = useState("")
 
+  const forkMutation = trpc.contentTypes.fork.useMutation({
+    onSuccess(forked) {
+      router.push(`/orgs/${orgId}/projects/${projectId}/agents/${forked.id}`)
+    },
+    onError(err) {
+      setError(err.message ?? "Failed to fork")
+      setForking(false)
+    },
+  })
+
   async function handleFork() {
     setForking(true)
     setError("")
-
-    try {
-      const res = await fetch(`/api/content-types/${contentTypeId}/fork`, {
-        method: "POST",
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to fork")
-        return
-      }
-
-      const forked = await res.json()
-      router.push(`/orgs/${orgId}/projects/${projectId}/agents/${forked.id}`)
-    } catch {
-      setError("Failed to fork")
-    } finally {
-      setForking(false)
-    }
+    forkMutation.mutate({ id: contentTypeId })
   }
 
   return (

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { trpc } from "@/lib/trpc/client"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -104,43 +105,35 @@ export function CreateContentTypeDialog({
     setStageNames((prev) => prev.map((s, i) => (i === index ? value : s)))
   }
 
+  const createMutation = trpc.contentTypes.create.useMutation({
+    onSuccess() {
+      onCreated?.()
+      setOpen(false)
+      reset()
+    },
+    onError(err) {
+      setError(err.message ?? "Failed to create content type")
+      setSubmitting(false)
+    },
+  })
+
   async function handleSubmit() {
     setSubmitting(true)
     setError("")
 
-    try {
-      const stages = stageNames
-        .map((n, i) => ({ name: n, position: i + 1 }))
-        .filter((s) => s.name.trim() !== "")
+    const stages = stageNames
+      .map((n, i) => ({ name: n, position: i + 1 }))
+      .filter((s) => s.name.trim() !== "")
 
-      const res = await fetch("/api/content-types/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          orgId,
-          name,
-          description,
-          format,
-          frontmatterSchema,
-          stages,
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to create content type")
-        return
-      }
-
-      onCreated?.()
-      setOpen(false)
-      reset()
-    } catch {
-      setError("Failed to create content type")
-    } finally {
-      setSubmitting(false)
-    }
+    createMutation.mutate({
+      projectId,
+      orgId,
+      name,
+      description,
+      format: format as "rich_text" | "plain_text" | "image" | "video" | "deck",
+      frontmatterSchema,
+      stages,
+    })
   }
 
   return (

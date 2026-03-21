@@ -39,12 +39,9 @@ export function FrontmatterForm({ contentId }: FrontmatterFormProps) {
 
         if (!fmData.contentTypeId) return
 
-        // NOTE: content-types endpoint stays as raw fetch (Task 7)
-        const ctRes = await fetch(`/api/content-types/${fmData.contentTypeId}`)
-        if (!ctRes.ok) return
-        const ctData = (await ctRes.json()) as {
-          frontmatterSchema?: Record<string, unknown> | null
-        }
+        const ctData = await utils.contentTypes.get.fetch({
+          id: fmData.contentTypeId,
+        })
 
         if (cancelled) return
 

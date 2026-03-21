@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { trpc } from "@/lib/trpc/client"
 import { Button } from "@workspace/ui/components/button"
 
 interface InstallButtonProps {
@@ -21,29 +22,21 @@ export function InstallButton({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const installMutation = trpc.contentTypes.install.useMutation({
+    onSuccess() {
+      router.refresh()
+      setLoading(false)
+    },
+    onError(err) {
+      setError(err.message ?? "Failed to install")
+      setLoading(false)
+    },
+  })
+
   async function handleInstall() {
     setLoading(true)
     setError(null)
-
-    try {
-      const res = await fetch("/api/content-types/install", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId, projectId, orgId }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to install")
-        return
-      }
-
-      router.refresh()
-    } catch {
-      setError("Failed to install")
-    } finally {
-      setLoading(false)
-    }
+    installMutation.mutate({ templateId, projectId, orgId })
   }
 
   if (isInstalled) {
