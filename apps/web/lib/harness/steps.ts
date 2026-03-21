@@ -212,10 +212,9 @@ export async function runSubAgentInline(input: {
         .describe('Artifact type, e.g. "research-notes", "blog-draft"'),
       title: z.string().describe("A short title for the artifact"),
       data: z
-        .record(z.string(), z.unknown())
+        .string()
         .describe(
-          "The artifact payload. MUST include a 'markdown' field with the full content as well-formatted markdown. " +
-            "Example: { markdown: '# Title\\n\\nContent with **bold**, lists, etc.', ...optional structured metadata }"
+          "The full artifact content as a well-formatted markdown string. Use headings, lists, bold, etc. for structure."
         ),
       parentIds: z
         .array(z.string())
@@ -230,7 +229,7 @@ export async function runSubAgentInline(input: {
     }: {
       type: string
       title: string
-      data: Record<string, unknown>
+      data: string
       parentIds?: string[]
     }) => {
       const version = await getNextArtifactVersion(input.contentId, type)
@@ -242,7 +241,7 @@ export async function runSubAgentInline(input: {
         runId: input.runId,
         type,
         title,
-        data,
+        data: { markdown: data },
         version,
         parentIds,
       })
@@ -496,15 +495,14 @@ export async function runStageStep(input: {
           type: z.string().describe('Artifact type, e.g. "research-notes", "blog-draft"'),
           title: z.string().describe("A short title for the artifact"),
           data: z
-            .record(z.string(), z.unknown())
+            .string()
             .describe(
-              "The artifact payload. MUST include a 'markdown' field with the full content as well-formatted markdown. " +
-                "Example: { markdown: '# Title\\n\\nContent with **bold**, lists, etc.', ...optional structured metadata }"
+              "The full artifact content as a well-formatted markdown string. Use headings, lists, bold, etc. for structure."
             ),
           parentIds: z.array(z.string()).optional().describe("IDs of parent artifacts"),
         }),
         execute: async ({ type, title, data, parentIds }: {
-          type: string; title: string; data: Record<string, unknown>; parentIds?: string[]
+          type: string; title: string; data: string; parentIds?: string[]
         }) => {
           const version = await getNextArtifactVersion(input.contentId, type)
           const artifact = await createArtifact({
@@ -513,7 +511,7 @@ export async function runStageStep(input: {
             contentId: input.contentId,
             agentId: sa.agentId,
             runId: run.id,
-            type, title, data, version, parentIds,
+            type, title, data: { markdown: data }, version, parentIds,
           })
           return { artifactId: artifact.id, type: artifact.type, version: artifact.version }
         },

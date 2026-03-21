@@ -48,7 +48,9 @@ const TEXT_ARTIFACT_TYPES = new Set([
  * Handles both flat { markdown } and structured { headline, intro, body, conclusion } formats.
  */
 function extractMarkdown(data: unknown): string {
-  if (!data || typeof data !== "object") return ""
+  if (!data) return ""
+  if (typeof data === "string") return data
+  if (typeof data !== "object") return ""
   const d = data as Record<string, unknown>
 
   // Flat format: single markdown or content string
@@ -151,11 +153,7 @@ export function EditorPanel({
           trailing={artifactSelect}
         />
         <div className="flex-1 overflow-y-auto p-6">
-          <ResearchNotesView
-            data={
-              artifact.data as import("./artifact-viewer").ResearchNotesData
-            }
-          />
+          <ResearchNotesView data={artifact.data} />
         </div>
       </div>
     )

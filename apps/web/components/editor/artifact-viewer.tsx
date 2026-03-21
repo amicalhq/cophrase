@@ -16,21 +16,31 @@ export interface ArtifactData {
 // Research notes renderer
 // ---------------------------------------------------------------------------
 
-export interface ResearchNotesData {
-  markdown?: string
-  [key: string]: unknown
+/**
+ * Extract markdown string from artifact data.
+ * Handles: raw string, { markdown: string }, or falls back to JSON.
+ */
+function extractArtifactMarkdown(data: unknown): string | null {
+  if (typeof data === "string") return data
+  if (data && typeof data === "object") {
+    const d = data as Record<string, unknown>
+    if (typeof d.markdown === "string") return d.markdown
+    if (typeof d.content === "string") return d.content
+  }
+  return null
 }
 
-export function ResearchNotesView({ data }: { data: ResearchNotesData }) {
-  if (data.markdown) {
+export function ResearchNotesView({ data }: { data: unknown }) {
+  const md = extractArtifactMarkdown(data)
+  if (md) {
     return (
       <pre className="prose prose-sm max-w-none font-sans text-sm leading-relaxed whitespace-pre-wrap dark:prose-invert">
-        {data.markdown}
+        {md}
       </pre>
     )
   }
 
-  // Fallback: render raw JSON for artifacts without markdown field
+  // Fallback: render raw JSON for old artifacts without markdown
   return (
     <pre className="overflow-x-auto rounded-md bg-muted p-4 text-xs">
       {JSON.stringify(data, null, 2)}
@@ -123,11 +133,20 @@ export function ArtifactViewer({ artifact }: ArtifactViewerProps) {
       )
     }
 
+    // All artifact types: try markdown first, fall back to type-specific rendering
+    const md = extractArtifactMarkdown(artifact.data)
+    if (md) {
+      return (
+        <pre className="prose prose-sm max-w-none font-sans text-sm leading-relaxed whitespace-pre-wrap dark:prose-invert">
+          {md}
+        </pre>
+      )
+    }
+
+    // Legacy artifacts without markdown field
     switch (artifact.type) {
       case "research-notes":
-        return (
-          <ResearchNotesView data={artifact.data as ResearchNotesData} />
-        )
+        return <ResearchNotesView data={artifact.data} />
       case "blog-draft":
       case "humanized-draft":
         return <BlogDraftView data={artifact.data as BlogDraftData} />
