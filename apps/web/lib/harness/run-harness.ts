@@ -249,6 +249,40 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r: any = JSON.parse(JSON.stringify(result))
 
+    // Build a lookup of tool results by toolCallId from all available sources.
+    // The DurableAgent may store results in steps[].toolResults, top-level
+    // toolResults, or in response messages (role: "tool").
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toolResultMap = new Map<string, any>()
+
+    // Source 1: steps[].toolResults
+    for (const step of r.steps ?? []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const tr of step.toolResults ?? []) {
+        if (tr.toolCallId) toolResultMap.set(tr.toolCallId, tr.output ?? tr.result)
+      }
+    }
+
+    // Source 2: top-level toolResults
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const tr of r.toolResults ?? []) {
+      if (tr.toolCallId && !toolResultMap.has(tr.toolCallId)) {
+        toolResultMap.set(tr.toolCallId, tr.output ?? tr.result)
+      }
+    }
+
+    // Source 3: response messages with role "tool" (most reliable fallback)
+    for (const msg of r.messages ?? []) {
+      if (msg.role === "tool" && Array.isArray(msg.content)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const part of msg.content) {
+          if (part.toolCallId && !toolResultMap.has(part.toolCallId)) {
+            toolResultMap.set(part.toolCallId, part.output ?? part.result)
+          }
+        }
+      }
+    }
+
     // Extract tool calls from all steps
     const toolCalls: Array<{
       toolCallId: string
@@ -260,32 +294,24 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
 
     for (const step of r.steps ?? []) {
       for (const tc of step.toolCalls ?? []) {
-        const tr = (step.toolResults ?? []).find(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (t: any) => t.toolCallId === tc.toolCallId
-        )
         toolCalls.push({
           toolCallId: tc.toolCallId,
           toolName: tc.toolName,
           input: tc.input ?? tc.args,
-          result: tr?.output ?? tr?.result,
+          result: toolResultMap.get(tc.toolCallId),
           state: "complete",
         })
       }
     }
 
-    // Also check top-level toolCalls/toolResults (from last step)
+    // Also check top-level toolCalls (from last step)
     for (const tc of r.toolCalls ?? []) {
       if (!toolCalls.some((t) => t.toolCallId === tc.toolCallId)) {
-        const tr = (r.toolResults ?? []).find(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (t: any) => t.toolCallId === tc.toolCallId
-        )
         toolCalls.push({
           toolCallId: tc.toolCallId,
           toolName: tc.toolName,
           input: tc.input ?? tc.args,
-          result: tr?.output ?? tr?.result,
+          result: toolResultMap.get(tc.toolCallId),
           state: "complete",
         })
       }
@@ -307,8 +333,28 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
       }
     }
 
+    // Strip transient fields (reasoningText, text) from sub-agent results
+    // before persisting — they are shown during the stream but not stored.
+    // Only durationMs is kept so the UI can show "Thought for Xs" on reload.
+    const persistableToolCalls = toolCalls.map((tc) => {
+      if (tc.toolName !== "run-stage" || !tc.result) return tc
+      const res = tc.result as Record<string, unknown>
+      const subAgentResults = res.subAgentResults as Array<Record<string, unknown>> | undefined
+      if (!subAgentResults) return tc
+      return {
+        ...tc,
+        result: {
+          ...res,
+          subAgentResults: subAgentResults.map((sr) => {
+            const { reasoningText: _, text: __, ...rest } = sr
+            return rest
+          }),
+        },
+      }
+    })
+
     const metadata: Record<string, unknown> = {}
-    if (toolCalls.length > 0) metadata.toolCalls = toolCalls
+    if (persistableToolCalls.length > 0) metadata.toolCalls = persistableToolCalls
     if (reasoning) metadata.reasoning = reasoning
 
     await persistHarnessMessages([

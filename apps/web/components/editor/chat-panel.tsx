@@ -500,38 +500,63 @@ function ToolCallBlock({
   const isCalling = state === "calling"
   const isStopped = state === "stopped"
 
+  // For run-stage during calling, show each sub-agent with running status
+  const inp = input as Record<string, unknown> | undefined
+  const callingAgentNames =
+    isCalling && toolName === "run-stage"
+      ? ((inp?.agentNames ?? []) as string[])
+      : []
+
   return (
-    <Collapsible className="not-prose my-2">
-      <CollapsibleTrigger className="flex w-full items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
-        {isCalling ? (
-          <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
-            <LoaderIcon className="size-3 animate-spin" />
-            Running
-          </Badge>
-        ) : isStopped ? (
-          <Badge variant="destructive" className="h-5 gap-1 px-1.5 text-[10px]">
-            <XIcon className="size-3" />
-            Stopped
-          </Badge>
-        ) : (
-          <Badge className="h-5 gap-1 border-green-600/30 bg-green-500/10 px-1.5 text-[10px] text-green-600">
-            <CheckIcon className="size-3" />
-            Done
-          </Badge>
-        )}
-        <span>{label}</span>
-        {!isCalling && !isStopped && <ChevronDownIcon className="ml-auto size-3" />}
-      </CollapsibleTrigger>
-      {!isCalling && !isStopped && (
-        <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
-          <ToolResultDisplay
-            toolName={toolName}
-            result={result}
-            onArtifactClick={onArtifactClick}
-          />
-        </CollapsibleContent>
+    <div className="not-prose my-2 space-y-1">
+      {callingAgentNames.length > 0 ? (
+        // Show each sub-agent as its own status row while running
+        callingAgentNames.map((name, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-2 text-xs text-muted-foreground"
+          >
+            <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
+              <LoaderIcon className="size-3 animate-spin" />
+              Running
+            </Badge>
+            <span>{name}</span>
+          </div>
+        ))
+      ) : (
+        <Collapsible>
+          <CollapsibleTrigger className="flex w-full items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
+            {isCalling ? (
+              <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
+                <LoaderIcon className="size-3 animate-spin" />
+                Running
+              </Badge>
+            ) : isStopped ? (
+              <Badge variant="destructive" className="h-5 gap-1 px-1.5 text-[10px]">
+                <XIcon className="size-3" />
+                Stopped
+              </Badge>
+            ) : (
+              <Badge className="h-5 gap-1 border-green-600/30 bg-green-500/10 px-1.5 text-[10px] text-green-600">
+                <CheckIcon className="size-3" />
+                Done
+              </Badge>
+            )}
+            <span>{label}</span>
+            {!isCalling && !isStopped && <ChevronDownIcon className="ml-auto size-3" />}
+          </CollapsibleTrigger>
+          {!isCalling && !isStopped && (
+            <CollapsibleContent className="mt-2 text-xs text-muted-foreground">
+              <ToolResultDisplay
+                toolName={toolName}
+                result={result}
+                onArtifactClick={onArtifactClick}
+              />
+            </CollapsibleContent>
+          )}
+        </Collapsible>
       )}
-    </Collapsible>
+    </div>
   )
 }
 
@@ -562,10 +587,13 @@ function ToolResultDisplay({
           success: boolean
           artifacts: ArtifactRef[]
           error?: string
+          durationMs?: number
+          reasoningText?: string
+          text?: string
         }>
       | undefined
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {stageName && (
           <p>
             <span className="font-medium">{stageName}</span>
@@ -577,45 +605,68 @@ function ToolResultDisplay({
           </p>
         )}
         {subAgentResults && subAgentResults.length > 0 && (
-          <ul className="list-inside list-disc space-y-0.5">
+          <div className="space-y-2">
             {subAgentResults.map((sr, i) => (
-              <li key={i}>
-                <span className="font-medium">{sr.agentName}</span>
-                {sr.success ? (
-                  sr.artifacts.length > 0 ? (
-                    <>
-                      {" — "}
-                      {sr.artifacts.map((a, j) => (
-                        <span key={a.id}>
-                          {j > 0 && ", "}
-                          {onArtifactClick ? (
-                            <button
-                              type="button"
-                              className="text-primary underline hover:no-underline"
-                              onClick={() => onArtifactClick(a.id)}
-                            >
-                              {a.title ?? a.type} v{a.version}
-                            </button>
-                          ) : (
-                            <span>
-                              {a.title ?? a.type} v{a.version}
-                            </span>
-                          )}
-                        </span>
-                      ))}
-                    </>
+              <div key={i} className="space-y-1">
+                <p>
+                  <span className="font-medium">{sr.agentName}</span>
+                  {sr.success ? (
+                    sr.artifacts.length > 0 ? (
+                      <>
+                        {" — "}
+                        {sr.artifacts.map((a, j) => (
+                          <span key={a.id}>
+                            {j > 0 && ", "}
+                            {onArtifactClick ? (
+                              <button
+                                type="button"
+                                className="text-primary underline hover:no-underline"
+                                onClick={() => onArtifactClick(a.id)}
+                              >
+                                {a.title ?? a.type} v{a.version}
+                              </button>
+                            ) : (
+                              <span>
+                                {a.title ?? a.type} v{a.version}
+                              </span>
+                            )}
+                          </span>
+                        ))}
+                      </>
+                    ) : (
+                      " — done"
+                    )
                   ) : (
-                    " — done"
-                  )
-                ) : (
-                  <span className="text-destructive">
-                    {" — failed"}
-                    {sr.error && `: ${sr.error}`}
-                  </span>
-                )}
-              </li>
+                    <span className="text-destructive">
+                      {" — failed"}
+                      {sr.error && `: ${sr.error}`}
+                    </span>
+                  )}
+                </p>
+                {/* Reasoning: collapsible if text available, summary if only duration */}
+                {sr.reasoningText ? (
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
+                      <ChevronDownIcon className="size-3" />
+                      Thought
+                      {sr.durationMs != null && (
+                        <span>
+                          {" "}for {Math.round(sr.durationMs / 1000)}s
+                        </span>
+                      )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 rounded-md bg-muted/50 p-2 text-[10px] text-muted-foreground">
+                      {sr.reasoningText}
+                    </CollapsibleContent>
+                  </Collapsible>
+                ) : sr.durationMs != null ? (
+                  <p className="text-[10px] text-muted-foreground">
+                    Thought for {Math.round(sr.durationMs / 1000)}s
+                  </p>
+                ) : null}
+              </div>
             ))}
-          </ul>
+          </div>
         )}
         {typeof res.error === "string" && (
           <p className="text-destructive">{res.error}</p>

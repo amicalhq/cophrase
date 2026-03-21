@@ -466,6 +466,9 @@ export async function runStageStep(input: {
     success: boolean
     artifacts: ArtifactSummary[]
     error?: string
+    durationMs?: number
+    reasoningText?: string
+    text?: string
   }> = []
 
   for (const sa of stage.subAgents) {
@@ -571,6 +574,7 @@ export async function runStageStep(input: {
         }
       }
 
+      const startMs = Date.now()
       const result = await generateText({
         model,
         system: sa.prompt,
@@ -578,6 +582,7 @@ export async function runStageStep(input: {
         tools: subTools,
         stopWhen: stepCountIs(15),
       })
+      const durationMs = Date.now() - startMs
 
       const createdArtifacts = await searchArtifacts({
         organizationId: input.organizationId,
@@ -598,7 +603,14 @@ export async function runStageStep(input: {
         id: a.id, type: a.type, title: a.title, version: a.version, status: a.status,
       }))
       allArtifacts.push(...artifacts)
-      subAgentResults.push({ agentName: sa.name, success: true, artifacts })
+      subAgentResults.push({
+        agentName: sa.name,
+        success: true,
+        artifacts,
+        durationMs,
+        reasoningText: result.reasoningText ?? undefined,
+        text: result.text || undefined,
+      })
     } catch (err) {
       await updateAgentRunStatus(run.id, "failed", {
         error: { code: "AGENT_ERROR", message: err instanceof Error ? err.message : String(err) },
