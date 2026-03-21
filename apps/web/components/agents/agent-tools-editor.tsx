@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
+import { trpc } from "@/lib/trpc/client"
 
 interface AgentTool {
   id: string
@@ -32,7 +33,6 @@ export function AgentToolsEditor({
   initialTools,
 }: AgentToolsEditorProps) {
   const [tools, setTools] = useState<AgentTool[]>(initialTools)
-  const [adding, setAdding] = useState(false)
   const [selectedTool, setSelectedTool] = useState("")
   const [error, setError] = useState("")
 
@@ -41,54 +41,39 @@ export function AgentToolsEditor({
     (t) => !existingRefs.has(t.referenceId),
   )
 
-  async function handleAdd() {
-    if (!selectedTool) return
-    setAdding(true)
-    setError("")
-
-    try {
-      const res = await fetch(`/api/agents/${agentId}/tools`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "function",
-          referenceId: selectedTool,
-          required: false,
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to add tool")
-        return
-      }
-
-      const newTool = await res.json()
-      setTools((prev) => [...prev, newTool])
+  const addTool = trpc.agents.addTool.useMutation({
+    onSuccess: (newTool) => {
+      setTools((prev) => [...prev, newTool as AgentTool])
       setSelectedTool("")
-    } catch {
-      setError("Failed to add tool")
-    } finally {
-      setAdding(false)
-    }
+    },
+    onError: (err) => {
+      setError(err.message ?? "Failed to add tool")
+    },
+  })
+
+  const removeTool = trpc.agents.removeTool.useMutation({
+    onSuccess: (_data, variables) => {
+      setTools((prev) => prev.filter((t) => t.id !== variables.toolId))
+    },
+    onError: (err) => {
+      setError(err.message ?? "Failed to remove tool")
+    },
+  })
+
+  function handleAdd() {
+    if (!selectedTool) return
+    setError("")
+    addTool.mutate({
+      agentId,
+      type: "function",
+      referenceId: selectedTool,
+      required: false,
+    })
   }
 
-  async function handleRemove(toolId: string) {
-    try {
-      const res = await fetch(`/api/agents/${agentId}/tools/${toolId}`, {
-        method: "DELETE",
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to remove tool")
-        return
-      }
-
-      setTools((prev) => prev.filter((t) => t.id !== toolId))
-    } catch {
-      setError("Failed to remove tool")
-    }
+  function handleRemove(toolId: string) {
+    setError("")
+    removeTool.mutate({ agentId, toolId })
   }
 
   return (
@@ -136,10 +121,10 @@ export function AgentToolsEditor({
           </Select>
           <Button
             size="sm"
-            disabled={!selectedTool || adding}
+            disabled={!selectedTool || addTool.isPending}
             onClick={handleAdd}
           >
-            {adding ? "Adding..." : "Add"}
+            {addTool.isPending ? "Adding..." : "Add"}
           </Button>
         </div>
       )}

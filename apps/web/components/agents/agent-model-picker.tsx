@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
+import { trpc } from "@/lib/trpc/client"
 
 interface ModelOption {
   id: string
@@ -28,40 +29,27 @@ export function AgentModelPicker({
   models,
 }: AgentModelPickerProps) {
   const [selectedId, setSelectedId] = useState(currentModelId ?? "default")
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
-  async function handleChange(value: string) {
+  const updateAgent = trpc.agents.update.useMutation({
+    onError: (err) => {
+      setError(err.message ?? "Failed to save")
+      setSelectedId(currentModelId ?? "default")
+    },
+  })
+
+  function handleChange(value: string) {
     setSelectedId(value)
-    setSaving(true)
     setError("")
 
     const modelId = value === "default" ? null : value
-
-    try {
-      const res = await fetch(`/api/agents/${agentId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ modelId }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error ?? "Failed to save")
-        setSelectedId(currentModelId ?? "default")
-      }
-    } catch {
-      setError("Failed to save")
-      setSelectedId(currentModelId ?? "default")
-    } finally {
-      setSaving(false)
-    }
+    updateAgent.mutate({ id: agentId, modelId })
   }
 
   return (
     <div className="flex flex-col gap-2">
       <Label>Model</Label>
-      <Select value={selectedId} onValueChange={handleChange} disabled={saving}>
+      <Select value={selectedId} onValueChange={handleChange} disabled={updateAgent.isPending}>
         <SelectTrigger className="w-64">
           <SelectValue placeholder="Select model" />
         </SelectTrigger>
