@@ -16,6 +16,7 @@ import type { ChatModelOption } from "./chat-panel"
 import { EditorPanel } from "./editor-panel"
 import { useArtifacts, sortedTypeKeys } from "./artifact-picker"
 import type { ArtifactData } from "./artifact-viewer"
+import { trpc } from "@/lib/trpc/client"
 interface AIEditorProps {
   contentTitle: string
   currentStageName: string | null
@@ -53,6 +54,7 @@ export function AIEditor({
   const { artifacts, grouped } = useArtifacts(contentId)
 
   // Fetch full artifact data whenever the URL param changes
+  const utils = trpc.useUtils()
   useEffect(() => {
     if (!artifactId) {
       setSelectedArtifact(null)
@@ -61,12 +63,11 @@ export function AIEditor({
     let cancelled = false
     void (async () => {
       try {
-        const res = await fetch(
-          `/api/content/${contentId}/artifacts/${artifactId}`
-        )
-        if (!res.ok || cancelled) return
-        const { artifact } = (await res.json()) as { artifact: ArtifactData }
-        if (!cancelled) setSelectedArtifact(artifact)
+        const data = await utils.content.artifact.fetch({
+          contentId,
+          artifactId,
+        })
+        if (!cancelled) setSelectedArtifact(data.artifact as ArtifactData)
       } catch {
         // Silently fail
       }
@@ -74,7 +75,7 @@ export function AIEditor({
     return () => {
       cancelled = true
     }
-  }, [artifactId, contentId])
+  }, [artifactId, contentId, utils])
 
   // Auto-select the latest artifact (furthest stage) on initial load
   const hasAutoSelected = useRef(false)
