@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { db, eq, user, organization } from "@workspace/db"
+import { trpcMutate } from "./helpers/trpc"
 
 test.describe.serial("Content pieces", () => {
   const testId = Date.now()
@@ -65,15 +66,13 @@ test.describe.serial("Content pieces", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const blogRes = await page.request.post("/api/content-types/install", {
-      data: { templateId: "seed_cty_blog", projectId, orgId },
+    await trpcMutate(page.request, 'contentTypes.install', {
+      templateId: "seed_cty_blog", projectId, orgId,
     })
-    expect(blogRes.ok()).toBeTruthy()
 
-    const xRes = await page.request.post("/api/content-types/install", {
-      data: { templateId: "seed_cty_x", projectId, orgId },
+    await trpcMutate(page.request, 'contentTypes.install', {
+      templateId: "seed_cty_x", projectId, orgId,
     })
-    expect(xRes.ok()).toBeTruthy()
   })
 
   test("content page shows empty state", async ({ page }) => {

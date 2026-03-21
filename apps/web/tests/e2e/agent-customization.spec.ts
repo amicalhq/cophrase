@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { db, eq, user, organization } from "@workspace/db"
+import { trpcQuery, trpcMutate } from "./helpers/trpc"
 
 test.describe.serial("Agent customization", () => {
   const testId = Date.now()
@@ -44,16 +45,13 @@ test.describe.serial("Agent customization", () => {
     projectId = page.url().match(/\/projects\/([^/]+)/)![1]!
 
     // Install Blog Post
-    const templatesRes = await page.request.get("/api/content-types/templates")
-    const templates = await templatesRes.json()
+    const templates = await trpcQuery(page.request, 'contentTypes.templates')
     const blogTemplate = templates.find((t: { name: string }) => t.name === "Blog Post")
     expect(blogTemplate).toBeTruthy()
 
-    const installRes = await page.request.post("/api/content-types/install", {
-      data: { templateId: blogTemplate.id, projectId, orgId },
+    const installed = await trpcMutate(page.request, 'contentTypes.install', {
+      templateId: blogTemplate.id, projectId, orgId,
     })
-    expect(installRes.ok()).toBeTruthy()
-    const installed = await installRes.json()
     contentTypeId = installed.id
   })
 
@@ -65,17 +63,15 @@ test.describe.serial("Agent customization", () => {
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     // Get the content type to find the content agent ID
-    const ctRes = await page.request.get(`/api/content-types/${contentTypeId}`)
-    expect(ctRes.ok()).toBeTruthy()
-    const ct = await ctRes.json()
+    const ct = await trpcQuery(page.request, 'contentTypes.get', {
+      id: contentTypeId,
+    })
     expect(ct.agentId).toBeTruthy()
 
     // Update the content agent prompt
-    const patchRes = await page.request.patch(`/api/agents/${ct.agentId}`, {
-      data: { prompt: "Updated content agent prompt for testing" },
+    const updated = await trpcMutate(page.request, 'agents.update', {
+      id: ct.agentId, prompt: "Updated content agent prompt for testing",
     })
-    expect(patchRes.ok()).toBeTruthy()
-    const updated = await patchRes.json()
     expect(updated.prompt).toBe("Updated content agent prompt for testing")
   })
 
@@ -87,23 +83,23 @@ test.describe.serial("Agent customization", () => {
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     // Get content type to find sub-agent
-    const ctRes = await page.request.get(`/api/content-types/${contentTypeId}`)
-    const ct = await ctRes.json()
+    const ct = await trpcQuery(page.request, 'contentTypes.get', {
+      id: contentTypeId,
+    })
     expect(ct.stages.length).toBeGreaterThan(0)
     expect(ct.stages[0].subAgents.length).toBeGreaterThan(0)
     const subAgentId = ct.stages[0].subAgents[0].agentId
 
     // Update the sub-agent prompt
-    const patchRes = await page.request.patch(`/api/agents/${subAgentId}`, {
-      data: { prompt: "Custom test prompt for sub-agent" },
+    const updated = await trpcMutate(page.request, 'agents.update', {
+      id: subAgentId, prompt: "Custom test prompt for sub-agent",
     })
-    expect(patchRes.ok()).toBeTruthy()
-    const updated = await patchRes.json()
     expect(updated.prompt).toBe("Custom test prompt for sub-agent")
 
     // Verify persistence by fetching again
-    const verifyRes = await page.request.get(`/api/agents/${subAgentId}/tools`)
-    expect(verifyRes.ok()).toBeTruthy()
+    await trpcQuery(page.request, 'agents.listTools', {
+      agentId: subAgentId,
+    })
   })
 
   test("can add and remove tool on sub-agent via API", async ({ page }) => {
@@ -114,41 +110,41 @@ test.describe.serial("Agent customization", () => {
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     // Get content type stages to find a sub-agent
-    const ctRes = await page.request.get(`/api/content-types/${contentTypeId}`)
-    const ct = await ctRes.json()
+    const ct = await trpcQuery(page.request, 'contentTypes.get', {
+      id: contentTypeId,
+    })
     const firstStage = ct.stages[0]
     expect(firstStage.subAgents.length).toBeGreaterThan(0)
     const subAgentId = firstStage.subAgents[0].agentId
 
     // Get current tools count
-    const toolsRes = await page.request.get(`/api/agents/${subAgentId}/tools`)
-    expect(toolsRes.ok()).toBeTruthy()
-    const toolsBefore = await toolsRes.json()
+    const toolsBefore = await trpcQuery(page.request, 'agents.listTools', {
+      agentId: subAgentId,
+    })
     const initialCount = toolsBefore.length
 
     // Add a test tool
-    const addRes = await page.request.post(`/api/agents/${subAgentId}/tools`, {
-      data: { type: "function", referenceId: "test-function-tool" },
+    const added = await trpcMutate(page.request, 'agents.addTool', {
+      agentId: subAgentId, type: "function", referenceId: "test-function-tool",
     })
-    expect(addRes.ok()).toBeTruthy()
-    const added = await addRes.json()
     expect(added.id).toBeTruthy()
     expect(added.referenceId).toBe("test-function-tool")
 
     // Verify tool count increased
-    const toolsAfterAdd = await page.request.get(`/api/agents/${subAgentId}/tools`)
-    const afterAdd = await toolsAfterAdd.json()
+    const afterAdd = await trpcQuery(page.request, 'agents.listTools', {
+      agentId: subAgentId,
+    })
     expect(afterAdd.length).toBe(initialCount + 1)
 
     // Remove the tool
-    const removeRes = await page.request.delete(
-      `/api/agents/${subAgentId}/tools/${added.id}`,
-    )
-    expect(removeRes.ok()).toBeTruthy()
+    await trpcMutate(page.request, 'agents.removeTool', {
+      agentId: subAgentId, toolId: added.id,
+    })
 
     // Verify tool count returned to original
-    const toolsAfterRemove = await page.request.get(`/api/agents/${subAgentId}/tools`)
-    const afterRemove = await toolsAfterRemove.json()
+    const afterRemove = await trpcQuery(page.request, 'agents.listTools', {
+      agentId: subAgentId,
+    })
     expect(afterRemove.length).toBe(initialCount)
   })
 
@@ -160,22 +156,21 @@ test.describe.serial("Agent customization", () => {
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     // Get sub-agent
-    const ctRes = await page.request.get(`/api/content-types/${contentTypeId}`)
-    const ct = await ctRes.json()
+    const ct = await trpcQuery(page.request, 'contentTypes.get', {
+      id: contentTypeId,
+    })
     const subAgentId = ct.stages[0].subAgents[0].agentId
 
     // Set modelId to null (org default) — verify it persists as null
-    const patchRes = await page.request.patch(`/api/agents/${subAgentId}`, {
-      data: { modelId: null },
+    const updated = await trpcMutate(page.request, 'agents.update', {
+      id: subAgentId, modelId: null,
     })
-    expect(patchRes.ok()).toBeTruthy()
-    const updated = await patchRes.json()
     expect(updated.modelId).toBeNull()
 
     // Verify persistence by re-fetching the content type
-    const verifyRes = await page.request.get(`/api/content-types/${contentTypeId}`)
-    expect(verifyRes.ok()).toBeTruthy()
-    const verified = await verifyRes.json()
+    const verified = await trpcQuery(page.request, 'contentTypes.get', {
+      id: contentTypeId,
+    })
     const verifiedSubAgent = verified.stages[0].subAgents[0]
     expect(verifiedSubAgent.agentId).toBe(subAgentId)
   })

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { db, eq, user, organization } from "@workspace/db"
+import { trpcMutate } from "./helpers/trpc"
 
 test.describe.serial("Content type agents", () => {
   const testId = Date.now()
@@ -193,10 +194,9 @@ test.describe.serial("Content type agents", () => {
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     // Install X Post via API
-    const installRes = await page.request.post("/api/content-types/install", {
-      data: { templateId: "seed_cty_x", projectId, orgId },
+    await trpcMutate(page.request, 'contentTypes.install', {
+      templateId: "seed_cty_x", projectId, orgId,
     })
-    expect(installRes.ok()).toBeTruthy()
 
     // Navigate to agents page and verify X Post is installed
     await page.goto(`/orgs/${orgId}/projects/${projectId}/agents`)

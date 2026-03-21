@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { db, eq, user, organization } from "@workspace/db"
+import { trpcMutate } from "./helpers/trpc"
 
 async function signIn(page: any, email: string, password: string) {
   await page.goto("/sign-in")
@@ -120,16 +121,13 @@ test.describe.serial("AI Models page", () => {
     await signIn(page, testUser.email, testUser.password)
 
     // Create provider directly via API (bypasses connection test)
-    const res = await page.request.post("/api/providers", {
-      data: {
-        orgId,
-        name: "Test OpenAI",
-        providerType: "openai",
-        apiKey: "sk-test-12345",
-        models: [{ modelId: "gpt-4o", modelType: "language" }],
-      },
+    await trpcMutate(page.request, 'providers.create', {
+      orgId,
+      name: "Test OpenAI",
+      providerType: "openai",
+      apiKey: "sk-test-12345",
+      models: [{ modelId: "gpt-4o", modelType: "language" }],
     })
-    expect(res.ok()).toBeTruthy()
 
     // Verify provider card appears on page
     await page.goto(`/orgs/${orgId}/models`)

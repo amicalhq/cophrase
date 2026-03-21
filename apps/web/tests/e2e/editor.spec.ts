@@ -68,7 +68,7 @@ test.describe.serial("AI Editor page", () => {
     // Intercept the API response to capture the new contentId
     const contentResponsePromise = page.waitForResponse(
       (res) =>
-        res.url().includes("/api/content") && res.request().method() === "POST"
+        res.url().includes("/api/trpc/content.create") && res.request().method() === "POST"
     )
 
     // Create a content piece
@@ -76,10 +76,12 @@ test.describe.serial("AI Editor page", () => {
     await page.getByLabel("Title").fill("Test Blog Post")
     await page.getByRole("button", { name: "Create" }).click()
 
-    // Extract contentId from the API response
+    // Extract contentId from the tRPC response
     const contentResponse = await contentResponsePromise
-    const contentData = (await contentResponse.json()) as { id: string }
-    contentId = contentData.id
+    const trpcData = (await contentResponse.json()) as {
+      result: { data: { json: { id: string } } }
+    }
+    contentId = trpcData.result.data.json.id
 
     // Wait for content to appear in the table
     await expect(page.getByText("Test Blog Post")).toBeVisible({
@@ -131,11 +133,11 @@ test.describe.serial("AI Editor page", () => {
     await signIn(page, testUser.email, testUser.password)
 
     // Intercept messages endpoint to return empty conversation
-    await page.route("**/api/content/*/messages*", async (route) => {
+    await page.route("**/api/trpc/content.messages*", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ messages: [] }),
+        body: JSON.stringify({ result: { data: { json: { messages: [] } } } }),
       })
     })
 
@@ -158,11 +160,11 @@ test.describe.serial("AI Editor page", () => {
     await signIn(page, testUser.email, testUser.password)
 
     // Return empty conversation for initial suggestions
-    await page.route("**/api/content/*/messages*", async (route) => {
+    await page.route("**/api/trpc/content.messages*", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ messages: [] }),
+        body: JSON.stringify({ result: { data: { json: { messages: [] } } } }),
       })
     })
 
@@ -194,11 +196,11 @@ test.describe.serial("AI Editor page", () => {
     await signIn(page, testUser.email, testUser.password)
 
     // Return empty conversation for initial suggestions
-    await page.route("**/api/content/*/messages*", async (route) => {
+    await page.route("**/api/trpc/content.messages*", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ messages: [] }),
+        body: JSON.stringify({ result: { data: { json: { messages: [] } } } }),
       })
     })
 
@@ -234,11 +236,11 @@ test.describe.serial("AI Editor page", () => {
     await signIn(page, testUser.email, testUser.password)
 
     // Return empty conversation
-    await page.route("**/api/content/*/messages*", async (route) => {
+    await page.route("**/api/trpc/content.messages*", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ messages: [] }),
+        body: JSON.stringify({ result: { data: { json: { messages: [] } } } }),
       })
     })
 

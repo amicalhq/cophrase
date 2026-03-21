@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { trpcQuery, trpcMutate } from "./helpers/trpc"
 
 test.describe.serial("Content type builder", () => {
   const testId = Date.now()
@@ -49,29 +50,25 @@ test.describe.serial("Content type builder", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const res = await page.request.post("/api/content-types/create", {
-      data: {
-        projectId,
-        orgId,
-        name: "Custom Article",
-        description: "Articles created from scratch",
-        format: "rich_text",
-        frontmatterSchema: {
-          type: "object",
-          properties: {
-            title: { type: "string" },
-            author: { type: "string" },
-          },
-          required: ["title"],
+    const created = await trpcMutate(page.request, 'contentTypes.create', {
+      projectId,
+      orgId,
+      name: "Custom Article",
+      description: "Articles created from scratch",
+      format: "rich_text",
+      frontmatterSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          author: { type: "string" },
         },
-        stages: [
-          { name: "Research", position: 1 },
-          { name: "Write", position: 2 },
-        ],
+        required: ["title"],
       },
+      stages: [
+        { name: "Research", position: 1 },
+        { name: "Write", position: 2 },
+      ],
     })
-    expect(res.ok()).toBeTruthy()
-    const created = await res.json()
     expect(created.id).toBeTruthy()
     expect(created.name).toBe("Custom Article")
     expect(created.stages.length).toBe(2)
@@ -84,23 +81,18 @@ test.describe.serial("Content type builder", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const typesRes = await page.request.get(
-      `/api/content-types?projectId=${projectId}&orgId=${orgId}`,
-    )
-    const types = await typesRes.json()
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
     const customType = types.find((t: { name: string }) => t.name === "Custom Article")
     expect(customType).toBeTruthy()
 
-    const createRes = await page.request.post("/api/content", {
-      data: {
-        projectId,
-        orgId,
-        title: "Test Custom Article",
-        contentTypeId: customType.id,
-      },
+    const content = await trpcMutate(page.request, 'content.create', {
+      projectId,
+      orgId,
+      title: "Test Custom Article",
+      contentTypeId: customType.id,
     })
-    expect(createRes.ok()).toBeTruthy()
-    const content = await createRes.json()
     expect(content.id).toBeTruthy()
   })
 
@@ -112,23 +104,18 @@ test.describe.serial("Content type builder", () => {
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     // Install Blog Post first
-    const templatesRes = await page.request.get("/api/content-types/templates")
-    const templates = await templatesRes.json()
+    const templates = await trpcQuery(page.request, 'contentTypes.templates')
     const blogTemplate = templates.find((t: { name: string }) => t.name === "Blog Post")
     expect(blogTemplate).toBeTruthy()
 
-    const installRes = await page.request.post("/api/content-types/install", {
-      data: { templateId: blogTemplate.id, projectId, orgId },
+    const installed = await trpcMutate(page.request, 'contentTypes.install', {
+      templateId: blogTemplate.id, projectId, orgId,
     })
-    expect(installRes.ok()).toBeTruthy()
-    const installed = await installRes.json()
 
     // Fork it
-    const forkRes = await page.request.post(
-      `/api/content-types/${installed.id}/fork`,
-    )
-    expect(forkRes.ok()).toBeTruthy()
-    const forked = await forkRes.json()
+    const forked = await trpcMutate(page.request, 'contentTypes.fork', {
+      id: installed.id,
+    })
     expect(forked.id).toBeTruthy()
     expect(forked.name).toBe("Blog Post (Copy)")
     expect(forked.id).not.toBe(installed.id)
@@ -142,19 +129,15 @@ test.describe.serial("Content type builder", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const typesRes = await page.request.get(
-      `/api/content-types?projectId=${projectId}&orgId=${orgId}`,
-    )
-    const types = await typesRes.json()
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
     const forkedType = types.find((t: { name: string }) => t.name === "Blog Post (Copy)")
     expect(forkedType).toBeTruthy()
 
-    const patchRes = await page.request.patch(
-      `/api/content-types/${forkedType.id}`,
-      { data: { name: "My Custom Blog" } },
-    )
-    expect(patchRes.ok()).toBeTruthy()
-    const updated = await patchRes.json()
+    const updated = await trpcMutate(page.request, 'contentTypes.update', {
+      id: forkedType.id, name: "My Custom Blog",
+    })
     expect(updated.name).toBe("My Custom Blog")
 
     // Original Blog Post unchanged
@@ -181,10 +164,9 @@ test.describe.serial("Content type builder", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const typesRes = await page.request.get(
-      `/api/content-types?projectId=${projectId}&orgId=${orgId}`,
-    )
-    const types = await typesRes.json()
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
     const blogType = types.find((t: { name: string }) => t.name === "Blog Post")
     expect(blogType).toBeTruthy()
 
@@ -199,10 +181,9 @@ test.describe.serial("Content type builder", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const typesRes = await page.request.get(
-      `/api/content-types?projectId=${projectId}&orgId=${orgId}`,
-    )
-    const types = await typesRes.json()
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
     const customType = types.find((t: { name: string }) => t.name === "Custom Article")
     expect(customType).toBeTruthy()
 
@@ -220,23 +201,18 @@ test.describe.serial("Content type builder", () => {
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
     // Get custom type and create content piece
-    const typesRes = await page.request.get(
-      `/api/content-types?projectId=${projectId}&orgId=${orgId}`,
-    )
-    const types = await typesRes.json()
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
     const customType = types.find((t: { name: string }) => t.name === "Custom Article")
     expect(customType).toBeTruthy()
 
-    const createRes = await page.request.post("/api/content", {
-      data: {
-        projectId,
-        orgId,
-        title: "Editor Frontmatter Test",
-        contentTypeId: customType.id,
-      },
+    const content = await trpcMutate(page.request, 'content.create', {
+      projectId,
+      orgId,
+      title: "Editor Frontmatter Test",
+      contentTypeId: customType.id,
     })
-    expect(createRes.ok()).toBeTruthy()
-    const content = await createRes.json()
 
     // Navigate to the editor
     await page.goto(
@@ -255,35 +231,27 @@ test.describe.serial("Content type builder", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const typesRes = await page.request.get(
-      `/api/content-types?projectId=${projectId}&orgId=${orgId}`,
-    )
-    const types = await typesRes.json()
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
     const customType = types.find((t: { name: string }) => t.name === "Custom Article")
     expect(customType).toBeTruthy()
 
-    const createRes = await page.request.post("/api/content", {
-      data: {
-        projectId,
-        orgId,
-        title: "Frontmatter Test Article",
-        contentTypeId: customType.id,
-      },
+    const content = await trpcMutate(page.request, 'content.create', {
+      projectId,
+      orgId,
+      title: "Frontmatter Test Article",
+      contentTypeId: customType.id,
     })
-    expect(createRes.ok()).toBeTruthy()
-    const content = await createRes.json()
 
-    const patchRes = await page.request.patch(
-      `/api/content/${content.id}/frontmatter`,
-      { data: { frontmatter: { title: "My Article Title", author: "Test Author" } } },
-    )
-    expect(patchRes.ok()).toBeTruthy()
+    await trpcMutate(page.request, 'content.updateFrontmatter', {
+      contentId: content.id,
+      frontmatter: { title: "My Article Title", author: "Test Author" },
+    })
 
-    const getRes = await page.request.get(
-      `/api/content/${content.id}/frontmatter`,
-    )
-    expect(getRes.ok()).toBeTruthy()
-    const fmData = await getRes.json()
+    const fmData = await trpcQuery(page.request, 'content.getFrontmatter', {
+      contentId: content.id,
+    })
     expect(fmData.frontmatter.title).toBe("My Article Title")
     expect(fmData.frontmatter.author).toBe("Test Author")
   })

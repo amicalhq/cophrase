@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { trpcQuery, trpcMutate } from "./helpers/trpc"
 
 /**
  * Full end-to-end Blog Post pipeline test.
@@ -75,9 +76,7 @@ test.describe.serial("Blog Post full pipeline", () => {
   test("Blog Post template exists with 3 stages and sub-agents", async ({ page }) => {
     await signIn(page)
 
-    const templatesRes = await page.request.get("/api/content-types/templates")
-    expect(templatesRes.ok()).toBeTruthy()
-    const templates = await templatesRes.json()
+    const templates = await trpcQuery(page.request, 'contentTypes.templates')
 
     const blogTemplate = templates.find(
       (t: { name: string }) => t.name === "Blog Post",
@@ -96,17 +95,14 @@ test.describe.serial("Blog Post full pipeline", () => {
   test("install Blog Post — creates project-scoped copy with stages and sub-agents", async ({ page }) => {
     await signIn(page)
 
-    const templatesRes = await page.request.get("/api/content-types/templates")
-    const templates = await templatesRes.json()
+    const templates = await trpcQuery(page.request, 'contentTypes.templates')
     const blogTemplate = templates.find(
       (t: { name: string }) => t.name === "Blog Post",
     )
 
-    const installRes = await page.request.post("/api/content-types/install", {
-      data: { templateId: blogTemplate.id, projectId, orgId },
+    const installed = await trpcMutate(page.request, 'contentTypes.install', {
+      templateId: blogTemplate.id, projectId, orgId,
     })
-    expect(installRes.ok()).toBeTruthy()
-    const installed = await installRes.json()
     blogTypeId = installed.id
 
     // Verify installed copy
@@ -136,14 +132,15 @@ test.describe.serial("Blog Post full pipeline", () => {
   test("installed type has Content Agent with orchestration prompt", async ({ page }) => {
     await signIn(page)
 
-    const ctRes = await page.request.get(`/api/content-types/${blogTypeId}`)
-    expect(ctRes.ok()).toBeTruthy()
-    const ct = await ctRes.json()
+    const ct = await trpcQuery(page.request, 'contentTypes.get', {
+      id: blogTypeId,
+    })
     expect(ct.agentId).toBeTruthy()
 
     // Verify the Content Agent exists and has a prompt
-    const agentRes = await page.request.get(`/api/agents/${ct.agentId}/tools`)
-    expect(agentRes.ok()).toBeTruthy()
+    await trpcQuery(page.request, 'agents.listTools', {
+      agentId: ct.agentId,
+    })
   })
 
   // =========================================================================
@@ -153,16 +150,12 @@ test.describe.serial("Blog Post full pipeline", () => {
   test("create Blog Post content piece", async ({ page }) => {
     await signIn(page)
 
-    const createRes = await page.request.post("/api/content", {
-      data: {
-        projectId,
-        orgId,
-        title: "AI in Healthcare: 2026 Trends",
-        contentTypeId: blogTypeId,
-      },
+    const content = await trpcMutate(page.request, 'content.create', {
+      projectId,
+      orgId,
+      title: "AI in Healthcare: 2026 Trends",
+      contentTypeId: blogTypeId,
     })
-    expect(createRes.ok()).toBeTruthy()
-    const content = await createRes.json()
     contentId = content.id
     expect(contentId).toBeTruthy()
     expect(content.contentTypeId).toBe(blogTypeId)
@@ -191,16 +184,13 @@ test.describe.serial("Blog Post full pipeline", () => {
     const apiKey = process.env.OPENAI_API_KEY_DEV
     expect(apiKey).toBeTruthy()
 
-    const providerRes = await page.request.post("/api/providers", {
-      data: {
-        orgId,
-        name: "OpenAI Test",
-        providerType: "openai",
-        apiKey,
-        models: [{ modelId: "gpt-4.1-mini", modelType: "language" }],
-      },
+    await trpcMutate(page.request, 'providers.create', {
+      orgId,
+      name: "OpenAI Test",
+      providerType: "openai",
+      apiKey,
+      models: [{ modelId: "gpt-4.1-mini", modelType: "language" }],
     })
-    expect(providerRes.ok()).toBeTruthy()
   })
 
   // =========================================================================
@@ -276,11 +266,9 @@ test.describe.serial("Blog Post full pipeline", () => {
     await signIn(page)
 
     // Check artifacts via API
-    const artifactsRes = await page.request.get(
-      `/api/content/${contentId}/artifacts`,
-    )
-    expect(artifactsRes.ok()).toBeTruthy()
-    const data = await artifactsRes.json()
+    const data = await trpcQuery(page.request, 'content.artifacts', {
+      contentId,
+    })
     expect(data.artifacts.length).toBeGreaterThan(0)
 
     // Should have research-notes artifact
@@ -295,16 +283,14 @@ test.describe.serial("Blog Post full pipeline", () => {
     await signIn(page)
 
     // Verify currentStageId changed (no longer null)
-    const contentRes = await page.request.get(
-      `/api/content/${contentId}/frontmatter`,
-    )
-    expect(contentRes.ok()).toBeTruthy()
+    await trpcQuery(page.request, 'content.getFrontmatter', {
+      contentId,
+    })
 
     // Check content directly — currentStageId should point to Draft stage
-    const typesRes = await page.request.get(
-      `/api/content-types?projectId=${projectId}&orgId=${orgId}`,
-    )
-    const types = await typesRes.json()
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
     const blogType = types.find(
       (t: { name: string }) => t.name === "Blog Post",
     )
@@ -355,11 +341,9 @@ test.describe.serial("Blog Post full pipeline", () => {
   test("Draft stage created additional artifacts", async ({ page }) => {
     await signIn(page)
 
-    const artifactsRes = await page.request.get(
-      `/api/content/${contentId}/artifacts`,
-    )
-    expect(artifactsRes.ok()).toBeTruthy()
-    const data = await artifactsRes.json()
+    const data = await trpcQuery(page.request, 'content.artifacts', {
+      contentId,
+    })
 
     // Should have more artifacts than after Research alone
     expect(data.artifacts.length).toBeGreaterThanOrEqual(2)
@@ -396,11 +380,9 @@ test.describe.serial("Blog Post full pipeline", () => {
   test("Refine stage created additional artifacts", async ({ page }) => {
     await signIn(page)
 
-    const artifactsRes = await page.request.get(
-      `/api/content/${contentId}/artifacts`,
-    )
-    expect(artifactsRes.ok()).toBeTruthy()
-    const data = await artifactsRes.json()
+    const data = await trpcQuery(page.request, 'content.artifacts', {
+      contentId,
+    })
 
     // Should have artifacts from all stages
     expect(data.artifacts.length).toBeGreaterThanOrEqual(2)
@@ -413,10 +395,9 @@ test.describe.serial("Blog Post full pipeline", () => {
   test("pipeline produced multiple artifacts", async ({ page }) => {
     await signIn(page)
 
-    const artifactsRes = await page.request.get(
-      `/api/content/${contentId}/artifacts`,
-    )
-    const data = await artifactsRes.json()
+    const data = await trpcQuery(page.request, 'content.artifacts', {
+      contentId,
+    })
 
     // Verify we have artifacts from the pipeline
     expect(data.artifacts.length).toBeGreaterThanOrEqual(1)
@@ -431,10 +412,9 @@ test.describe.serial("Blog Post full pipeline", () => {
     await signIn(page)
 
     // Verify agent runs exist for this content piece
-    const artifactsRes = await page.request.get(
-      `/api/content/${contentId}/artifacts`,
-    )
-    const data = await artifactsRes.json()
+    const data = await trpcQuery(page.request, 'content.artifacts', {
+      contentId,
+    })
 
     // Each artifact should have been created by an agent run
     for (const artifact of data.artifacts) {

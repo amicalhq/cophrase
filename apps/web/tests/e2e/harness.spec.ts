@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { trpcQuery, trpcMutate } from "./helpers/trpc"
 
 test.describe.serial("Dynamic harness", () => {
   const testId = Date.now()
@@ -61,19 +62,15 @@ test.describe.serial("Dynamic harness", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const templatesRes = await page.request.get("/api/content-types/templates")
-    expect(templatesRes.ok()).toBeTruthy()
-    const templates = await templatesRes.json()
+    const templates = await trpcQuery(page.request, 'contentTypes.templates')
     const blogTemplate = templates.find(
       (t: { name: string }) => t.name === "Blog Post",
     )
     expect(blogTemplate).toBeTruthy()
 
-    const installRes = await page.request.post("/api/content-types/install", {
-      data: { templateId: blogTemplate.id, projectId, orgId },
+    const installed = await trpcMutate(page.request, 'contentTypes.install', {
+      templateId: blogTemplate.id, projectId, orgId,
     })
-    expect(installRes.ok()).toBeTruthy()
-    const installed = await installRes.json()
     blogTypeId = installed.id
     expect(blogTypeId).toBeTruthy()
   })
@@ -88,19 +85,15 @@ test.describe.serial("Dynamic harness", () => {
     const apiKey = process.env.OPENAI_API_KEY_DEV
     expect(apiKey).toBeTruthy()
 
-    const providerRes = await page.request.post("/api/providers", {
-      data: {
-        orgId,
-        name: "OpenAI Test",
-        providerType: "openai",
-        apiKey,
-        models: [
-          { modelId: "gpt-4.1-nano", modelType: "language" },
-        ],
-      },
+    const providerData = await trpcMutate(page.request, 'providers.create', {
+      orgId,
+      name: "OpenAI Test",
+      providerType: "openai",
+      apiKey,
+      models: [
+        { modelId: "gpt-4.1-nano", modelType: "language" },
+      ],
     })
-    expect(providerRes.ok()).toBeTruthy()
-    const providerData = await providerRes.json()
     expect(providerData.provider.id).toBeTruthy()
     expect(providerData.models.length).toBe(1)
   })
@@ -112,16 +105,12 @@ test.describe.serial("Dynamic harness", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const createRes = await page.request.post("/api/content", {
-      data: {
-        projectId,
-        orgId,
-        title: "Harness E2E Test Post",
-        contentTypeId: blogTypeId,
-      },
+    const content = await trpcMutate(page.request, 'content.create', {
+      projectId,
+      orgId,
+      title: "Harness E2E Test Post",
+      contentTypeId: blogTypeId,
     })
-    expect(createRes.ok()).toBeTruthy()
-    const content = await createRes.json()
     contentId = content.id
     expect(contentId).toBeTruthy()
   })
@@ -133,11 +122,9 @@ test.describe.serial("Dynamic harness", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const res = await page.request.get(
-      `/api/content/${contentId}/suggestions`,
-    )
-    expect(res.ok()).toBeTruthy()
-    const data = await res.json()
+    const data = await trpcQuery(page.request, 'content.suggestions', {
+      contentId,
+    })
     expect(data.suggestions).toBeDefined()
     expect(data.suggestions.length).toBeGreaterThan(0)
     expect(data.suggestions[0].label).toMatch(/Research/i)
@@ -201,11 +188,9 @@ test.describe.serial("Dynamic harness", () => {
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    const typesRes = await page.request.get(
-      `/api/content-types?projectId=${projectId}&orgId=${orgId}`,
-    )
-    expect(typesRes.ok()).toBeTruthy()
-    const types = await typesRes.json()
+    const types = await trpcQuery(page.request, 'contentTypes.list', {
+      projectId, orgId,
+    })
     const blogType = types.find(
       (t: { name: string }) => t.name === "Blog Post",
     )
