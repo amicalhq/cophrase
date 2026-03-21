@@ -185,77 +185,79 @@ function useHarnessChat(contentId: string) {
   const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([])
   const pendingSuggestionsRef = useRef<PromptSuggestion[] | null>(null)
 
+  // Load messages from API — used on initial mount and after stream ends
+  const loadMessages = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/content/${contentId}/messages?limit=20`)
+      if (!res.ok) return
+      const data = (await res.json()) as {
+        messages: Array<{
+          id: string
+          role: string
+          parts: unknown
+          metadata: unknown
+          createdAt: string
+        }>
+        nextCursor?: string
+      }
+      const converted: HarnessMessage[] = data.messages.map((m) => ({
+        id: m.id,
+        role: m.role as HarnessMessage["role"],
+        content: extractPartsText(m.parts),
+        reasoningText: extractReasoning(m.metadata),
+        toolCalls: extractToolCalls(m.metadata),
+        isError: isErrorMetadata(m.metadata),
+        createdAt: m.createdAt,
+      }))
+      setMessages(converted.reverse())
+      cursorRef.current = data.nextCursor ?? undefined
+      setHasMore(!!data.nextCursor)
+
+      // Populate suggestions
+      if (converted.length === 0) {
+        // Empty conversation — fetch initial suggestions from API
+        try {
+          const sugRes = await fetch(`/api/content/${contentId}/suggestions`)
+          if (sugRes.ok) {
+            const sugData = (await sugRes.json()) as {
+              suggestions: PromptSuggestion[]
+            }
+            setSuggestions(sugData.suggestions)
+          }
+        } catch {
+          // silently fail
+        }
+      } else {
+        // Existing conversation — extract from raw metadata (before extractToolCalls filters it)
+        const lastAssistantRaw = [...data.messages]
+          .reverse()
+          .find((m) => m.role === "assistant")
+        if (lastAssistantRaw?.metadata) {
+          const allToolCalls = (
+            lastAssistantRaw.metadata as { toolCalls?: ToolCallResult[] }
+          ).toolCalls
+          const suggestTc = allToolCalls?.find(
+            (tc) => tc.toolName === SUGGEST_TOOL_NAME
+          )
+          if (suggestTc?.input) {
+            const inp = suggestTc.input as {
+              suggestions?: PromptSuggestion[]
+            }
+            if (Array.isArray(inp.suggestions)) {
+              setSuggestions(inp.suggestions)
+            }
+          }
+        }
+      }
+    } catch {
+      // silently fail
+    }
+  }, [contentId])
+
   // Load initial messages
   useEffect(() => {
-    async function loadMessages() {
-      try {
-        const res = await fetch(`/api/content/${contentId}/messages?limit=20`)
-        if (!res.ok) return
-        const data = (await res.json()) as {
-          messages: Array<{
-            id: string
-            role: string
-            parts: unknown
-            metadata: unknown
-            createdAt: string
-          }>
-          nextCursor?: string
-        }
-        const converted: HarnessMessage[] = data.messages.map((m) => ({
-          id: m.id,
-          role: m.role as HarnessMessage["role"],
-          content: extractPartsText(m.parts),
-          reasoningText: extractReasoning(m.metadata),
-          toolCalls: extractToolCalls(m.metadata),
-          isError: isErrorMetadata(m.metadata),
-          createdAt: m.createdAt,
-        }))
-        setMessages(converted.reverse())
-        cursorRef.current = data.nextCursor ?? undefined
-        setHasMore(!!data.nextCursor)
-
-        // Populate suggestions
-        if (converted.length === 0) {
-          // Empty conversation — fetch initial suggestions from API
-          try {
-            const sugRes = await fetch(`/api/content/${contentId}/suggestions`)
-            if (sugRes.ok) {
-              const sugData = (await sugRes.json()) as {
-                suggestions: PromptSuggestion[]
-              }
-              setSuggestions(sugData.suggestions)
-            }
-          } catch {
-            // silently fail
-          }
-        } else {
-          // Existing conversation — extract from raw metadata (before extractToolCalls filters it)
-          const lastAssistantRaw = [...data.messages]
-            .reverse()
-            .find((m) => m.role === "assistant")
-          if (lastAssistantRaw?.metadata) {
-            const allToolCalls = (
-              lastAssistantRaw.metadata as { toolCalls?: ToolCallResult[] }
-            ).toolCalls
-            const suggestTc = allToolCalls?.find(
-              (tc) => tc.toolName === SUGGEST_TOOL_NAME
-            )
-            if (suggestTc?.input) {
-              const inp = suggestTc.input as {
-                suggestions?: PromptSuggestion[]
-              }
-              if (Array.isArray(inp.suggestions)) {
-                setSuggestions(inp.suggestions)
-              }
-            }
-          }
-        }
-      } catch {
-        // silently fail
-      }
-    }
     loadMessages()
-  }, [contentId])
+  }, [loadMessages])
 
   // Load more (older) messages
   const loadMore = useCallback(async () => {
@@ -588,9 +590,9 @@ function RunStageBlock({
   const isComplete = state === "complete"
 
   // Completed state — collapsible stage with sub-agent rows
-  if (isComplete && res) {
-    const success = res.success as boolean | undefined
-    const subAgentResults = (res.subAgentResults ?? []) as Array<{
+  if (isComplete) {
+    const success = res?.success as boolean | undefined
+    const subAgentResults = (res?.subAgentResults ?? []) as Array<{
       agentName: string
       success: boolean
       artifacts: ArtifactRef[]
@@ -615,40 +617,60 @@ function RunStageBlock({
               </Badge>
             )}
             <span>{stageName}</span>
-            <ChevronDownIcon className="ml-auto size-3" />
+            {subAgentResults.length > 0 && <ChevronDownIcon className="ml-auto size-3" />}
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 space-y-1.5 text-xs text-muted-foreground">
-            {subAgentResults.map((sr, i) => (
-              <SubAgentRow
-                key={i}
-                agent={sr}
-                onArtifactClick={onArtifactClick}
-              />
-            ))}
-            {typeof res.error === "string" && (
-              <p className="text-destructive">{res.error}</p>
-            )}
-          </CollapsibleContent>
+          {subAgentResults.length > 0 && (
+            <CollapsibleContent className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+              {subAgentResults.map((sr, i) => (
+                <SubAgentRow
+                  key={i}
+                  agent={sr}
+                  onArtifactClick={onArtifactClick}
+                />
+              ))}
+              {typeof res?.error === "string" && (
+                <p className="text-destructive">{res.error}</p>
+              )}
+            </CollapsibleContent>
+          )}
         </Collapsible>
       </div>
     )
   }
 
-  // Calling / Stopped state — stage row + sub-agent running rows (not collapsible)
-  return (
-    <div className="not-prose my-2 space-y-1">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        {isStopped ? (
+  // Stopped state
+  if (isStopped) {
+    return (
+      <div className="not-prose my-2 space-y-1">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="destructive" className="h-5 gap-1 px-1.5 text-[10px]">
             <XIcon className="size-3" />
             Stopped
           </Badge>
-        ) : (
-          <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
-            <LoaderIcon className="size-3 animate-spin" />
-            Running
-          </Badge>
-        )}
+          <span>{stageName}</span>
+        </div>
+        {agentNames.map((name, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-1.5 pl-4 text-xs text-muted-foreground"
+          >
+            <span className="text-muted-foreground/60">↳</span>
+            <XIcon className="size-3 text-destructive" />
+            <span>{name}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Calling state — stage row + sub-agent running rows
+  return (
+    <div className="not-prose my-2 space-y-1">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Badge variant="secondary" className="h-5 gap-1 px-1.5 text-[10px]">
+          <LoaderIcon className="size-3 animate-spin" />
+          Running
+        </Badge>
         <span>
           {stageName}
           {agentNames.length > 1 && (
