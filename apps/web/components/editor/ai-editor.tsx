@@ -75,7 +75,8 @@ export function AIEditor({
     return () => {
       cancelled = true
     }
-  }, [artifactId, contentId, utils])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artifactId, contentId])
 
   // Auto-select the latest artifact (furthest stage) on initial load
   const hasAutoSelected = useRef(false)
