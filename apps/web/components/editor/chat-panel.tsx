@@ -546,7 +546,7 @@ function SubAgentRow({
             <CollapsibleTrigger className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
               <ChevronDownIcon className="size-3" />
               Thought
-              {agent.durationMs != null && (
+              {agent.durationMs != null && agent.durationMs > 0 && (
                 <span> for {Math.round(agent.durationMs / 1000)}s</span>
               )}
             </CollapsibleTrigger>
@@ -554,7 +554,7 @@ function SubAgentRow({
               {agent.reasoningText}
             </CollapsibleContent>
           </Collapsible>
-        ) : agent.durationMs != null ? (
+        ) : agent.durationMs != null && agent.durationMs > 0 ? (
           <p className="text-[10px] text-muted-foreground">
             Thought for {Math.round(agent.durationMs / 1000)}s
           </p>
@@ -603,7 +603,7 @@ function RunStageBlock({
       <div className="not-prose my-2 space-y-1">
         <Collapsible defaultOpen>
           <CollapsibleTrigger className="flex w-full items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
-            {success ? (
+            {success !== false ? (
               <Badge className="h-5 gap-1 border-green-600/30 bg-green-500/10 px-1.5 text-[10px] text-green-600">
                 <CheckIcon className="size-3" />
                 Done
