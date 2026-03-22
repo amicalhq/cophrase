@@ -1,6 +1,23 @@
 import { test, expect, type APIRequestContext } from "@playwright/test"
 import crypto from "node:crypto"
-import { db, eq, user, organization } from "@workspace/db"
+import {
+  db,
+  eq,
+  user,
+  organization,
+  project,
+  contentType,
+  contentTypeStage,
+  content,
+  artifact,
+} from "@workspace/db"
+// Inline ID generators (same format as @workspace/id but avoids adding the dep)
+function testId8(prefix: string) {
+  return `${prefix}_${crypto.randomBytes(4).toString("hex")}`
+}
+function testId16(prefix: string) {
+  return `${prefix}_${crypto.randomBytes(8).toString("hex")}`
+}
 
 // PKCE helpers
 function generateCodeVerifier() {
@@ -441,9 +458,169 @@ test.describe.serial("MCP server", () => {
     expect(body.result.content[0].text).toContain("not found")
   })
 
+  // --- Cross-org isolation: real records in a different org ---
+  // Creates a second org with real project/content/artifact data,
+  // then verifies User A's token cannot access any of it.
+
+  const otherOrgId = testId8("org")
+  const otherProjectId = testId8("prj")
+  const otherContentTypeId = testId8("cty")
+  const otherStageId = testId8("cts")
+  const otherContentId = testId8("ct")
+  const otherArtifactId = testId16("atf")
+  const otherOrgName = `Other Org ${testId}`
+
+  test("setup: create second org with real records", async () => {
+    // Create org B directly in DB (no user needed — just records for isolation test)
+    await db.insert(organization).values({
+      id: otherOrgId,
+      name: otherOrgName,
+      slug: `other-org-${testId}`,
+      createdAt: new Date(),
+    })
+
+    await db.insert(project).values({
+      id: otherProjectId,
+      name: "Other Project",
+      organizationId: otherOrgId,
+    })
+
+    await db.insert(contentType).values({
+      id: otherContentTypeId,
+      scope: "project",
+      organizationId: otherOrgId,
+      projectId: otherProjectId,
+      name: "Other Blog Post",
+      format: "rich_text",
+    })
+
+    await db.insert(contentTypeStage).values({
+      id: otherStageId,
+      contentTypeId: otherContentTypeId,
+      name: "Research",
+      position: 1,
+    })
+
+    await db.insert(content).values({
+      id: otherContentId,
+      organizationId: otherOrgId,
+      projectId: otherProjectId,
+      contentTypeId: otherContentTypeId,
+      currentStageId: otherStageId,
+      title: "Other Content",
+    })
+
+    await db.insert(artifact).values({
+      id: otherArtifactId,
+      organizationId: otherOrgId,
+      projectId: otherProjectId,
+      contentId: otherContentId,
+      type: "draft",
+      title: "Other Draft",
+      data: { text: "secret content from other org" },
+    })
+  })
+
+  test("cross-org: get-content denies access to other org's content", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "get-content",
+      arguments: { contentId: otherContentId },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBe(true)
+    expect(body.result.content[0].text).toContain("Access denied")
+  })
+
+  test("cross-org: get-artifact denies access to other org's artifact", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "get-artifact",
+      arguments: { artifactId: otherArtifactId },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBe(true)
+    expect(body.result.content[0].text).toContain("Access denied")
+  })
+
+  test("cross-org: list-artifacts denies access to other org's content", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "list-artifacts",
+      arguments: { contentId: otherContentId },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBe(true)
+    expect(body.result.content[0].text).toContain("Access denied")
+  })
+
+  test("cross-org: save-artifact denies access to other org's content", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "save-artifact",
+      arguments: {
+        contentId: otherContentId,
+        type: "draft",
+        title: "Injected",
+        data: { text: "should not be saved" },
+      },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBe(true)
+    expect(body.result.content[0].text).toContain("Access denied")
+  })
+
+  test("cross-org: update-artifact-status denies access to other org's artifact", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "update-artifact-status",
+      arguments: { artifactId: otherArtifactId, status: "approved" },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBe(true)
+    expect(body.result.content[0].text).toContain("Access denied")
+  })
+
+  test("cross-org: get-stage-instructions denies access to other org's content", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "get-stage-instructions",
+      arguments: { contentId: otherContentId, stageId: otherStageId },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBe(true)
+    expect(body.result.content[0].text).toContain("Access denied")
+  })
+
+  test("cross-org: get-content-type denies access to other org's content type", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "get-content-type",
+      arguments: { contentTypeId: otherContentTypeId },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBe(true)
+    // Returns "not found" instead of "Access denied" to avoid info disclosure
+    expect(body.result.content[0].text).toContain("not found")
+  })
+
   // --- Cleanup ---
 
   test.afterAll(async () => {
+    // Clean up other org records (delete org cascades to project, content, etc.)
+    try {
+      await db.delete(organization).where(eq(organization.id, otherOrgId))
+    } catch {
+      // Ignore cleanup errors
+    }
+    // Clean up test user and org
     try {
       await db.delete(user).where(eq(user.email, testUser.email))
     } catch {
