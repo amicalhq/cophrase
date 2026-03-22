@@ -1,4 +1,4 @@
-import { eq, asc, sql, inArray } from "drizzle-orm"
+import { eq, asc, sql, inArray, and } from "drizzle-orm"
 import { db } from "../index"
 import {
   contentType,
@@ -6,6 +6,7 @@ import {
   subAgent,
 } from "../schema/content-types"
 import { agent, agentTool } from "../schema/agents"
+import { artifact } from "../schema/artifacts"
 import { content } from "../schema/content"
 import {
   createAgentId,
@@ -116,6 +117,76 @@ export async function getSubAgentsByStage(stageId: string) {
     .innerJoin(agent, eq(subAgent.agentId, agent.id))
     .where(eq(subAgent.stageId, stageId))
     .orderBy(asc(subAgent.executionOrder))
+}
+
+export async function getStageWithContext(stageId: string, contentId: string) {
+  const [stage] = await db
+    .select()
+    .from(contentTypeStage)
+    .where(eq(contentTypeStage.id, stageId))
+  if (!stage) return null
+
+  const subAgents = await db
+    .select({
+      id: subAgent.id,
+      agentId: subAgent.agentId,
+      executionOrder: subAgent.executionOrder,
+      agentName: agent.name,
+      agentDescription: agent.description,
+    })
+    .from(subAgent)
+    .innerJoin(agent, eq(subAgent.agentId, agent.id))
+    .where(eq(subAgent.stageId, stageId))
+    .orderBy(asc(subAgent.executionOrder))
+
+  const subAgentAgentIds = subAgents.map((sa) => sa.agentId)
+  let tools: Array<{
+    agentId: string
+    type: string
+    referenceId: string
+    config: unknown
+  }> = []
+  if (subAgentAgentIds.length > 0) {
+    tools = await db
+      .select({
+        agentId: agentTool.agentId,
+        type: agentTool.type,
+        referenceId: agentTool.referenceId,
+        config: agentTool.config,
+      })
+      .from(agentTool)
+      .where(inArray(agentTool.agentId, subAgentAgentIds))
+  }
+
+  const existingArtifacts = await db
+    .select({
+      id: artifact.id,
+      type: artifact.type,
+      title: artifact.title,
+      status: artifact.status,
+    })
+    .from(artifact)
+    .where(eq(artifact.contentId, contentId))
+    .orderBy(asc(artifact.createdAt))
+
+  return {
+    stage: {
+      id: stage.id,
+      contentTypeId: stage.contentTypeId,
+      name: stage.name,
+      description: stage.description,
+      position: stage.position,
+      optional: stage.optional,
+    },
+    subAgents: subAgents.map((sa) => ({
+      name: sa.agentName,
+      description: sa.agentDescription,
+      tools: tools
+        .filter((t) => t.agentId === sa.agentId)
+        .map((t) => ({ type: t.type, referenceId: t.referenceId, config: t.config })),
+    })),
+    existingArtifacts,
+  }
 }
 
 // ---------------------------------------------------------------------------

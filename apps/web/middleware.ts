@@ -10,7 +10,10 @@ export function middleware(request: NextRequest) {
     publicRoutes.includes(pathname) ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/workflows") ||
-    pathname.startsWith("/.well-known/workflow")
+    pathname.startsWith("/.well-known/workflow") ||
+    pathname.startsWith("/mcp") ||
+    pathname.startsWith("/.well-known/oauth-protected-resource") ||
+    pathname === "/consent"
   ) {
     return NextResponse.next()
   }

@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { nextCookies } from "better-auth/next-js"
-import { organization } from "better-auth/plugins"
+import { jwt, organization } from "better-auth/plugins"
+import { oauthProvider } from "@better-auth/oauth-provider"
 import { db } from "@workspace/db"
 import {
   createUserId,
@@ -31,10 +32,22 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  disabledPaths: ["/token"],
   plugins: [
     organization({
       allowUserToCreateOrganization: true,
       organizationLimit: 5,
+    }),
+    jwt(),
+    oauthProvider({
+      loginPage: "/sign-in",
+      consentPage: "/consent",
+      scopes: ["cophrase"],
+      allowDynamicClientRegistration: true,
+      allowUnauthenticatedClientRegistration: true,
+      validAudiences: [`${process.env.BETTER_AUTH_URL ?? "http://localhost:3000"}/mcp`],
+      accessTokenExpiresIn: 3600,
+      refreshTokenExpiresIn: 2592000,
     }),
     nextCookies(),
   ],

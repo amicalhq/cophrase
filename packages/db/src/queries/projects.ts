@@ -1,7 +1,7 @@
 import { eq, and } from "drizzle-orm"
 import { db } from "../index"
 import { project } from "../schema/projects"
-import { member } from "../schema/auth"
+import { organization, member } from "../schema/auth"
 
 export async function getProjectsByOrg(organizationId: string) {
   return await db
@@ -50,6 +50,19 @@ export async function getProjectByIdAndOrg(
     .from(project)
     .where(and(eq(project.id, id), eq(project.organizationId, organizationId)))
   return result ?? null
+}
+
+export async function getOrganizationsByUser(userId: string) {
+  return await db
+    .select({
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+      logo: organization.logo,
+    })
+    .from(organization)
+    .innerJoin(member, eq(organization.id, member.organizationId))
+    .where(eq(member.userId, userId))
 }
 
 export async function isOrgMember(
