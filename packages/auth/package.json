@@ -11,9 +11,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "^1.5.6",
     "@workspace/db": "workspace:*",
     "@workspace/id": "workspace:*",
-    "better-auth": "latest"
+    "better-auth": "^1.5.6"
   },
   "devDependencies": {
     "@types/node": "^25.1.0",

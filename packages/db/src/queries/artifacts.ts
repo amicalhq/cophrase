@@ -46,8 +46,8 @@ export async function createArtifact(input: {
   organizationId: string
   projectId: string
   contentId?: string
-  agentId: string
-  runId: string
+  agentId?: string | null
+  runId?: string | null
   type: string
   title: string
   data: unknown
