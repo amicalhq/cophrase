@@ -24,21 +24,24 @@ const SERVER_INSTRUCTIONS = `CoPhrase is a content marketing platform. It organi
 
 1. Call \`list-organizations\` to see your organizations
 2. Pick an organization and call \`list-projects\` with its organizationId
-3. Call \`list-content-types\` with a projectId to see available content templates
-4. Call \`list-resources\` with the projectId and organizationId to see available brand assets, then \`get-resource\` to load ones relevant to your task (voice, personas, style guides)
-5. Call \`create-content\` to start a new content piece
+3. Call \`list-content-types\` with the organizationId and projectId to see available content templates
+4. Call \`list-resources\` with the organizationId and projectId to see available brand assets, then \`get-resource\` to load ones relevant to your task (voice, personas, style guides)
+5. Call \`create-content\` with organizationId, projectId, contentTypeId, and title to start a new content piece
 6. For each stage in the content type:
-   a. Call \`get-stage-instructions\` to get the stage description and context on expected outputs
-   b. Generate content using the instructions + brand resources + any prior artifacts from earlier stages
-   c. Call \`save-artifact\` to persist what you generated
+   a. Call \`get-stage-instructions\` with contentId and stageId to get the stage description and context on expected outputs
+   b. Generate content using the instructions + brand resources + any existing artifacts
+   c. Call \`save-artifact\` with contentId, type, title, and data to persist what you generated
 7. Use \`update-artifact-status\` to approve or reject artifacts
 
-## Important
+## Parameter patterns
+
+- **Listing tools** (\`list-projects\`, \`list-content-types\`, \`list-content\`, \`list-resources\`, \`get-project\`, \`get-resource\`, \`create-content\`): require \`organizationId\` as a parameter. Call \`list-organizations\` first to get available org IDs.
+- **Record-lookup tools** (\`get-content\`, \`get-artifact\`, \`list-artifacts\`, \`save-artifact\`, \`update-artifact-status\`, \`get-stage-instructions\`, \`get-content-type\`): take the record ID directly. The server resolves the org from the record and verifies your membership automatically.
+
+## Tips
 
 - Always fetch brand resources before generating content — they contain the voice, style, and audience context that makes content on-brand.
-- Resources are project-scoped — pass both projectId and organizationId when listing them.
-- Set \`parentIds\` when saving artifacts that build on prior stage outputs (e.g., a blog draft that references research notes).
-- Every tool that accesses org data requires the organizationId parameter. Call \`list-organizations\` first to get available org IDs.`
+- Set \`parentIds\` when saving artifacts that build on prior stage outputs (e.g., a blog draft that references research notes).`
 
 /** All tool definitions keyed by their MCP tool name */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
