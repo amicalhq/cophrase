@@ -3,6 +3,7 @@ import crypto from "node:crypto"
 import {
   db,
   eq,
+  and,
   user,
   organization,
   project,
@@ -11,6 +12,7 @@ import {
   content,
   artifact,
 } from "@workspace/db"
+
 // Inline ID generators (same format as @workspace/id but avoids adding the dep)
 function testId8(prefix: string) {
   return `${prefix}_${crypto.randomBytes(4).toString("hex")}`
@@ -95,7 +97,25 @@ test.describe.serial("MCP server", () => {
   let accessToken: string
   let orgId: string
 
-  // --- Setup ---
+  // Org A's own test data (for positive-path tests)
+  const ownProjectId = testId8("prj")
+  const ownContentTypeId = testId8("cty")
+  const ownStageId = testId8("cts")
+  let ownContentId: string
+  let ownArtifactId: string
+
+  // Org B's test data (for cross-org isolation tests)
+  const otherOrgId = testId8("org")
+  const otherProjectId = testId8("prj")
+  const otherContentTypeId = testId8("cty")
+  const otherStageId = testId8("cts")
+  const otherContentId = testId8("ct")
+  const otherArtifactId = testId16("atf")
+  const otherOrgName = `Other Org ${testId}`
+
+  // =====================================================================
+  // Setup
+  // =====================================================================
 
   test("sign up and create organization", async ({ page }) => {
     await page.goto("/sign-up")
@@ -111,7 +131,6 @@ test.describe.serial("MCP server", () => {
 
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    // Click into the org to get its ID from the URL
     await page.getByText(testUser.orgName).click()
     await expect(page).toHaveURL(/\/orgs\/[^/]+/, { timeout: 10_000 })
 
@@ -121,7 +140,9 @@ test.describe.serial("MCP server", () => {
     orgId = match![1]!
   })
 
-  // --- Authentication tests ---
+  // =====================================================================
+  // Authentication
+  // =====================================================================
 
   test("401 includes WWW-Authenticate header with resource_metadata", async ({
     request,
@@ -172,14 +193,12 @@ test.describe.serial("MCP server", () => {
   }) => {
     const base = baseURL!
 
-    // Sign in — each test gets a fresh page
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
     await page.getByRole("button", { name: "Sign in" }).click()
     await expect(page).toHaveURL(/\/orgs/, { timeout: 10_000 })
 
-    // 1. Register OAuth client
     const registerRes = await request.post("/api/auth/oauth2/register", {
       headers: { "Content-Type": "application/json" },
       data: {
@@ -195,11 +214,9 @@ test.describe.serial("MCP server", () => {
     expect(clientData.client_id).toBeDefined()
     const clientId = clientData.client_id as string
 
-    // 2. Generate PKCE values
     const codeVerifier = generateCodeVerifier()
     const codeChallenge = generateCodeChallenge(codeVerifier)
 
-    // 3. Navigate to authorize endpoint
     const authUrl = new URL("/api/auth/oauth2/authorize", base)
     authUrl.searchParams.set("response_type", "code")
     authUrl.searchParams.set("client_id", clientId)
@@ -210,13 +227,10 @@ test.describe.serial("MCP server", () => {
     authUrl.searchParams.set("state", "test-state")
 
     await page.goto(authUrl.toString())
-
-    // 4. Consent page
     await expect(page.getByText("Authorize CoPhrase")).toBeVisible({
       timeout: 10_000,
     })
 
-    // 5. Intercept redirect and capture code
     let capturedCode = ""
     await page.route("**/localhost:9999/callback**", async (route) => {
       const url = new URL(route.request().url())
@@ -226,10 +240,8 @@ test.describe.serial("MCP server", () => {
 
     await page.getByRole("button", { name: "Allow" }).click()
     await page.waitForURL(/localhost:9999\/callback/, { timeout: 10_000 })
-
     expect(capturedCode.length).toBeGreaterThan(0)
 
-    // 6. Exchange code for token with resource param
     const tokenRes = await request.post("/api/auth/oauth2/token", {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       data: new URLSearchParams({
@@ -245,12 +257,13 @@ test.describe.serial("MCP server", () => {
     const tokenData = await tokenRes.json()
     expect(tokenData.access_token).toBeDefined()
 
-    // 7. Verify it's a JWT
     accessToken = tokenData.access_token as string
     expect(accessToken.startsWith("eyJ")).toBe(true)
   })
 
-  // --- MCP protocol tests ---
+  // =====================================================================
+  // MCP protocol
+  // =====================================================================
 
   test("initialize MCP session", async ({ request }) => {
     const body = await mcpCall(request, accessToken, "initialize", {
@@ -284,7 +297,33 @@ test.describe.serial("MCP server", () => {
     expect(toolNames).toContain("get-resource")
   })
 
-  // --- Authorization: valid org access ---
+  // =====================================================================
+  // Positive path: create data in Org A and verify tools work for owner
+  // =====================================================================
+
+  test("setup: create project and content type in own org", async () => {
+    await db.insert(project).values({
+      id: ownProjectId,
+      name: "Test Project",
+      organizationId: orgId,
+    })
+
+    await db.insert(contentType).values({
+      id: ownContentTypeId,
+      scope: "project",
+      organizationId: orgId,
+      projectId: ownProjectId,
+      name: "Test Blog Post",
+      format: "rich_text",
+    })
+
+    await db.insert(contentTypeStage).values({
+      id: ownStageId,
+      contentTypeId: ownContentTypeId,
+      name: "Research",
+      position: 1,
+    })
+  })
 
   test("list-organizations returns user orgs", async ({ request }) => {
     const body = await mcpCall(request, accessToken, "tools/call", {
@@ -301,7 +340,9 @@ test.describe.serial("MCP server", () => {
     ).toBe(true)
   })
 
-  test("list-projects with valid org", async ({ request }) => {
+  test("list-projects with valid org returns own project", async ({
+    request,
+  }) => {
     const body = await mcpCall(request, accessToken, "tools/call", {
       name: "list-projects",
       arguments: { organizationId: orgId },
@@ -309,67 +350,142 @@ test.describe.serial("MCP server", () => {
     expect(body.result).toBeDefined()
     expect(body.result.isError).toBeFalsy()
     const projects = JSON.parse(body.result.content[0].text)
-    expect(Array.isArray(projects)).toBe(true)
+    expect(projects.some((p: { id: string }) => p.id === ownProjectId)).toBe(
+      true,
+    )
   })
 
-  // --- Authorization: org membership checks (all org-param tools) ---
-
-  test("list-projects denies access for wrong org", async ({ request }) => {
-    await expectAccessDenied(request, accessToken, "list-projects", {
-      organizationId: "org_nonexistent",
-    })
-  })
-
-  test("get-project denies access for wrong org", async ({ request }) => {
-    await expectAccessDenied(request, accessToken, "get-project", {
-      organizationId: "org_nonexistent",
-      projectId: "prj_nonexistent",
-    })
-  })
-
-  test("list-content-types denies access for wrong org", async ({
+  test("list-content-types with valid org returns own content type", async ({
     request,
   }) => {
-    await expectAccessDenied(request, accessToken, "list-content-types", {
-      organizationId: "org_nonexistent",
-      projectId: "prj_nonexistent",
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "list-content-types",
+      arguments: { organizationId: orgId, projectId: ownProjectId },
     })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBeFalsy()
+    const types = JSON.parse(body.result.content[0].text)
+    expect(
+      types.some((t: { id: string }) => t.id === ownContentTypeId),
+    ).toBe(true)
   })
 
-  test("list-content denies access for wrong org", async ({ request }) => {
-    await expectAccessDenied(request, accessToken, "list-content", {
-      organizationId: "org_nonexistent",
-      projectId: "prj_nonexistent",
+  test("get-content-type with own content type succeeds", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "get-content-type",
+      arguments: { contentTypeId: ownContentTypeId },
     })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBeFalsy()
+    const ct = JSON.parse(body.result.content[0].text)
+    expect(ct.id).toBe(ownContentTypeId)
   })
 
-  test("create-content denies access for wrong org", async ({ request }) => {
-    await expectAccessDenied(request, accessToken, "create-content", {
-      organizationId: "org_nonexistent",
-      projectId: "prj_nonexistent",
-      contentTypeId: "ct_nonexistent",
-      title: "Test",
+  test("create-content in own org succeeds", async ({ request }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "create-content",
+      arguments: {
+        organizationId: orgId,
+        projectId: ownProjectId,
+        contentTypeId: ownContentTypeId,
+        title: "My Test Content",
+      },
     })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBeFalsy()
+    const created = JSON.parse(body.result.content[0].text)
+    expect(created.id).toBeDefined()
+    ownContentId = created.id
   })
 
-  test("list-resources denies access for wrong org", async ({ request }) => {
-    await expectAccessDenied(request, accessToken, "list-resources", {
-      organizationId: "org_nonexistent",
-      projectId: "prj_nonexistent",
+  test("get-content with own content succeeds", async ({ request }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "get-content",
+      arguments: { contentId: ownContentId },
     })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBeFalsy()
+    const item = JSON.parse(body.result.content[0].text)
+    expect(item.id).toBe(ownContentId)
+    expect(item.title).toBe("My Test Content")
   })
 
-  test("get-resource denies access for wrong org", async ({ request }) => {
-    await expectAccessDenied(request, accessToken, "get-resource", {
-      organizationId: "org_nonexistent",
-      projectId: "prj_nonexistent",
-      resourceId: "res_nonexistent",
+  test("save-artifact in own content succeeds", async ({ request }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "save-artifact",
+      arguments: {
+        contentId: ownContentId,
+        type: "draft",
+        title: "My Draft",
+        data: { text: "hello world" },
+      },
     })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBeFalsy()
+    const saved = JSON.parse(body.result.content[0].text)
+    expect(saved.id).toBeDefined()
+    ownArtifactId = saved.id
   })
 
-  // --- Authorization: record-scoped tools resolve org and check membership ---
+  test("get-artifact with own artifact succeeds", async ({ request }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "get-artifact",
+      arguments: { artifactId: ownArtifactId },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBeFalsy()
+    const art = JSON.parse(body.result.content[0].text)
+    expect(art.id).toBe(ownArtifactId)
+    expect(art.title).toBe("My Draft")
+  })
 
-  test("get-content denies access for nonexistent content", async ({
+  test("list-artifacts with own content returns artifact", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "list-artifacts",
+      arguments: { contentId: ownContentId },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBeFalsy()
+    const arts = JSON.parse(body.result.content[0].text)
+    expect(arts.some((a: { id: string }) => a.id === ownArtifactId)).toBe(true)
+  })
+
+  test("get-stage-instructions with own content succeeds", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "get-stage-instructions",
+      arguments: { contentId: ownContentId, stageId: ownStageId },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBeFalsy()
+    const stage = JSON.parse(body.result.content[0].text)
+    expect(stage.stage.id).toBe(ownStageId)
+    expect(stage.stage.name).toBe("Research")
+  })
+
+  test("update-artifact-status with own artifact succeeds", async ({
+    request,
+  }) => {
+    const body = await mcpCall(request, accessToken, "tools/call", {
+      name: "update-artifact-status",
+      arguments: { artifactId: ownArtifactId, status: "approved" },
+    })
+    expect(body.result).toBeDefined()
+    expect(body.result.isError).toBeFalsy()
+    const updated = JSON.parse(body.result.content[0].text)
+    expect(updated.status).toBe("approved")
+  })
+
+  // =====================================================================
+  // Not-found behavior (record lookup, NOT authz)
+  // =====================================================================
+
+  test("get-content returns not found for nonexistent ID", async ({
     request,
   }) => {
     const body = await mcpCall(request, accessToken, "tools/call", {
@@ -381,65 +497,12 @@ test.describe.serial("MCP server", () => {
     expect(body.result.content[0].text).toContain("not found")
   })
 
-  test("get-artifact denies access for nonexistent artifact", async ({
+  test("get-artifact returns not found for nonexistent ID", async ({
     request,
   }) => {
     const body = await mcpCall(request, accessToken, "tools/call", {
       name: "get-artifact",
       arguments: { artifactId: "art_nonexistent" },
-    })
-    expect(body.result).toBeDefined()
-    expect(body.result.isError).toBe(true)
-    expect(body.result.content[0].text).toContain("not found")
-  })
-
-  test("list-artifacts denies access for nonexistent content", async ({
-    request,
-  }) => {
-    const body = await mcpCall(request, accessToken, "tools/call", {
-      name: "list-artifacts",
-      arguments: { contentId: "cnt_nonexistent" },
-    })
-    expect(body.result).toBeDefined()
-    expect(body.result.isError).toBe(true)
-    expect(body.result.content[0].text).toContain("not found")
-  })
-
-  test("save-artifact denies access for nonexistent content", async ({
-    request,
-  }) => {
-    const body = await mcpCall(request, accessToken, "tools/call", {
-      name: "save-artifact",
-      arguments: {
-        contentId: "cnt_nonexistent",
-        type: "draft",
-        title: "Test",
-        data: { text: "test" },
-      },
-    })
-    expect(body.result).toBeDefined()
-    expect(body.result.isError).toBe(true)
-    expect(body.result.content[0].text).toContain("not found")
-  })
-
-  test("update-artifact-status denies access for nonexistent artifact", async ({
-    request,
-  }) => {
-    const body = await mcpCall(request, accessToken, "tools/call", {
-      name: "update-artifact-status",
-      arguments: { artifactId: "art_nonexistent", status: "approved" },
-    })
-    expect(body.result).toBeDefined()
-    expect(body.result.isError).toBe(true)
-    expect(body.result.content[0].text).toContain("not found")
-  })
-
-  test("get-stage-instructions denies access for nonexistent content", async ({
-    request,
-  }) => {
-    const body = await mcpCall(request, accessToken, "tools/call", {
-      name: "get-stage-instructions",
-      arguments: { contentId: "cnt_nonexistent", stageId: "cts_nonexistent" },
     })
     expect(body.result).toBeDefined()
     expect(body.result.isError).toBe(true)
@@ -458,20 +521,12 @@ test.describe.serial("MCP server", () => {
     expect(body.result.content[0].text).toContain("not found")
   })
 
-  // --- Cross-org isolation: real records in a different org ---
-  // Creates a second org with real project/content/artifact data,
-  // then verifies User A's token cannot access any of it.
-
-  const otherOrgId = testId8("org")
-  const otherProjectId = testId8("prj")
-  const otherContentTypeId = testId8("cty")
-  const otherStageId = testId8("cts")
-  const otherContentId = testId8("ct")
-  const otherArtifactId = testId16("atf")
-  const otherOrgName = `Other Org ${testId}`
+  // =====================================================================
+  // Cross-org isolation: real records in a different org
+  // Proves that isOrgMember actually blocks access to existing records
+  // =====================================================================
 
   test("setup: create second org with real records", async () => {
-    // Create org B directly in DB (no user needed — just records for isolation test)
     await db.insert(organization).values({
       id: otherOrgId,
       name: otherOrgName,
@@ -521,6 +576,75 @@ test.describe.serial("MCP server", () => {
     })
   })
 
+  // --- Cross-org: org-param tools with real Org B ID ---
+
+  test("cross-org: list-projects denies access to other org", async ({
+    request,
+  }) => {
+    await expectAccessDenied(request, accessToken, "list-projects", {
+      organizationId: otherOrgId,
+    })
+  })
+
+  test("cross-org: get-project denies access to other org's project", async ({
+    request,
+  }) => {
+    await expectAccessDenied(request, accessToken, "get-project", {
+      organizationId: otherOrgId,
+      projectId: otherProjectId,
+    })
+  })
+
+  test("cross-org: list-content-types denies access to other org", async ({
+    request,
+  }) => {
+    await expectAccessDenied(request, accessToken, "list-content-types", {
+      organizationId: otherOrgId,
+      projectId: otherProjectId,
+    })
+  })
+
+  test("cross-org: list-content denies access to other org", async ({
+    request,
+  }) => {
+    await expectAccessDenied(request, accessToken, "list-content", {
+      organizationId: otherOrgId,
+      projectId: otherProjectId,
+    })
+  })
+
+  test("cross-org: create-content denies access to other org", async ({
+    request,
+  }) => {
+    await expectAccessDenied(request, accessToken, "create-content", {
+      organizationId: otherOrgId,
+      projectId: otherProjectId,
+      contentTypeId: otherContentTypeId,
+      title: "Injected Content",
+    })
+  })
+
+  test("cross-org: list-resources denies access to other org", async ({
+    request,
+  }) => {
+    await expectAccessDenied(request, accessToken, "list-resources", {
+      organizationId: otherOrgId,
+      projectId: otherProjectId,
+    })
+  })
+
+  test("cross-org: get-resource denies access to other org", async ({
+    request,
+  }) => {
+    await expectAccessDenied(request, accessToken, "get-resource", {
+      organizationId: otherOrgId,
+      projectId: otherProjectId,
+      resourceId: "res_nonexistent",
+    })
+  })
+
+  // --- Cross-org: record-scoped tools with real Org B records ---
+
   test("cross-org: get-content denies access to other org's content", async ({
     request,
   }) => {
@@ -557,7 +681,7 @@ test.describe.serial("MCP server", () => {
     expect(body.result.content[0].text).toContain("Access denied")
   })
 
-  test("cross-org: save-artifact denies access to other org's content", async ({
+  test("cross-org: save-artifact denies write to other org's content", async ({
     request,
   }) => {
     const body = await mcpCall(request, accessToken, "tools/call", {
@@ -572,9 +696,21 @@ test.describe.serial("MCP server", () => {
     expect(body.result).toBeDefined()
     expect(body.result.isError).toBe(true)
     expect(body.result.content[0].text).toContain("Access denied")
+
+    // Verify no artifact was actually created
+    const rows = await db
+      .select({ id: artifact.id, title: artifact.title })
+      .from(artifact)
+      .where(
+        and(
+          eq(artifact.contentId, otherContentId),
+          eq(artifact.title, "Injected"),
+        ),
+      )
+    expect(rows).toHaveLength(0)
   })
 
-  test("cross-org: update-artifact-status denies access to other org's artifact", async ({
+  test("cross-org: update-artifact-status denies write to other org's artifact", async ({
     request,
   }) => {
     const body = await mcpCall(request, accessToken, "tools/call", {
@@ -584,6 +720,13 @@ test.describe.serial("MCP server", () => {
     expect(body.result).toBeDefined()
     expect(body.result.isError).toBe(true)
     expect(body.result.content[0].text).toContain("Access denied")
+
+    // Verify artifact status was NOT changed
+    const [row] = await db
+      .select({ status: artifact.status })
+      .from(artifact)
+      .where(eq(artifact.id, otherArtifactId))
+    expect(row.status).toBe("ready")
   })
 
   test("cross-org: get-stage-instructions denies access to other org's content", async ({
@@ -611,16 +754,16 @@ test.describe.serial("MCP server", () => {
     expect(body.result.content[0].text).toContain("not found")
   })
 
-  // --- Cleanup ---
+  // =====================================================================
+  // Cleanup
+  // =====================================================================
 
   test.afterAll(async () => {
-    // Clean up other org records (delete org cascades to project, content, etc.)
     try {
       await db.delete(organization).where(eq(organization.id, otherOrgId))
     } catch {
       // Ignore cleanup errors
     }
-    // Clean up test user and org
     try {
       await db.delete(user).where(eq(user.email, testUser.email))
     } catch {
