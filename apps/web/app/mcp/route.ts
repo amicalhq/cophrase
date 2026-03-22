@@ -44,6 +44,16 @@ export async function GET(request: Request) {
   return transport.handleRequest(request)
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const ctx = await verifyMcpToken(request.headers.get("authorization"))
+  if (!ctx) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: {
+        "Content-Type": "application/json",
+        "WWW-Authenticate": `Bearer resource_metadata="${AUTH_BASE}/.well-known/oauth-protected-resource"`,
+      },
+    })
+  }
   return new Response(null, { status: 204 })
 }

@@ -61,23 +61,18 @@ export const getContentType = {
     const ct = await getContentTypeById(input.contentTypeId)
     if (!ct) {
       return {
-        content: [
-          { type: "text" as const, text: "Content type not found" },
-        ],
+        content: [{ type: "text" as const, text: "Content type not found" }],
         isError: true,
       }
     }
 
+    // Org-scoped content types require membership; app-scoped are public templates
     if (ct.organizationId) {
       const isMember = await isOrgMember(ctx.userId, ct.organizationId)
       if (!isMember) {
+        // Return same error as not-found to avoid leaking existence
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Access denied: not a member of this organization",
-            },
-          ],
+          content: [{ type: "text" as const, text: "Content type not found" }],
           isError: true,
         }
       }
@@ -86,9 +81,7 @@ export const getContentType = {
     const contentType = await getContentTypeWithStages(input.contentTypeId)
     if (!contentType) {
       return {
-        content: [
-          { type: "text" as const, text: "Content type not found" },
-        ],
+        content: [{ type: "text" as const, text: "Content type not found" }],
         isError: true,
       }
     }

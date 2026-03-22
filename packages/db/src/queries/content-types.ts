@@ -158,7 +158,7 @@ export async function getStageWithContext(stageId: string, contentId: string) {
       .where(inArray(agentTool.agentId, subAgentAgentIds))
   }
 
-  const priorArtifacts = await db
+  const existingArtifacts = await db
     .select({
       id: artifact.id,
       type: artifact.type,
@@ -185,7 +185,7 @@ export async function getStageWithContext(stageId: string, contentId: string) {
         .filter((t) => t.agentId === sa.agentId)
         .map((t) => ({ type: t.type, referenceId: t.referenceId, config: t.config })),
     })),
-    priorArtifacts,
+    existingArtifacts,
   }
 }
 
