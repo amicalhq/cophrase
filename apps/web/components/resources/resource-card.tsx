@@ -35,6 +35,11 @@ const categoryLabels: Record<ResourceCategory, string> = {
   competitor_info: "Competitor Info",
   target_audience: "Target Audience",
   website: "Website",
+  target_keywords: "Target Keywords",
+  seo_guidelines: "SEO Guidelines",
+  style_guide: "Style Guide",
+  writing_examples: "Writing Examples",
+  internal_links: "Internal Links",
   other: "Other",
 }
 
@@ -46,6 +51,11 @@ const categoryVariants: Record<ResourceCategory, string> = {
   competitor_info: "bg-red-500/10 text-red-500",
   target_audience: "bg-orange-500/10 text-orange-500",
   website: "bg-cyan-500/10 text-cyan-500",
+  target_keywords: "bg-teal-500/10 text-teal-500",
+  seo_guidelines: "bg-lime-500/10 text-lime-500",
+  style_guide: "bg-violet-500/10 text-violet-500",
+  writing_examples: "bg-pink-500/10 text-pink-500",
+  internal_links: "bg-sky-500/10 text-sky-500",
   other: "bg-gray-500/10 text-gray-500",
 }
 

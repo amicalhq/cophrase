@@ -41,6 +41,11 @@ export const resourceCategoryEnum = pgEnum("resource_category", [
   "competitor_info",
   "target_audience",
   "website",
+  "target_keywords",
+  "seo_guidelines",
+  "style_guide",
+  "writing_examples",
+  "internal_links",
   "other",
 ])
 export type ResourceCategory = (typeof resourceCategoryEnum.enumValues)[number]

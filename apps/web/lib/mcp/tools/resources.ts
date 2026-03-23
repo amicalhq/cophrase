@@ -6,6 +6,7 @@ import {
 } from "@workspace/db/queries/resources"
 import { isOrgMember } from "@workspace/db/queries/projects"
 import type { ResourceType, ResourceCategory } from "@workspace/db/schema"
+import { getCategoryLabel, getCategoryDescription } from "@workspace/db/resource-categories"
 import type { McpContext } from "@/lib/mcp/types"
 
 export const listResources = {
@@ -27,6 +28,11 @@ export const listResources = {
         "competitor_info",
         "target_audience",
         "website",
+        "target_keywords",
+        "seo_guidelines",
+        "style_guide",
+        "writing_examples",
+        "internal_links",
         "other",
       ])
       .optional()
@@ -60,8 +66,14 @@ export const listResources = {
       { type: input.type, category: input.category },
     )
 
+    const enriched = resources.map((r: Record<string, unknown>) => ({
+      ...r,
+      categoryLabel: getCategoryLabel(r.category as string),
+      description: (r as { description?: string | null }).description ?? getCategoryDescription(r.category as string),
+    }))
+
     return {
-      content: [{ type: "text" as const, text: JSON.stringify(resources) }],
+      content: [{ type: "text" as const, text: JSON.stringify(enriched) }],
     }
   },
 }

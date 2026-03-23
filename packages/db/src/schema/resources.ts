@@ -26,6 +26,7 @@ export const resource = pgTable(
       onDelete: "set null",
     }),
     title: text("title").notNull(),
+    description: text("description"),
     type: resourceTypeEnum("type").notNull(),
     category: resourceCategoryEnum("category").notNull(),
     linkUrl: text("link_url"),

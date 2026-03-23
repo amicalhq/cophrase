@@ -16,7 +16,8 @@
     "./queries/agent-runs": "./src/queries/agent-runs.ts",
     "./queries/harness-messages": "./src/queries/harness-messages.ts",
     "./queries/content-types": "./src/queries/content-types.ts",
-    "./crypto": "./src/crypto.ts"
+    "./crypto": "./src/crypto.ts",
+    "./resource-categories": "./src/resource-categories.ts"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",

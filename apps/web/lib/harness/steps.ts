@@ -123,9 +123,18 @@ ${config.stages
 function buildSubAgentUserMessage(
   contentTypeName: string,
   contentTitle: string,
-  artifactRefs?: Array<{ id: string; title: string; type: string; version: number }>
+  artifactRefs?: Array<{ id: string; title: string; type: string; version: number }>,
+  resources?: Array<{ title: string; category: string; content: string }>,
 ): string {
   let msg = `Execute your task for a ${contentTypeName} about: "${contentTitle}".`
+
+  if (resources && resources.length > 0) {
+    msg += "\n\n## Project Context\n"
+    for (const r of resources) {
+      msg += `\n### ${r.title} (${r.category})\n${r.content}\n`
+    }
+  }
+
   if (artifactRefs && artifactRefs.length > 0) {
     const list = artifactRefs
       .map((a) => `"${a.title}" (${a.type} v${a.version}, id: ${a.id})`)
@@ -396,6 +405,14 @@ export async function runSubAgentInline(input: {
 export async function runStageStep(input: {
   stageId: string
   artifactIds?: string[]
+  agentNames?: string[]
+  resources?: Array<{
+    id: string
+    title: string
+    category: string
+    categoryLabel: string
+    content: string
+  }>
   config: DynamicHarnessConfig
   organizationId: string
   projectId: string
@@ -469,6 +486,28 @@ export async function runStageStep(input: {
     reasoningText?: string
     text?: string
   }> = []
+
+  // Truncate resources to 100k chars total.
+  // Note: mutations below are intentional — sorted array elements reference
+  // the same objects as resourcesForMessage, so truncating here affects both.
+  const MAX_RESOURCE_CHARS = 100_000
+  const TRUNCATION_SUFFIX = "\n[truncated]"
+  let resourcesForMessage = input.resources
+  if (resourcesForMessage && resourcesForMessage.length > 0) {
+    let totalChars = resourcesForMessage.reduce((sum, r) => sum + r.content.length, 0)
+    if (totalChars > MAX_RESOURCE_CHARS) {
+      const sorted = [...resourcesForMessage].sort((a, b) => b.content.length - a.content.length)
+      for (const r of sorted) {
+        if (totalChars <= MAX_RESOURCE_CHARS) break
+        const excess = totalChars - MAX_RESOURCE_CHARS
+        const newLen = Math.max(r.content.length - excess - TRUNCATION_SUFFIX.length, 0)
+        r.content = r.content.slice(0, newLen) + TRUNCATION_SUFFIX
+        totalChars = sorted.reduce((sum, r2) => sum + r2.content.length, 0)
+      }
+      console.warn(`[harness] Resource content truncated to ${MAX_RESOURCE_CHARS} chars`)
+      resourcesForMessage = sorted
+    }
+  }
 
   for (const sa of stage.subAgents) {
     const toolRecords = await getAgentTools(sa.agentId)
@@ -576,7 +615,12 @@ export async function runStageStep(input: {
       const result = await generateText({
         model,
         system: sa.prompt,
-        messages: [{ role: "user" as const, content: buildSubAgentUserMessage(input.config.contentTypeName, contentTitle, artifactRefs.length > 0 ? artifactRefs : undefined) }],
+        messages: [{ role: "user" as const, content: buildSubAgentUserMessage(
+          input.config.contentTypeName,
+          contentTitle,
+          artifactRefs.length > 0 ? artifactRefs : undefined,
+          resourcesForMessage,
+        ) }],
         tools: subTools,
         stopWhen: stepCountIs(15),
       })
@@ -651,4 +695,48 @@ export async function searchArtifactsStep(input: {
 }) {
   "use step"
   return handleSearchArtifacts(input)
+}
+
+// ---------------------------------------------------------------------------
+// Resource tools for context injection
+// ---------------------------------------------------------------------------
+
+export async function listResourcesStep(input: {
+  projectId: string
+  organizationId: string
+  category?: string
+}) {
+  "use step"
+
+  const { getResourcesForAgent } = await import(
+    "@workspace/db/queries/resources"
+  )
+  return {
+    resources: await getResourcesForAgent(
+      input.projectId,
+      input.organizationId,
+      input.category,
+    ),
+  }
+}
+
+export async function getResourceStep(input: {
+  resourceId: string
+  projectId: string
+  organizationId: string
+}) {
+  "use step"
+
+  const { getResourceContentForAgent } = await import(
+    "@workspace/db/queries/resources"
+  )
+  const result = await getResourceContentForAgent(
+    input.resourceId,
+    input.projectId,
+    input.organizationId,
+  )
+  if (!result) {
+    return { error: "Resource not found" }
+  }
+  return result
 }

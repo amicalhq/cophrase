@@ -43,6 +43,11 @@ const categoryOptions: { value: ResourceCategory; label: string }[] = [
   { value: "competitor_info", label: "Competitor Info" },
   { value: "target_audience", label: "Target Audience" },
   { value: "website", label: "Website" },
+  { value: "target_keywords", label: "Target Keywords" },
+  { value: "seo_guidelines", label: "SEO Guidelines" },
+  { value: "style_guide", label: "Style Guide" },
+  { value: "writing_examples", label: "Writing Examples" },
+  { value: "internal_links", label: "Internal Links" },
   { value: "other", label: "Other" },
 ]
 
@@ -64,6 +69,7 @@ export function ResourceGrid({
   const [editResource, setEditResource] = useState<{
     id: string
     title: string
+    description?: string | null
     type: ResourceType
     category: ResourceCategory
     linkUrl?: string | null
@@ -95,6 +101,7 @@ export function ResourceGrid({
       setEditResource({
         id: data.id as string,
         title: data.title as string,
+        description: (data.description as string | null) ?? null,
         type: data.type as ResourceType,
         category: data.category as ResourceCategory,
         linkUrl: (data.linkUrl as string | null) ?? null,

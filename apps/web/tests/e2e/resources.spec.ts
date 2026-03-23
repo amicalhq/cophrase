@@ -268,4 +268,170 @@ test.describe.serial("Resources", () => {
       timeout: 5_000,
     })
   })
+
+  test("create resource with new category (SEO Guidelines)", async ({
+    page,
+  }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
+
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/resources`)
+
+    await page.getByRole("button", { name: "Add resource" }).click()
+
+    // Select "SEO Guidelines" category
+    await page.getByText("Select a category").click()
+    await page.getByRole("option", { name: "SEO Guidelines" }).click()
+
+    // Select "Text" type
+    await page.getByRole("button", { name: "Text" }).click()
+
+    // Fill title
+    await page.getByLabel("Title").fill("On-Page SEO Rules")
+
+    // Fill content in ProseMirror
+    await page
+      .locator(".ProseMirror")
+      .fill("Always include primary keyword in H1")
+
+    await page.getByRole("button", { name: "Create" }).click()
+
+    // Verify card appears with title
+    await expect(page.getByText("On-Page SEO Rules")).toBeVisible({
+      timeout: 5_000,
+    })
+
+    // Verify card shows "SEO Guidelines" category badge
+    await expect(
+      page
+        .locator("[data-testid='resource-card']")
+        .filter({ hasText: "SEO Guidelines" })
+    ).toBeVisible()
+  })
+
+  test("create resource with description field", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
+
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/resources`)
+
+    await page.getByRole("button", { name: "Add resource" }).click()
+
+    // Select "Brand Voice" category
+    await page.getByText("Select a category").click()
+    await page.getByRole("option", { name: "Brand Voice" }).click()
+
+    // Select "Text" type
+    await page.getByRole("button", { name: "Text" }).click()
+
+    // Fill title
+    await page.getByLabel("Title").fill("Voice Guide with Description")
+
+    // Fill description
+    await page
+      .getByLabel("Description")
+      .fill("Defines our brand tone for content agents")
+
+    // Fill content in ProseMirror
+    await page
+      .locator(".ProseMirror")
+      .fill("We write with clarity and warmth.")
+
+    await page.getByRole("button", { name: "Create" }).click()
+
+    // Verify card appears with title
+    await expect(page.getByText("Voice Guide with Description")).toBeVisible({
+      timeout: 5_000,
+    })
+  })
+
+  test("verify description persists on edit", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
+
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/resources`)
+
+    // Click on the resource card to open edit dialog
+    await page.getByText("Voice Guide with Description").click()
+
+    // Verify the description field contains the expected value
+    await expect(page.getByLabel("Description")).toHaveValue(
+      "Defines our brand tone for content agents"
+    )
+  })
+
+  test("API: list resources returns description and new categories", async ({
+    page,
+  }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
+
+    const resources = await trpcQuery(page.request, "resources.list", {
+      orgId,
+      projectId,
+    })
+
+    // Find the "On-Page SEO Rules" resource and verify its category
+    const seoResource = resources.find(
+      (r: { title: string }) => r.title === "On-Page SEO Rules"
+    )
+    expect(seoResource).toBeTruthy()
+    expect(seoResource.category).toBe("seo_guidelines")
+
+    // Find the "Voice Guide with Description" resource and verify description
+    const voiceResource = resources.find(
+      (r: { title: string }) => r.title === "Voice Guide with Description"
+    )
+    expect(voiceResource).toBeTruthy()
+    expect(voiceResource.description).toBe(
+      "Defines our brand tone for content agents"
+    )
+  })
+
+  test("API: create resource with new category via tRPC", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
+
+    const result = await trpcMutate(page.request, "resources.create", {
+      orgId,
+      projectId,
+      title: "Internal Link Map",
+      type: "text",
+      category: "internal_links",
+      description: "Key pages to link to from blog posts",
+      content: {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: "Link to /pricing from pricing-related content",
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    // Verify the created resource has the right id format
+    expect(result.id).toBeTruthy()
+    expect(result.id).toMatch(/^res_/)
+  })
 })

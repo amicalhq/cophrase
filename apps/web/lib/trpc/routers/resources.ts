@@ -122,6 +122,7 @@ export const resourcesRouter = router({
           .transform((s) => s.trim()),
         type: z.enum(resourceTypeEnum.enumValues),
         category: z.enum(resourceCategoryEnum.enumValues),
+        description: z.string().optional(),
         linkUrl: z.string().optional(),
         fileName: z.string().optional(),
         fileMimeType: z.string().optional(),
@@ -136,6 +137,7 @@ export const resourcesRouter = router({
         title,
         type,
         category,
+        description,
         linkUrl,
         fileName,
         fileMimeType,
@@ -224,6 +226,7 @@ export const resourcesRouter = router({
         title,
         type,
         category,
+        description,
         linkUrl: type === "link" ? linkUrl : undefined,
         content: type === "text" ? content : undefined,
       })
@@ -269,6 +272,7 @@ export const resourcesRouter = router({
           )
           .optional(),
         category: z.enum(resourceCategoryEnum.enumValues).optional(),
+        description: z.string().nullable().optional(),
         linkUrl: z.string().optional(),
         content: z.record(z.string(), z.unknown()).optional(),
         fileName: z.string().optional(),
@@ -283,6 +287,7 @@ export const resourcesRouter = router({
         projectId,
         title,
         category,
+        description,
         linkUrl,
         content,
         fileName,
@@ -301,6 +306,7 @@ export const resourcesRouter = router({
       const updateData: Record<string, unknown> = {}
       if (title !== undefined) updateData.title = title.trim()
       if (category) updateData.category = category
+      if (description !== undefined) updateData.description = description
       if (content !== undefined) updateData.content = content
 
       if (existing.type === "link" && linkUrl !== undefined) {

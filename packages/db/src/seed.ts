@@ -94,7 +94,24 @@ Workflow:
 
 After all stages complete, call the suggest-next-actions tool to surface relevant follow-up actions to the user.
 
-Keep your orchestration messages concise. Pass artifact IDs between stages so each sub-agent can load prior work.`,
+Keep your orchestration messages concise. Pass artifact IDs between stages so each sub-agent can load prior work.
+
+## Project Resources
+
+Before running a stage, browse the project's resource library to find relevant context for the sub-agents.
+
+1. Call list-resources to see what's available (titles, categories, descriptions)
+2. Based on the stage being run, decide which resources are relevant:
+   - Research stages: brand_voice, target_audience, product_features, competitor_info, target_keywords
+   - Writing/drafting stages: brand_voice, style_guide, writing_examples, seo_guidelines, target_keywords, product_features
+   - Refinement/optimization stages: seo_guidelines, target_keywords, internal_links, style_guide
+   - These are guidelines — use your judgement based on what's actually available
+3. Call get-resource for each relevant resource
+4. Pass the fetched resources in the run-stage call via the resources parameter
+
+If no resources exist for the project, proceed without them — they are optional context.
+
+Note: Only "text" type resources have inline content. "link" resources provide a URL but no content (useful as references). "file" resources are not yet extractable — skip them.`,
   },
   {
     id: "seed_agt_x_ca",
@@ -114,7 +131,24 @@ Workflow:
 
 After all stages complete, call the suggest-next-actions tool to surface relevant follow-up actions.
 
-Keep orchestration messages brief. Pass artifact IDs so the Writer agent can load research findings.`,
+Keep orchestration messages brief. Pass artifact IDs so the Writer agent can load research findings.
+
+## Project Resources
+
+Before running a stage, browse the project's resource library to find relevant context for the sub-agents.
+
+1. Call list-resources to see what's available (titles, categories, descriptions)
+2. Based on the stage being run, decide which resources are relevant:
+   - Research stages: brand_voice, target_audience, product_features, competitor_info, target_keywords
+   - Writing/drafting stages: brand_voice, style_guide, writing_examples, seo_guidelines, target_keywords, product_features
+   - Refinement/optimization stages: seo_guidelines, target_keywords, internal_links, style_guide
+   - These are guidelines — use your judgement based on what's actually available
+3. Call get-resource for each relevant resource
+4. Pass the fetched resources in the run-stage call via the resources parameter
+
+If no resources exist for the project, proceed without them — they are optional context.
+
+Note: Only "text" type resources have inline content. "link" resources provide a URL but no content (useful as references). "file" resources are not yet extractable — skip them.`,
   },
   {
     id: "seed_agt_li_ca",
@@ -136,7 +170,24 @@ Workflow:
 
 After all stages complete, call the suggest-next-actions tool to surface relevant follow-up actions.
 
-Pass artifact IDs between stages so each sub-agent has access to previous work.`,
+Pass artifact IDs between stages so each sub-agent has access to previous work.
+
+## Project Resources
+
+Before running a stage, browse the project's resource library to find relevant context for the sub-agents.
+
+1. Call list-resources to see what's available (titles, categories, descriptions)
+2. Based on the stage being run, decide which resources are relevant:
+   - Research stages: brand_voice, target_audience, product_features, competitor_info, target_keywords
+   - Writing/drafting stages: brand_voice, style_guide, writing_examples, seo_guidelines, target_keywords, product_features
+   - Refinement/optimization stages: seo_guidelines, target_keywords, internal_links, style_guide
+   - These are guidelines — use your judgement based on what's actually available
+3. Call get-resource for each relevant resource
+4. Pass the fetched resources in the run-stage call via the resources parameter
+
+If no resources exist for the project, proceed without them — they are optional context.
+
+Note: Only "text" type resources have inline content. "link" resources provide a URL but no content (useful as references). "file" resources are not yet extractable — skip them.`,
   },
   {
     id: "seed_agt_cl_ca",
@@ -158,7 +209,24 @@ Workflow:
 
 After all stages complete, call the suggest-next-actions tool to surface relevant follow-up actions.
 
-Pass artifact IDs between stages. Be precise: changelogs are read by developers who depend on accuracy.`,
+Pass artifact IDs between stages. Be precise: changelogs are read by developers who depend on accuracy.
+
+## Project Resources
+
+Before running a stage, browse the project's resource library to find relevant context for the sub-agents.
+
+1. Call list-resources to see what's available (titles, categories, descriptions)
+2. Based on the stage being run, decide which resources are relevant:
+   - Research stages: brand_voice, target_audience, product_features, competitor_info, target_keywords
+   - Writing/drafting stages: brand_voice, style_guide, writing_examples, seo_guidelines, target_keywords, product_features
+   - Refinement/optimization stages: seo_guidelines, target_keywords, internal_links, style_guide
+   - These are guidelines — use your judgement based on what's actually available
+3. Call get-resource for each relevant resource
+4. Pass the fetched resources in the run-stage call via the resources parameter
+
+If no resources exist for the project, proceed without them — they are optional context.
+
+Note: Only "text" type resources have inline content. "link" resources provide a URL but no content (useful as references). "file" resources are not yet extractable — skip them.`,
   },
   {
     id: "seed_agt_nl_ca",
@@ -180,7 +248,24 @@ Workflow:
 
 After all stages complete, call the suggest-next-actions tool to surface relevant follow-up actions.
 
-Pass artifact IDs between stages so each sub-agent can build on prior work.`,
+Pass artifact IDs between stages so each sub-agent can build on prior work.
+
+## Project Resources
+
+Before running a stage, browse the project's resource library to find relevant context for the sub-agents.
+
+1. Call list-resources to see what's available (titles, categories, descriptions)
+2. Based on the stage being run, decide which resources are relevant:
+   - Research stages: brand_voice, target_audience, product_features, competitor_info, target_keywords
+   - Writing/drafting stages: brand_voice, style_guide, writing_examples, seo_guidelines, target_keywords, product_features
+   - Refinement/optimization stages: seo_guidelines, target_keywords, internal_links, style_guide
+   - These are guidelines — use your judgement based on what's actually available
+3. Call get-resource for each relevant resource
+4. Pass the fetched resources in the run-stage call via the resources parameter
+
+If no resources exist for the project, proceed without them — they are optional context.
+
+Note: Only "text" type resources have inline content. "link" resources provide a URL but no content (useful as references). "file" resources are not yet extractable — skip them.`,
   },
 
   // ── Blog sub-agents ──────────────────────────────────────────────────────

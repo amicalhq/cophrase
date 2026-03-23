@@ -468,6 +468,8 @@ function useHarnessChat(contentId: string) {
 
 function SubAgentRow({
   agent,
+  inputResources,
+  inputArtifacts,
   onArtifactClick,
 }: {
   agent: {
@@ -478,8 +480,14 @@ function SubAgentRow({
     durationMs?: number
     reasoningText?: string
   }
+  inputResources?: Array<{ id: string; categoryLabel: string }>
+  inputArtifacts?: Array<{ id: string; title: string }>
   onArtifactClick?: (artifactId: string) => void
 }) {
+  const hasInput =
+    (inputResources && inputResources.length > 0) ||
+    (inputArtifacts && inputArtifacts.length > 0)
+
   return (
     <Collapsible defaultOpen>
       <CollapsibleTrigger className="flex w-full items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
@@ -493,25 +501,60 @@ function SubAgentRow({
         <ChevronDownIcon className="ml-auto size-3" />
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-1 space-y-1 pl-7 text-xs text-muted-foreground">
-        {agent.success ? (
-          agent.artifacts.length > 0 ? (
+        {hasInput && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-medium text-muted-foreground/80">Input</p>
             <div className="flex flex-wrap gap-1">
-              {agent.artifacts.map((a) =>
+              {inputResources?.map((r) => (
+                <Badge
+                  key={r.id}
+                  variant="outline"
+                  className="h-5 px-1.5 text-[10px]"
+                >
+                  {r.categoryLabel}
+                </Badge>
+              ))}
+              {inputArtifacts?.map((a) =>
                 onArtifactClick ? (
                   <button
                     key={a.id}
                     type="button"
-                    className="text-primary underline hover:no-underline"
+                    className="text-[10px] text-primary underline hover:no-underline"
                     onClick={() => onArtifactClick(a.id)}
                   >
-                    {a.title ?? a.type} v{a.version}
+                    {a.title}
                   </button>
                 ) : (
-                  <span key={a.id}>
-                    {a.title ?? a.type} v{a.version}
+                  <span key={a.id} className="text-[10px]">
+                    {a.title}
                   </span>
                 )
               )}
+            </div>
+          </div>
+        )}
+        {agent.success ? (
+          agent.artifacts.length > 0 ? (
+            <div className="space-y-0.5">
+              <p className="text-[10px] font-medium text-muted-foreground/80">Output</p>
+              <div className="flex flex-wrap gap-1">
+                {agent.artifacts.map((a) =>
+                  onArtifactClick ? (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="text-primary underline hover:no-underline"
+                      onClick={() => onArtifactClick(a.id)}
+                    >
+                      {a.title ?? a.type} v{a.version}
+                    </button>
+                  ) : (
+                    <span key={a.id}>
+                      {a.title ?? a.type} v{a.version}
+                    </span>
+                  )
+                )}
+              </div>
             </div>
           ) : null
         ) : (
@@ -548,9 +591,11 @@ function SubAgentRow({
 
 function RunStageBlock({
   toolCall,
+  allArtifacts,
   onArtifactClick,
 }: {
   toolCall: ToolCallResult
+  allArtifacts?: Array<{ id: string; title: string }>
   onArtifactClick?: (artifactId: string) => void
 }) {
   const { state, input, result } = toolCall
@@ -576,6 +621,36 @@ function RunStageBlock({
       durationMs?: number
       reasoningText?: string
     }>
+    // Extract input resources and artifacts for sub-agent rows
+    const inputResources = (inp?.resources ?? []) as Array<{
+      id: string
+      categoryLabel: string
+    }>
+    const inputArtifactIds = (inp?.artifactIds ?? []) as string[]
+    // Build a title lookup — allArtifacts (from ChatPanel) has titles for
+    // artifacts from ALL stages, not just this one
+    const artifactTitleMap = new Map<string, string>()
+    for (const a of allArtifacts ?? []) {
+      artifactTitleMap.set(a.id, a.title)
+    }
+    // Also include artifacts from this stage's result as fallback
+    const stageArtifacts = (res?.artifacts ?? []) as ArtifactRef[]
+    for (const a of stageArtifacts) {
+      if (!artifactTitleMap.has(a.id)) {
+        artifactTitleMap.set(a.id, a.title ?? a.type)
+      }
+    }
+    for (const sr of subAgentResults) {
+      for (const a of sr.artifacts) {
+        if (!artifactTitleMap.has(a.id)) {
+          artifactTitleMap.set(a.id, a.title ?? a.type)
+        }
+      }
+    }
+    const inputArtifactRefs = inputArtifactIds.map((id) => ({
+      id,
+      title: artifactTitleMap.get(id) ?? id,
+    }))
 
     return (
       <div className="not-prose my-2 space-y-1">
@@ -601,6 +676,8 @@ function RunStageBlock({
                 <SubAgentRow
                   key={i}
                   agent={sr}
+                  inputResources={inputResources.length > 0 ? inputResources : undefined}
+                  inputArtifacts={inputArtifactRefs.length > 0 ? inputArtifactRefs : undefined}
                   onArtifactClick={onArtifactClick}
                 />
               ))}
@@ -676,15 +753,17 @@ function RunStageBlock({
 
 function ToolCallBlock({
   toolCall,
+  allArtifacts,
   onArtifactClick,
 }: {
   toolCall: ToolCallResult
+  allArtifacts?: Array<{ id: string; title: string }>
   onArtifactClick?: (artifactId: string) => void
 }) {
   // Route run-stage to its dedicated component
   if (toolCall.toolName === "run-stage") {
     return (
-      <RunStageBlock toolCall={toolCall} onArtifactClick={onArtifactClick} />
+      <RunStageBlock toolCall={toolCall} allArtifacts={allArtifacts} onArtifactClick={onArtifactClick} />
     )
   }
 
@@ -889,6 +968,50 @@ function ToolResultDisplay({
     }
   }
 
+  // list-resources: show found resources
+  if (toolName === "list-resources" && res) {
+    const resources = (res.resources ?? []) as Array<{
+      id: string
+      title: string
+      categoryLabel: string
+      type: string
+    }>
+    return (
+      <div className="space-y-1.5">
+        <p>Found {resources.length} resource(s)</p>
+        {resources.length > 0 && (
+          <ul className="list-inside list-disc space-y-0.5">
+            {resources.map((r) => (
+              <li key={r.id}>
+                <span className="font-medium">{r.title}</span>
+                <span className="text-muted-foreground">
+                  {" "}· {r.categoryLabel} · {r.type}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
+  }
+
+  // get-resource: show loaded resource
+  if (toolName === "get-resource" && res && !res.error) {
+    const loadedTitle = res.title as string | undefined
+    const category = res.category as string | undefined
+    const type = res.type as string | undefined
+    return (
+      <p>
+        Loaded{" "}
+        <span className="font-medium">{loadedTitle ?? "resource"}</span>
+        {category && (
+          <span className="text-muted-foreground"> · {category}</span>
+        )}
+        {type && <span className="text-muted-foreground"> · {type}</span>}
+      </p>
+    )
+  }
+
   // Fallback: raw JSON
   return (
     <pre className="max-h-40 overflow-x-auto rounded-md bg-muted p-2 text-[10px]">
@@ -926,6 +1049,14 @@ function formatToolLabel(
     case "web-search": {
       const query = inp?.query as string | undefined
       return query ? `Search "${query}"` : "Web search"
+    }
+    case "list-resources": {
+      const cat = inp?.category as string | undefined
+      return cat ? `Resources (${cat})` : "Resources"
+    }
+    case "get-resource": {
+      const title = (res?.title as string | undefined) ?? undefined
+      return title ? `Load "${title}"` : "Load resource"
     }
     default:
       return toolName.replace(/-/g, " ")
@@ -1180,6 +1311,7 @@ export function ChatPanel({
                             <ToolCallBlock
                               key={`${message.id}-tool-${i}`}
                               toolCall={tc}
+                              allArtifacts={artifacts}
                               onArtifactClick={onArtifactClick}
                             />
                           ))}

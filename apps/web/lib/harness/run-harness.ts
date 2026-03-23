@@ -18,6 +18,8 @@ import {
   runStageStep,
   getContentStatusStep,
   searchArtifactsStep,
+  listResourcesStep,
+  getResourceStep,
   loadHarnessConfigStep,
   resolveModelMetaStep,
 } from "./steps"
@@ -103,18 +105,42 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
               "Artifact IDs from previous stages to pass as input. " +
                 "Always include relevant artifacts so the next stage builds on prior work."
             ),
+          resources: z
+            .array(
+              z.object({
+                id: z.string(),
+                title: z.string(),
+                category: z.string(),
+                categoryLabel: z.string().describe("Human-readable category label for UI display"),
+                content: z.string().describe("The resource content as plaintext"),
+              })
+            )
+            .optional()
+            .describe(
+              "Resources to inject as context for sub-agents. Fetch with list-resources and get-resource first."
+            ),
         }),
         execute: async (
           input: {
             stageId: string
             stageName?: string
+            agentNames?: string[]
             artifactIds?: string[]
+            resources?: Array<{
+              id: string
+              title: string
+              category: string
+              categoryLabel: string
+              content: string
+            }>
           },
           options?: { toolCallId?: string }
         ) => {
           const result = await runStageStep({
             stageId: input.stageId,
             artifactIds: input.artifactIds,
+            agentNames: input.agentNames,
+            resources: input.resources,
             config,
             organizationId: args.organizationId,
             projectId: args.projectId,
@@ -171,6 +197,61 @@ ${SUGGEST_ACTIONS_INSTRUCTION}`
           if (options?.toolCallId) {
             capturedToolCalls.set(options.toolCallId, {
               toolName: "search-artifacts",
+              input,
+              result,
+            })
+          }
+          return result
+        },
+      },
+      "list-resources": {
+        description:
+          "Browse available project resources. Returns metadata (title, category, description) without content. Use this to decide which resources are relevant before fetching with get-resource.",
+        inputSchema: z.object({
+          category: z
+            .string()
+            .optional()
+            .describe("Filter by category slug (e.g. 'brand_voice', 'seo_guidelines')"),
+        }),
+        execute: async (
+          input: { category?: string },
+          options?: { toolCallId?: string }
+        ) => {
+          const result = await listResourcesStep({
+            projectId: args.projectId,
+            organizationId: args.organizationId,
+            category: input.category,
+          })
+          if (options?.toolCallId) {
+            capturedToolCalls.set(options.toolCallId, {
+              toolName: "list-resources",
+              input,
+              result,
+            })
+          }
+          return result
+        },
+      },
+      "get-resource": {
+        description:
+          "Fetch the full content of a resource by ID. Use list-resources first to find relevant resources.",
+        inputSchema: z.object({
+          resourceId: z
+            .string()
+            .describe("The resource ID from list-resources"),
+        }),
+        execute: async (
+          input: { resourceId: string },
+          options?: { toolCallId?: string }
+        ) => {
+          const result = await getResourceStep({
+            resourceId: input.resourceId,
+            projectId: args.projectId,
+            organizationId: args.organizationId,
+          })
+          if (options?.toolCallId) {
+            capturedToolCalls.set(options.toolCallId, {
+              toolName: "get-resource",
               input,
               result,
             })
