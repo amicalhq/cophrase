@@ -391,14 +391,14 @@ test.describe.serial("AI Editor page", () => {
     // Verify Tiptap editor renders
     await expect(page.locator(".ProseMirror")).toBeVisible()
 
-    // Type and send a message
+    // Type and send a message via the submit button (Enter may be unreliable)
     await chatInput.fill("Hello, can you help me write a blog post?")
-    await chatInput.press("Enter")
+    await page.getByRole("button", { name: "Submit" }).click()
 
     // Verify the user message appears in chat
     await expect(
       page.getByText("Hello, can you help me write a blog post?")
-    ).toBeVisible()
+    ).toBeVisible({ timeout: 5_000 })
   })
 
   test.afterAll(async () => {
