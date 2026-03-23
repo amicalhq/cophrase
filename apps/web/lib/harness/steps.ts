@@ -73,6 +73,15 @@ export async function buildContextStep(
       ? await getCompletedRunsByAgentIds(allSubAgentIds, ctx.contentId)
       : new Set<string>()
 
+  // Fetch project resources so the agent knows what's available
+  const { getResourcesForAgent } = await import(
+    "@workspace/db/queries/resources"
+  )
+  const projectResources = await getResourcesForAgent(
+    ctx.projectId,
+    ctx.organizationId,
+  )
+
   const currentStageId = contentRow?.currentStageId ?? null
 
   // Build pipeline view
@@ -95,6 +104,23 @@ export async function buildContextStep(
           .join("\n")
       : "No artifacts yet."
 
+  // Build resource summary so the agent knows resources exist and should be fetched
+  let resourceSummary: string
+  if (projectResources.length === 0) {
+    resourceSummary = "No project resources available."
+  } else {
+    const byCategory = new Map<string, string[]>()
+    for (const r of projectResources) {
+      const list = byCategory.get(r.categoryLabel) ?? []
+      list.push(r.title)
+      byCategory.set(r.categoryLabel, list)
+    }
+    const lines = Array.from(byCategory.entries()).map(
+      ([cat, titles]) => `- ${cat}: ${titles.join(", ")}`,
+    )
+    resourceSummary = `${projectResources.length} resources available — use list-resources and get-resource to fetch them before running stages:\n${lines.join("\n")}`
+  }
+
   return `
 Current content: "${contentRow?.title ?? ctx.contentTitle}"
 Content type: ${config.contentTypeName}
@@ -106,6 +132,9 @@ Current stage: ${currentStage ? `${currentStage.position}/${config.stages.length
 
 Artifacts:
 ${artifactSummary}
+
+Project Resources:
+${resourceSummary}
 
 Available stages you can run:
 ${config.stages
