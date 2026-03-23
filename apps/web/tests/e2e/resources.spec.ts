@@ -66,7 +66,9 @@ test.describe.serial("Resources", () => {
 
     await page.goto(`/orgs/${orgId}/projects/${projectId}/content`)
 
-    await expect(page.getByRole("link", { name: "Resources" })).toBeVisible()
+    await expect(
+      page.getByRole("link", { name: "Resources", exact: true })
+    ).toBeVisible()
   })
 
   test("resources page shows empty state", async ({ page }) => {
@@ -312,66 +314,7 @@ test.describe.serial("Resources", () => {
     ).toBeVisible()
   })
 
-  test("create resource with description field", async ({ page }) => {
-    await page.goto("/sign-in")
-    await page.getByLabel("Email").fill(testUser.email)
-    await page.getByLabel("Password").fill(testUser.password)
-    await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
-
-    await page.goto(`/orgs/${orgId}/projects/${projectId}/resources`)
-
-    await page.getByRole("button", { name: "Add resource" }).click()
-
-    // Select "Brand Voice" category
-    await page.getByText("Select a category").click()
-    await page.getByRole("option", { name: "Brand Voice" }).click()
-
-    // Select "Text" type
-    await page.getByRole("button", { name: "Text" }).click()
-
-    // Fill title
-    await page.getByLabel("Title").fill("Voice Guide with Description")
-
-    // Fill description
-    await page
-      .getByLabel("Description")
-      .fill("Defines our brand tone for content agents")
-
-    // Fill content in ProseMirror
-    await page
-      .locator(".ProseMirror")
-      .fill("We write with clarity and warmth.")
-
-    await page.getByRole("button", { name: "Create" }).click()
-
-    // Verify card appears with title
-    await expect(page.getByText("Voice Guide with Description")).toBeVisible({
-      timeout: 5_000,
-    })
-  })
-
-  test("verify description persists on edit", async ({ page }) => {
-    await page.goto("/sign-in")
-    await page.getByLabel("Email").fill(testUser.email)
-    await page.getByLabel("Password").fill(testUser.password)
-    await page.getByRole("button", { name: "Sign in" }).click()
-    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
-
-    await page.goto(`/orgs/${orgId}/projects/${projectId}/resources`)
-
-    // Click on the resource card to open edit dialog
-    await page.getByText("Voice Guide with Description").click()
-
-    // Verify the description field contains the expected value
-    await expect(page.getByLabel("Description")).toHaveValue(
-      "Defines our brand tone for content agents"
-    )
-  })
-
-  test("API: list resources returns description and new categories", async ({
-    page,
-  }) => {
+  test("API: list resources returns new categories", async ({ page }) => {
     await page.goto("/sign-in")
     await page.getByLabel("Email").fill(testUser.email)
     await page.getByLabel("Password").fill(testUser.password)
@@ -389,8 +332,40 @@ test.describe.serial("Resources", () => {
     )
     expect(seoResource).toBeTruthy()
     expect(seoResource.category).toBe("seo_guidelines")
+  })
 
-    // Find the "Voice Guide with Description" resource and verify description
+  test("API: create resource with description via tRPC", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
+
+    // Create a resource with description via API
+    const created = await trpcMutate(page.request, "resources.create", {
+      orgId,
+      projectId,
+      title: "Voice Guide with Description",
+      type: "text",
+      category: "brand_voice",
+      description: "Defines our brand tone for content agents",
+      content: {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "We write with clarity and warmth." }],
+          },
+        ],
+      },
+    })
+    expect(created.id).toMatch(/^res_/)
+
+    // Verify description persists via list API
+    const resources = await trpcQuery(page.request, "resources.list", {
+      orgId,
+      projectId,
+    })
     const voiceResource = resources.find(
       (r: { title: string }) => r.title === "Voice Guide with Description"
     )
@@ -433,5 +408,62 @@ test.describe.serial("Resources", () => {
     // Verify the created resource has the right id format
     expect(result.id).toBeTruthy()
     expect(result.id).toMatch(/^res_/)
+  })
+
+  test("create 'Other' resource shows description field", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
+
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/resources`)
+
+    await page.getByRole("button", { name: "Add resource" }).click()
+
+    // Description field should not be visible for a predefined category
+    await page.getByText("Select a category").click()
+    await page.getByRole("option", { name: "Brand Voice" }).click()
+    await page.getByRole("button", { name: "Text" }).click()
+    await expect(page.getByLabel("Description")).not.toBeVisible()
+
+    // Switch to "Other" — description field should appear
+    await page
+      .getByRole("combobox")
+      .filter({ hasText: "Brand Voice" })
+      .click()
+    await page.getByRole("option", { name: "Other" }).click()
+
+    await expect(page.getByLabel("Description")).toBeVisible()
+
+    // Fill the form
+    await page.getByLabel("Title").fill("Custom Resource")
+    await page.getByLabel("Description").fill("A custom category resource")
+    await page.locator(".ProseMirror").fill("Custom content here.")
+
+    await page.getByRole("button", { name: "Create" }).click()
+
+    await expect(page.getByText("Custom Resource")).toBeVisible({
+      timeout: 5_000,
+    })
+  })
+
+  test("'Other' resource description persists on edit", async ({ page }) => {
+    await page.goto("/sign-in")
+    await page.getByLabel("Email").fill(testUser.email)
+    await page.getByLabel("Password").fill(testUser.password)
+    await page.getByRole("button", { name: "Sign in" }).click()
+    await expect(page).toHaveURL(/\/(orgs)?$/, { timeout: 10_000 })
+
+    await page.goto(`/orgs/${orgId}/projects/${projectId}/resources`)
+
+    // Open the resource we just created
+    await page.getByText("Custom Resource").click()
+
+    // Description should be populated in the edit dialog
+    await expect(page.getByLabel("Description")).toBeVisible()
+    await expect(page.getByLabel("Description")).toHaveValue(
+      "A custom category resource"
+    )
   })
 })

@@ -61,6 +61,7 @@ interface ResourceDialogProps {
   editResource?: {
     id: string
     title: string
+    description?: string | null
     type: ResourceType
     category: ResourceCategory
     linkUrl?: string | null
@@ -82,6 +83,7 @@ export function ResourceDialog({
   const [category, setCategory] = useState<ResourceCategory | "">("")
   const [type, setType] = useState<ResourceType | "">("")
   const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
   const [linkUrl, setLinkUrl] = useState("")
   const [editorContent, setEditorContent] = useState<JSONContent | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -99,6 +101,7 @@ export function ResourceDialog({
       setCategory("")
       setType("")
       setTitle("")
+      setDescription("")
       setLinkUrl("")
       setEditorContent(null)
       setSelectedFile(null)
@@ -112,6 +115,7 @@ export function ResourceDialog({
       setCategory(editResource.category)
       setType(editResource.type)
       setTitle(editResource.title)
+      setDescription(editResource.description ?? "")
       setLinkUrl(editResource.linkUrl ?? "")
       setEditorContent(editResource.content ?? null)
     }
@@ -176,6 +180,7 @@ export function ResourceDialog({
           projectId,
           title: title.trim(),
           category: category as ResourceCategory,
+          description: category === "other" ? description || null : null,
         }
         if (type === "link") patchInput.linkUrl = linkUrl
         if (type === "text") patchInput.content = editorContent as Record<string, unknown>
@@ -207,6 +212,7 @@ export function ResourceDialog({
           title: title.trim(),
           type: type as ResourceType,
           category: category as ResourceCategory,
+          description: category === "other" ? description || undefined : undefined,
         }
         if (type === "link") postInput.linkUrl = linkUrl
         if (type === "text") postInput.content = editorContent as Record<string, unknown>
@@ -322,6 +328,20 @@ export function ResourceDialog({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   maxLength={200}
+                />
+              </div>
+            )}
+
+            {/* Description — only for "other" category */}
+            {category === "other" && (isEdit || type) && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="resource-description">Description</Label>
+                <Input
+                  id="resource-description"
+                  placeholder="Describe this resource"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={500}
                 />
               </div>
             )}
