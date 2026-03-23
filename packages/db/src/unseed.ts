@@ -1,16 +1,15 @@
-import { drizzle } from "drizzle-orm/postgres-js"
 import { inArray, eq } from "drizzle-orm"
-import postgres from "postgres"
 import { content } from "./schema/index"
 import { user, organization, member, account } from "./schema/auth"
 import { project } from "./schema/projects"
 import { agent, agentTool } from "./schema/agents"
 import { contentType, contentTypeStage, subAgent } from "./schema/content-types"
+import { createSeedDb } from "./seed-db"
 
-process.loadEnvFile("../../.env.local")
-
-const client = postgres(process.env.DATABASE_URL!)
-const db = drizzle(client)
+const { client, db } = createSeedDb({
+  envFiles: ["../../.env.local"],
+  forbidProduction: true,
+})
 
 const SEED_IDS = {
   content: [

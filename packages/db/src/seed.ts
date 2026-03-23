@@ -1,5 +1,5 @@
+import { pathToFileURL } from "node:url"
 import { drizzle } from "drizzle-orm/postgres-js"
-import postgres from "postgres"
 import { user, organization, member, account } from "./schema/auth"
 import { project } from "./schema/projects"
 import { agent, agentTool } from "./schema/agents"
@@ -10,16 +10,9 @@ import {
   subAgent,
 } from "./schema/content-types"
 import { sql } from "drizzle-orm"
+import { createSeedDb } from "./seed-db"
 
-process.loadEnvFile("../../.env.local")
-
-if (process.env.NODE_ENV === "production") {
-  console.error("ERROR: Seed script must not run in production!")
-  process.exit(1)
-}
-
-const client = postgres(process.env.DATABASE_URL!)
-const db = drizzle(client)
+type SeedDb = ReturnType<typeof drizzle>
 
 // All seed IDs use a deterministic "seed" prefix so they can be cleanly upserted/deleted
 // Login: sam.altman@cophrase.ai / password
@@ -72,7 +65,7 @@ const SEED_PROJECT = {
 // Agents — 5 content orchestrators + 14 sub-agents
 // ---------------------------------------------------------------------------
 
-const ALL_SEED_AGENTS = [
+export const ALL_SEED_AGENTS = [
   // ── Content orchestrators ────────────────────────────────────────────────
 
   {
@@ -567,7 +560,7 @@ Save the refined newsletter as an artifact titled "Newsletter Final: <edition ti
 // Content Types — 5 built-in templates (app-scoped)
 // ---------------------------------------------------------------------------
 
-const SEED_CONTENT_TYPES = [
+export const SEED_CONTENT_TYPES = [
   {
     id: "seed_cty_blog",
     scope: "app" as const,
@@ -737,7 +730,7 @@ const SEED_CONTENT_TYPES = [
 // Content Type Stages — 14 stages across 5 content types
 // ---------------------------------------------------------------------------
 
-const SEED_STAGES = [
+export const SEED_STAGES = [
   // Blog stages
   {
     id: "seed_cts_blog_1",
@@ -837,7 +830,7 @@ const SEED_STAGES = [
 // Sub-Agents — 14 stage → agent bindings
 // ---------------------------------------------------------------------------
 
-const SEED_SUB_AGENTS = [
+export const SEED_SUB_AGENTS = [
   // Blog
   {
     id: "seed_sa_blog_1",
@@ -937,7 +930,7 @@ const SEED_SUB_AGENTS = [
 // Agent Tools — web-search bindings for research agents
 // ---------------------------------------------------------------------------
 
-const SEED_AGENT_TOOLS = [
+export const SEED_AGENT_TOOLS = [
   {
     id: "seed_ats_blog_re",
     agentId: "seed_agt_blog_re",
@@ -1015,7 +1008,92 @@ const SEED_CONTENT = [
   },
 ]
 
-async function seed() {
+export async function seedAppTemplates(db: SeedDb) {
+  // 1. Seed agents (orchestrators + sub-agents)
+  console.log("Seeding agents...")
+  for (const a of ALL_SEED_AGENTS) {
+    await db
+      .insert(agent)
+      .values(a)
+      .onConflictDoUpdate({
+        target: agent.id,
+        set: {
+          name: sql`excluded.name`,
+          prompt: sql`excluded.prompt`,
+          description: sql`excluded.description`,
+          updatedAt: sql`now()`,
+        },
+      })
+  }
+
+  // 2. Seed agent tools
+  console.log("Seeding agent tools...")
+  for (const t of SEED_AGENT_TOOLS) {
+    await db
+      .insert(agentTool)
+      .values(t)
+      .onConflictDoUpdate({
+        target: agentTool.id,
+        set: {
+          type: sql`excluded.type`,
+          referenceId: sql`excluded.reference_id`,
+        },
+      })
+  }
+
+  // 3. Seed content types
+  console.log("Seeding content types...")
+  for (const ct of SEED_CONTENT_TYPES) {
+    await db
+      .insert(contentType)
+      .values(ct)
+      .onConflictDoUpdate({
+        target: contentType.id,
+        set: {
+          name: sql`excluded.name`,
+          description: sql`excluded.description`,
+          format: sql`excluded.format`,
+          frontmatterSchema: sql`excluded.frontmatter_schema`,
+          agentId: sql`excluded.agent_id`,
+          updatedAt: sql`now()`,
+        },
+      })
+  }
+
+  // 4. Seed content type stages
+  console.log("Seeding content type stages...")
+  for (const s of SEED_STAGES) {
+    await db
+      .insert(contentTypeStage)
+      .values(s)
+      .onConflictDoUpdate({
+        target: contentTypeStage.id,
+        set: {
+          name: sql`excluded.name`,
+          position: sql`excluded.position`,
+          updatedAt: sql`now()`,
+        },
+      })
+  }
+
+  // 5. Seed sub-agents (stage → agent bindings)
+  console.log("Seeding sub-agents...")
+  for (const sa of SEED_SUB_AGENTS) {
+    await db
+      .insert(subAgent)
+      .values(sa)
+      .onConflictDoUpdate({
+        target: subAgent.id,
+        set: {
+          stageId: sql`excluded.stage_id`,
+          agentId: sql`excluded.agent_id`,
+          executionOrder: sql`excluded.execution_order`,
+        },
+      })
+  }
+}
+
+export async function seedDevFixtures(db: SeedDb) {
   // 1. Seed user
   console.log("Seeding user...")
   await db
@@ -1066,90 +1144,7 @@ async function seed() {
       set: { name: sql`excluded.name` },
     })
 
-  // 6. Seed agents (orchestrators + sub-agents)
-  console.log("Seeding agents...")
-  for (const a of ALL_SEED_AGENTS) {
-    await db
-      .insert(agent)
-      .values(a)
-      .onConflictDoUpdate({
-        target: agent.id,
-        set: {
-          name: sql`excluded.name`,
-          prompt: sql`excluded.prompt`,
-          description: sql`excluded.description`,
-          updatedAt: sql`now()`,
-        },
-      })
-  }
-
-  // 7. Seed agent tools
-  console.log("Seeding agent tools...")
-  for (const t of SEED_AGENT_TOOLS) {
-    await db
-      .insert(agentTool)
-      .values(t)
-      .onConflictDoUpdate({
-        target: agentTool.id,
-        set: {
-          type: sql`excluded.type`,
-          referenceId: sql`excluded.reference_id`,
-        },
-      })
-  }
-
-  // 8. Seed content types
-  console.log("Seeding content types...")
-  for (const ct of SEED_CONTENT_TYPES) {
-    await db
-      .insert(contentType)
-      .values(ct)
-      .onConflictDoUpdate({
-        target: contentType.id,
-        set: {
-          name: sql`excluded.name`,
-          description: sql`excluded.description`,
-          format: sql`excluded.format`,
-          frontmatterSchema: sql`excluded.frontmatter_schema`,
-          agentId: sql`excluded.agent_id`,
-          updatedAt: sql`now()`,
-        },
-      })
-  }
-
-  // 9. Seed content type stages
-  console.log("Seeding content type stages...")
-  for (const s of SEED_STAGES) {
-    await db
-      .insert(contentTypeStage)
-      .values(s)
-      .onConflictDoUpdate({
-        target: contentTypeStage.id,
-        set: {
-          name: sql`excluded.name`,
-          position: sql`excluded.position`,
-          updatedAt: sql`now()`,
-        },
-      })
-  }
-
-  // 10. Seed sub-agents (stage → agent bindings)
-  console.log("Seeding sub-agents...")
-  for (const sa of SEED_SUB_AGENTS) {
-    await db
-      .insert(subAgent)
-      .values(sa)
-      .onConflictDoUpdate({
-        target: subAgent.id,
-        set: {
-          stageId: sql`excluded.stage_id`,
-          agentId: sql`excluded.agent_id`,
-          executionOrder: sql`excluded.execution_order`,
-        },
-      })
-  }
-
-  // 11. Seed content pieces
+  // 6. Seed content pieces
   console.log("Seeding content pieces...")
   for (const c of SEED_CONTENT) {
     await db
@@ -1166,10 +1161,25 @@ async function seed() {
       })
   }
 
-  await client.end()
 }
 
-seed().catch((err) => {
-  console.error("Seed failed:", err)
-  process.exit(1)
-})
+export async function seed() {
+  const { client, db } = createSeedDb({
+    envFiles: ["../../.env.local"],
+    forbidProduction: true,
+  })
+
+  try {
+    await seedAppTemplates(db)
+    await seedDevFixtures(db)
+  } finally {
+    await client.end()
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  seed().catch((err) => {
+    console.error("Seed failed:", err)
+    process.exit(1)
+  })
+}

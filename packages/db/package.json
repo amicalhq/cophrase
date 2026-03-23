@@ -25,7 +25,10 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/seed.ts",
+    "db:seed:dev": "tsx src/seed.ts",
+    "db:seed:app": "tsx src/seed-app.ts",
     "db:unseed": "tsx src/unseed.ts",
+    "db:unseed:dev": "tsx src/unseed.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
