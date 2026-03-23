@@ -61,7 +61,6 @@ interface ResourceDialogProps {
   editResource?: {
     id: string
     title: string
-    description?: string | null
     type: ResourceType
     category: ResourceCategory
     linkUrl?: string | null
@@ -83,7 +82,6 @@ export function ResourceDialog({
   const [category, setCategory] = useState<ResourceCategory | "">("")
   const [type, setType] = useState<ResourceType | "">("")
   const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
   const [linkUrl, setLinkUrl] = useState("")
   const [editorContent, setEditorContent] = useState<JSONContent | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -101,7 +99,6 @@ export function ResourceDialog({
       setCategory("")
       setType("")
       setTitle("")
-      setDescription("")
       setLinkUrl("")
       setEditorContent(null)
       setSelectedFile(null)
@@ -115,7 +112,6 @@ export function ResourceDialog({
       setCategory(editResource.category)
       setType(editResource.type)
       setTitle(editResource.title)
-      setDescription(editResource.description ?? "")
       setLinkUrl(editResource.linkUrl ?? "")
       setEditorContent(editResource.content ?? null)
     }
@@ -181,7 +177,6 @@ export function ResourceDialog({
           title: title.trim(),
           category: category as ResourceCategory,
         }
-        patchInput.description = description.trim() || null
         if (type === "link") patchInput.linkUrl = linkUrl
         if (type === "text") patchInput.content = editorContent as Record<string, unknown>
         if (type === "file" && selectedFile) {
@@ -213,7 +208,6 @@ export function ResourceDialog({
           type: type as ResourceType,
           category: category as ResourceCategory,
         }
-        if (description.trim()) postInput.description = description.trim()
         if (type === "link") postInput.linkUrl = linkUrl
         if (type === "text") postInput.content = editorContent as Record<string, unknown>
         if (type === "file" && selectedFile) {
@@ -258,7 +252,7 @@ export function ResourceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-5xl w-[90vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit resource" : "Add resource"}</DialogTitle>
           <DialogDescription>
@@ -329,25 +323,6 @@ export function ResourceDialog({
                   onChange={(e) => setTitle(e.target.value)}
                   maxLength={200}
                 />
-              </div>
-            )}
-
-            {/* Description */}
-            {(isEdit || type) && (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="resource-description">Description</Label>
-                <textarea
-                  id="resource-description"
-                  placeholder="Describe what this resource contains and when agents should use it"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  maxLength={500}
-                  rows={2}
-                  className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                <p className="text-xs text-muted-foreground">
-                  A good description helps the AI decide when to include this as context.
-                </p>
               </div>
             )}
 
