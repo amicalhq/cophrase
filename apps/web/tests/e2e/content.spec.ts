@@ -101,7 +101,8 @@ test.describe.serial("Content pieces", () => {
     await expect(page.getByText("New content").first()).toBeVisible()
 
     await page.getByLabel("Title").fill("My First Blog Post")
-    // "Blog Post" is selected by default (first content type)
+    // Explicitly select Blog Post type
+    await page.getByRole("button", { name: "Blog Post" }).click()
     await page.getByRole("button", { name: "Create" }).click()
 
     // Dismiss post-creation dialog if shown

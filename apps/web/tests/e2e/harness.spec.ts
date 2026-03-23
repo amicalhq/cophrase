@@ -175,10 +175,13 @@ test.describe.serial("Dynamic harness", () => {
     await page.getByPlaceholder(/ask the ai agent/i).press("Enter")
 
     // Wait for assistant response containing stage names (LLM call — may take a while)
-    // The Content Agent should mention the pipeline stages in its response
-    await expect(
-      page.getByText(/Research.*Draft.*Refine/i),
-    ).toBeVisible({ timeout: 90_000 })
+    // The Content Agent should mention all pipeline stages in its response
+    // Stages may appear on separate lines (e.g. as a list), so check each individually
+    await expect(page.getByText("Research").first()).toBeVisible({
+      timeout: 90_000,
+    })
+    await expect(page.getByText("Draft").first()).toBeVisible()
+    await expect(page.getByText("Refine").first()).toBeVisible()
   })
 
   test("cancelChat returns empty array when no runs are active", async ({
