@@ -41,6 +41,9 @@ export const auth = betterAuth({
     provider: "pg",
   }),
   trustedOrigins: getTrustedOrigins(),
+  rateLimit: process.env.DISABLE_RATE_LIMIT === "true"
+    ? { enabled: false }
+    : undefined,
   emailAndPassword: {
     enabled: true,
   },
