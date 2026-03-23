@@ -14,6 +14,13 @@ test.describe("Unauthenticated user", () => {
     await expect(page.getByRole("link", { name: "Sign up" })).toBeVisible()
   })
 
+  test("direct /orgs access redirects to sign-in", async ({ page }) => {
+    await page.goto("/orgs")
+
+    await expect(page).toHaveURL(/\/sign-in/)
+    await expect(page.locator("[data-slot='card-title']")).toHaveText("Sign in")
+  })
+
   test("can navigate to sign-up page", async ({ page }) => {
     await page.goto("/sign-in")
 

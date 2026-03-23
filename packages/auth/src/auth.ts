@@ -24,11 +24,23 @@ const idGenerators: Record<string, () => string> = {
   invitation: createInvitationId,
 }
 
+function getTrustedOrigins() {
+  const runtimeOrigin = process.env.BETTER_AUTH_URL?.trim()
+
+  return Array.from(
+    new Set(
+      [runtimeOrigin, "http://localhost:3000", "http://127.0.0.1:3000"].filter(
+        (origin): origin is string => Boolean(origin)
+      )
+    )
+  )
+}
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
-  trustedOrigins: ["http://localhost:3000"],
+  trustedOrigins: getTrustedOrigins(),
   emailAndPassword: {
     enabled: true,
   },

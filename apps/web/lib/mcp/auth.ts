@@ -1,7 +1,10 @@
 import { verifyAccessToken } from "better-auth/oauth2"
 import type { McpContext } from "@/lib/mcp/types"
 
-const AUTH_BASE = process.env.BETTER_AUTH_URL ?? "http://localhost:3000"
+const PUBLIC_AUTH_BASE =
+  process.env.BETTER_AUTH_URL ?? "http://localhost:3000"
+const INTERNAL_AUTH_BASE =
+  process.env.BETTER_AUTH_INTERNAL_URL ?? PUBLIC_AUTH_BASE
 
 export async function verifyMcpToken(
   authorizationHeader: string | null,
@@ -11,10 +14,10 @@ export async function verifyMcpToken(
 
   try {
     const payload = await verifyAccessToken(token, {
-      jwksUrl: `${AUTH_BASE}/api/auth/jwks`,
+      jwksUrl: `${INTERNAL_AUTH_BASE}/api/auth/jwks`,
       verifyOptions: {
-        issuer: `${AUTH_BASE}/api/auth`,
-        audience: `${AUTH_BASE}/mcp`,
+        issuer: `${PUBLIC_AUTH_BASE}/api/auth`,
+        audience: `${PUBLIC_AUTH_BASE}/mcp`,
       },
       scopes: ["cophrase"],
     })

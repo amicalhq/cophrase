@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { createAuthClient } from "better-auth/react"
 import { oauthProviderClient } from "@better-auth/oauth-provider/client"
@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 
-export default function ConsentPage() {
+function ConsentPageContent() {
   const searchParams = useSearchParams()
   const clientId = searchParams.get("client_id")
   const scope = searchParams.get("scope")
@@ -78,5 +78,21 @@ export default function ConsentPage() {
         </CardFooter>
       </Card>
     </div>
+  )
+}
+
+export default function ConsentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-svh items-center justify-center p-4">
+          <p className="text-sm text-muted-foreground">
+            Loading authorization request...
+          </p>
+        </div>
+      }
+    >
+      <ConsentPageContent />
+    </Suspense>
   )
 }

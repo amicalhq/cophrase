@@ -5,6 +5,10 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "docker:web:build": "turbo run docker:build --filter=web",
+    "docker:web:run": "turbo run docker:run --filter=web",
+    "docker:web:stop": "turbo run docker:stop --filter=web",
+    "docker:web:logs": "turbo run docker:logs --filter=web",
     "lint": "turbo lint",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
