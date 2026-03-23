@@ -263,12 +263,20 @@ test.describe.serial("Blog Post full pipeline", () => {
   })
 
   test("Research stage created artifacts", async ({ page }) => {
+    test.setTimeout(30_000)
     await signIn(page)
 
-    // Check artifacts via API
-    const data = await trpcQuery(page.request, 'content.artifacts', {
-      contentId,
-    })
+    // Artifacts may be written asynchronously after the agent stream ends.
+    // Poll the API a few times before failing.
+    let data: { artifacts: { type: string; status: string }[] } = { artifacts: [] }
+    for (let attempt = 0; attempt < 5; attempt++) {
+      data = await trpcQuery(page.request, 'content.artifacts', {
+        contentId,
+      })
+      if (data.artifacts.length > 0) break
+      await page.waitForTimeout(2_000)
+    }
+
     expect(data.artifacts.length).toBeGreaterThan(0)
 
     // Should have research-notes artifact
@@ -276,7 +284,7 @@ test.describe.serial("Blog Post full pipeline", () => {
       (a: { type: string }) => a.type === "research-notes",
     )
     expect(researchArtifact).toBeTruthy()
-    expect(researchArtifact.status).toBe("ready")
+    expect(researchArtifact!.status).toBe("ready")
   })
 
   test("stage advanced after Research", async ({ page }) => {
