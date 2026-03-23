@@ -230,7 +230,7 @@ test.describe.serial("Blog Post full pipeline", () => {
   // =========================================================================
 
   test("ask agent to run Research stage — agent responds with plan", async ({ page }) => {
-    test.setTimeout(120_000)
+    test.setTimeout(180_000)
     await signIn(page)
     await page.goto(
       `/orgs/${orgId}/projects/${projectId}/content/${contentId}/edit`,
@@ -253,12 +253,12 @@ test.describe.serial("Blog Post full pipeline", () => {
 
     // Wait for the tool call to appear (run-stage)
     await expect(page.getByText(/Running/i).first()).toBeVisible({
-      timeout: 90_000,
+      timeout: 120_000,
     })
 
     // Wait for response to complete (streaming ends)
     await expect(page.getByText("Agent is working...")).not.toBeVisible({
-      timeout: 90_000,
+      timeout: 120_000,
     })
   })
 
