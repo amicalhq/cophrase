@@ -22,8 +22,9 @@ WORKDIR /app
 COPY --from=deps /app/ ./
 COPY . .
 
-# apps/web/.env.local is typically a symlink to ../../.env.local in local dev.
-RUN rm -f apps/web/.env.local && touch apps/web/.env.local
+# apps/web/.env* are typically symlinks back to the repo root in local dev.
+RUN rm -f apps/web/.env apps/web/.env.local \
+  && touch apps/web/.env apps/web/.env.local
 
 RUN DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder \
   BETTER_AUTH_SECRET=placeholder-secret-that-is-long-enough-for-build \
